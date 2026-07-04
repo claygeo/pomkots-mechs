@@ -743,101 +743,125 @@ public class PomkotsMechs {
 
 	public static void registerServerUserInteraction() {
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_DRIVER_INPUT), (buf, context) -> {
-			Player player = context.getPlayer();
-
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
 			short keyPressStatus = buf.readShort();
 
-			if (Utils.isRidingPomkotsControllable(player)) {
-				Entity vehicle = player.getVehicle();
-				((PomkotsControllable)vehicle).setDriverInput(new DriverInput(keyPressStatus));
-			}
+			context.queue(() -> {
+				Player player = context.getPlayer();
+
+				if (Utils.isRidingPomkotsControllable(player)) {
+					Entity vehicle = player.getVehicle();
+					((PomkotsControllable)vehicle).setDriverInput(new DriverInput(keyPressStatus));
+				}
+			});
 		});
 	}
 
 	public static void registerServerChangeTexture() {
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_CHANGE_TEXTURE), (buf, context) -> {
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
 			int targetEntityId = buf.readInt();
 			int textureColor = buf.readInt();
 
-			var entity = context.getPlayer().level().getEntity(targetEntityId);
+			context.queue(() -> {
+				var entity = context.getPlayer().level().getEntity(targetEntityId);
 
-			if (entity instanceof Pmvc01Entity mech) {
-				mech.setTextureColor(textureColor);
-			}
+				if (entity instanceof Pmvc01Entity mech) {
+					mech.setTextureColor(textureColor);
+				}
+			});
 		});
 	}
 
 	public static void registerServerTargetLock() {
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_HARD), (buf, context) -> {
-			Player player = context.getPlayer();
-
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
 			int targetEntityId = buf.readInt();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof PomkotsVehicle bot) {
-				bot.getLockTargets().lockTargetHard(player.level().getEntity(targetEntityId));
-			}
+			context.queue(() -> {
+				Player player = context.getPlayer();
+
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof PomkotsVehicle bot) {
+					bot.getLockTargets().lockTargetHard(player.level().getEntity(targetEntityId));
+				}
+			});
 		});
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_UNLOCK_HARD), (buf, context) -> {
-			Player player = context.getPlayer();
+			context.queue(() -> {
+				Player player = context.getPlayer();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof PomkotsVehicle bot) {
-				bot.getLockTargets().unlockTargetHard();
-			}
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof PomkotsVehicle bot) {
+					bot.getLockTargets().unlockTargetHard();
+				}
+			});
 		});
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_SOFT), (buf, context) -> {
-			Player player = context.getPlayer();
-
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
 			int targetEntityId = buf.readInt();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof PomkotsVehicle bot) {
-				bot.getLockTargets().lockTargetSoft(player.level().getEntity(targetEntityId));
-			}
+			context.queue(() -> {
+				Player player = context.getPlayer();
+
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof PomkotsVehicle bot) {
+					bot.getLockTargets().lockTargetSoft(player.level().getEntity(targetEntityId));
+				}
+			});
 		});
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_UNLOCK_SOFT), (buf, context) -> {
-			Player player = context.getPlayer();
+			context.queue(() -> {
+				Player player = context.getPlayer();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof PomkotsVehicle bot) {
-				bot.getLockTargets().unlockTargetSoft();
-			}
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof PomkotsVehicle bot) {
+					bot.getLockTargets().unlockTargetSoft();
+				}
+			});
 		});
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_MULTI), (buf, context) -> {
-			Player player = context.getPlayer();
-
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
 			int targetEntityId = buf.readInt();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof PomkotsVehicle bot) {
-				bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId));
-			}
+			context.queue(() -> {
+				Player player = context.getPlayer();
+
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof PomkotsVehicle bot) {
+					bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId));
+				}
+			});
 		});
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_UNLOCK_MULTI), (buf, context) -> {
-			Player player = context.getPlayer();
+			context.queue(() -> {
+				Player player = context.getPlayer();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof PomkotsVehicle bot) {
-				bot.getLockTargets().unlockTargetMulti();
-			}
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof PomkotsVehicle bot) {
+					bot.getLockTargets().unlockTargetMulti();
+				}
+			});
 		});
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_MULTI_CUSTOM), (buf, context) -> {
-			Player player = context.getPlayer();
-
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
 			int targetEntityId = buf.readInt();
 			int slot = buf.readInt();
 
-			Entity vehicle = player.getVehicle();
-			if (vehicle instanceof Pmvc01Entity bot) {
-				bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId), slot, bot);
-			}
+			context.queue(() -> {
+				Player player = context.getPlayer();
+
+				Entity vehicle = player.getVehicle();
+				if (vehicle instanceof Pmvc01Entity bot) {
+					bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId), slot, bot);
+				}
+			});
 		});
 	}
 
