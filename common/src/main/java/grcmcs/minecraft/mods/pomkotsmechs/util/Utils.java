@@ -154,11 +154,27 @@ public class Utils {
         }
     }
 
+    // Destroyer-aware overload: also consults the enable flag for the destroyer type before touching terrain.
+    public static void destroyBlock(Level level, BlockPos blockPos, boolean dropItem, Entity destroyer) {
+        if (!isBlockDestructionAllowed(destroyer)) {
+            return;
+        }
+        destroyBlock(level, blockPos, dropItem);
+    }
+
     public static void setBlock(Level level, BlockPos blockPos, BlockState blockState, int num) {
         var blockID = getBlockId(level.getBlockState(blockPos).getBlock());
         if (isDestructiveBLock(blockID)) {
             level.setBlock(blockPos, blockState, num);
         }
+    }
+
+    // Destroyer-aware overload: overwriting terrain is the same grief surface, so gate on the same enable flag.
+    public static void setBlock(Level level, BlockPos blockPos, BlockState blockState, int num, Entity destroyer) {
+        if (!isBlockDestructionAllowed(destroyer)) {
+            return;
+        }
+        setBlock(level, blockPos, blockState, num);
     }
 
     private static String getBlockId(Block block) {

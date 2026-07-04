@@ -335,7 +335,7 @@ public class ActionWeapon extends Action {
                         BlockState state = owner.level().getBlockState(blockPos);
                         if (!state.isAir()) {
                             if (x * x + z * z <= radius * radius) {
-                                Utils.destroyBlock(owner.level(), blockPos, PomkotsMechs.CONFIG.dropItemsWhenDestroyBlock);
+                                Utils.destroyBlock(owner.level(), blockPos, PomkotsMechs.CONFIG.dropItemsWhenDestroyBlock, owner);
                             }
                         }
                     }
@@ -361,7 +361,7 @@ public class ActionWeapon extends Action {
                             BlockState state = owner.level().getBlockState(targetPos);
                             // ブロックが空でない場合に破壊
                             if (!state.isAir()) {
-                                Utils.destroyBlock(owner.level(), targetPos, PomkotsMechs.CONFIG.dropItemsWhenDestroyBlock);
+                                Utils.destroyBlock(owner.level(), targetPos, PomkotsMechs.CONFIG.dropItemsWhenDestroyBlock, owner);
                             }
                         }
                     }
