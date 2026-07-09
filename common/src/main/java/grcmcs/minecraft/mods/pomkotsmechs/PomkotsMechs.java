@@ -711,6 +711,8 @@ public class PomkotsMechs {
 		registerServerTargetLock();
 
 		PlayerEvent.PLAYER_JOIN.register(PomkotsMechs::sendDataPack2Player);
+
+		grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaManager.init();
 	}
 
 	public static void sendDataPack2Player(ServerPlayer player) {
