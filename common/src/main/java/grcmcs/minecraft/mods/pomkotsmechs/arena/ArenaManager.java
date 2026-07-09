@@ -80,6 +80,7 @@ public final class ArenaManager {
         EntityEvent.LIVING_DEATH.register(ArenaManager::onLivingDeath);
         PlayerEvent.PLAYER_QUIT.register(ArenaManager::onPlayerQuit);
         LifecycleEvent.SERVER_STARTED.register(ArenaManager::onServerStarted);
+        ArenaCommands.register();
     }
 
     // ---------------------------------------------------------------------
