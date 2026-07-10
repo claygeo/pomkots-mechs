@@ -83,6 +83,7 @@ public final class ArenaManager {
         PlayerEvent.PLAYER_JOIN.register(ArenaManager::onPlayerJoin);
         PlayerEvent.PLAYER_RESPAWN.register(ArenaManager::onPlayerRespawn);
         LifecycleEvent.SERVER_STARTED.register(ArenaManager::onServerStarted);
+        LifecycleEvent.SERVER_STOPPING.register(ArenaManager::onServerStopping);
         ArenaCommands.register();
     }
 
@@ -95,7 +96,18 @@ public final class ArenaManager {
         // that a crash may have left behind.
         resetToIdle();
         queue.clear();
+        fighters.clear();
         killTaggedEntities(server);
+    }
+
+    private static void onServerStopping(MinecraftServer server) {
+        // Restore everyone BEFORE shutdown saves playerdata; records of players
+        // we cannot heal right now (dead/offline) stay persisted for the
+        // join/respawn healers on the next boot.
+        if (state != ArenaState.IDLE) {
+            broadcast(server, "Server stopping — match cancelled.");
+        }
+        cleanup(server);
     }
 
     private static void onPlayerQuit(ServerPlayer player) {
@@ -266,7 +278,7 @@ public final class ArenaManager {
         List<ArenaPoint> pads = data.getPads();
         if (pads.size() < MIN_PADS) {
             broadcast(server, "Not enough spawn pads. Match cancelled.");
-            resetToIdle();
+            abortMatch(server);
             return;
         }
 
@@ -276,7 +288,7 @@ public final class ArenaManager {
         for (ArenaPoint pad : pads) {
             if (!pad.dimension.equals(dim0)) {
                 broadcast(server, "Spawn pads span multiple dimensions. Match cancelled — reset the pads.");
-                resetToIdle();
+                abortMatch(server);
                 return;
             }
         }
@@ -285,7 +297,7 @@ public final class ArenaManager {
         ServerLevel arenaLevel = server.getLevel(arenaDimension);
         if (arenaLevel == null) {
             broadcast(server, "Arena dimension is not loaded. Match cancelled.");
-            resetToIdle();
+            abortMatch(server);
             return;
         }
         double[] center = computeCenter(pads);
@@ -357,6 +369,11 @@ public final class ArenaManager {
 
         player.setGameMode(GameType.ADVENTURE);
         player.teleportTo(arenaLevel, pad.x, pad.y, pad.z, pad.yaw, 0f);
+        if (player.serverLevel() != arenaLevel) {
+            // Another mod cancelled the cross-dimension teleport; never mount a
+            // player onto a mech in a level they are not in.
+            return false;
+        }
 
         ResourceLocation id = new ResourceLocation(PomkotsMechs.MODID, f.mechId);
         if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
@@ -390,6 +407,8 @@ public final class ArenaManager {
     private static void tickActive(MinecraftServer server) {
         matchTicks++;
 
+        ejectMechThieves();
+
         ServerLevel arenaLevel = arenaDimension != null ? server.getLevel(arenaDimension) : null;
         if (arenaLevel != null) {
             checkOutOfBounds(server);
@@ -402,6 +421,25 @@ public final class ArenaManager {
         if (matchTicks >= MATCH_TIMEOUT) {
             broadcast(server, "Time limit reached — the match is a draw.");
             beginEnding(server);
+        }
+    }
+
+    /**
+     * The base mod lets ANY player right-click-mount an unoccupied mech (and
+     * riders become invulnerable), so a bystander could steal a fighter's mech
+     * mid-match. Throw off every rider who is not the mech's owner.
+     */
+    private static void ejectMechThieves() {
+        for (Fighter f : fighters) {
+            if (f.eliminated || f.mech == null || !f.mech.isAlive()) {
+                continue;
+            }
+            for (Entity passenger : new ArrayList<>(f.mech.getPassengers())) {
+                if (passenger instanceof ServerPlayer rider && !rider.getUUID().equals(f.uuid)) {
+                    rider.stopRiding();
+                    sendTo(rider, "That mech belongs to " + f.name + ".");
+                }
+            }
         }
     }
 
@@ -540,6 +578,12 @@ public final class ArenaManager {
 
     private static void abortMatch(MinecraftServer server) {
         cleanup(server);
+        // Clear the queue too: a persistent failure (bad pads, blocked mounts)
+        // would otherwise re-arm auto-start and loop abort broadcasts forever.
+        if (!queue.isEmpty()) {
+            queue.clear();
+            broadcast(server, "Queue cleared — re-join with /arena join once the arena is fixed.");
+        }
     }
 
     /**
@@ -557,8 +601,11 @@ public final class ArenaManager {
             ServerLevel level = server.getLevel(lobby.dimensionKey());
             if (level != null) {
                 player.teleportTo(level, lobby.x, lobby.y, lobby.z, lobby.yaw, 0f);
-                data.removePendingRestore(player.getUUID());
-                return;
+                if (player.serverLevel() == level) {
+                    data.removePendingRestore(player.getUUID());
+                    return;
+                }
+                // Teleport was cancelled by another mod; try the record position.
             }
         }
         // Fall back to the recorded pre-match position.
@@ -567,7 +614,10 @@ public final class ArenaManager {
             level = server.overworld();
         }
         player.teleportTo(level, record.x, record.y, record.z, record.yaw, 0f);
-        data.removePendingRestore(player.getUUID());
+        if (player.serverLevel() == level) {
+            data.removePendingRestore(player.getUUID());
+        }
+        // else: keep the record so a later join/respawn heal retries.
     }
 
     private static void killTaggedEntities(MinecraftServer server) {
@@ -747,8 +797,11 @@ public final class ArenaManager {
         ArenaData data = ArenaData.get(src.getLevel().getServer());
         Vec3 pos = src.getPosition();
         Vec2 rot = src.getRotation();
-        data.setLobby(new ArenaPoint(src.getLevel().dimension().location(), pos.x, pos.y, pos.z, rot.y));
-        src.sendSuccess(() -> Component.literal(PREFIX + "Lobby return point saved."), false);
+        ArenaPoint lobby = new ArenaPoint(src.getLevel().dimension().location(), pos.x, pos.y, pos.z, rot.y);
+        data.setLobby(lobby);
+        // Echo the exact point: a bare console/RCON invocation records the world
+        // spawn, and the echo is what makes that mistake visible.
+        src.sendSuccess(() -> Component.literal(PREFIX + "Lobby return point saved at " + lobby + "."), false);
         return 1;
     }
 
@@ -764,9 +817,10 @@ public final class ArenaManager {
         }
         Vec3 pos = src.getPosition();
         Vec2 rot = src.getRotation();
-        data.addPad(new ArenaPoint(newDim, pos.x, pos.y, pos.z, rot.y));
+        ArenaPoint pad = new ArenaPoint(newDim, pos.x, pos.y, pos.z, rot.y);
+        data.addPad(pad);
         int count = data.getPads().size();
-        src.sendSuccess(() -> Component.literal(PREFIX + "Spawn pad #" + count + " added."), false);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Spawn pad #" + count + " added at " + pad + "."), false);
         return 1;
     }
 
@@ -816,7 +870,8 @@ public final class ArenaManager {
     public static int commandStop(CommandSourceStack src) {
         MinecraftServer server = src.getLevel().getServer();
         cleanup(server);
-        src.sendSuccess(() -> Component.literal(PREFIX + "Arena stopped and cleaned up."), true);
+        queue.clear();
+        src.sendSuccess(() -> Component.literal(PREFIX + "Arena stopped, cleaned up, queue cleared."), true);
         return 1;
     }
 }
