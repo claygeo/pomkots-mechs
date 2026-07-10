@@ -9,12 +9,18 @@ import net.minecraft.world.level.saveddata.SavedData;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
- * Persistent arena configuration (lobby return point + spawn pads). Stored via
- * vanilla {@link SavedData} on the overworld's data storage so it survives
- * restarts. Match/queue state is intentionally NOT persisted here.
+ * Persistent arena configuration (lobby return point + spawn pads) plus the
+ * durable {@code pendingRestores} table. Stored via vanilla {@link SavedData}
+ * on the overworld's data storage so it survives restarts. Match/queue state is
+ * intentionally NOT persisted here; the pending-restore records are, so that no
+ * player is ever stranded in the wrong gamemode/position by a crash, a
+ * disconnect, or a death-screen respawn.
  */
 public class ArenaData extends SavedData {
     public static final String DATA_NAME = "pomkotsmechs_arena";
@@ -22,6 +28,9 @@ public class ArenaData extends SavedData {
     @Nullable
     private ArenaPoint lobby;
     private final List<ArenaPoint> pads = new ArrayList<>();
+    // UUID -> the fighter's ORIGINAL pre-match snapshot. A record exists exactly
+    // while a player still owes a restore; it is removed once actually applied.
+    private final Map<UUID, RestoreRecord> pendingRestores = new LinkedHashMap<>();
 
     public ArenaData() {
     }
@@ -34,6 +43,13 @@ public class ArenaData extends SavedData {
         ListTag padList = tag.getList("pads", Tag.TAG_COMPOUND);
         for (int i = 0; i < padList.size(); i++) {
             data.pads.add(ArenaPoint.load(padList.getCompound(i)));
+        }
+        ListTag restoreList = tag.getList("pendingRestores", Tag.TAG_COMPOUND);
+        for (int i = 0; i < restoreList.size(); i++) {
+            CompoundTag entry = restoreList.getCompound(i);
+            if (entry.hasUUID("uuid")) {
+                data.pendingRestores.put(entry.getUUID("uuid"), RestoreRecord.load(entry));
+            }
         }
         return data;
     }
@@ -48,6 +64,13 @@ public class ArenaData extends SavedData {
             padList.add(pad.save());
         }
         tag.put("pads", padList);
+        ListTag restoreList = new ListTag();
+        for (Map.Entry<UUID, RestoreRecord> e : pendingRestores.entrySet()) {
+            CompoundTag entry = e.getValue().save();
+            entry.putUUID("uuid", e.getKey());
+            restoreList.add(entry);
+        }
+        tag.put("pendingRestores", restoreList);
         return tag;
     }
 
@@ -82,5 +105,30 @@ public class ArenaData extends SavedData {
     public void clearPads() {
         pads.clear();
         setDirty();
+    }
+
+    // ---------------------------------------------------------------------
+    // Pending-restore table (durable, crash-safe)
+    // ---------------------------------------------------------------------
+
+    @Nullable
+    public RestoreRecord getPendingRestore(UUID uuid) {
+        return pendingRestores.get(uuid);
+    }
+
+    public void putPendingRestore(UUID uuid, RestoreRecord record) {
+        pendingRestores.put(uuid, record);
+        setDirty();
+    }
+
+    public void removePendingRestore(UUID uuid) {
+        if (pendingRestores.remove(uuid) != null) {
+            setDirty();
+        }
+    }
+
+    /** Defensive copy for safe iteration while records may be mutated. */
+    public Map<UUID, RestoreRecord> copyPendingRestores() {
+        return new LinkedHashMap<>(pendingRestores);
     }
 }
