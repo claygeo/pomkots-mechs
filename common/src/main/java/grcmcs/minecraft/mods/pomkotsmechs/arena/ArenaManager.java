@@ -17,8 +17,8 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
@@ -78,7 +78,10 @@ public final class ArenaManager {
     public static void init() {
         TickEvent.SERVER_POST.register(ArenaManager::onServerTick);
         EntityEvent.LIVING_DEATH.register(ArenaManager::onLivingDeath);
+        EntityEvent.ADD.register(ArenaManager::onEntityAdd);
         PlayerEvent.PLAYER_QUIT.register(ArenaManager::onPlayerQuit);
+        PlayerEvent.PLAYER_JOIN.register(ArenaManager::onPlayerJoin);
+        PlayerEvent.PLAYER_RESPAWN.register(ArenaManager::onPlayerRespawn);
         LifecycleEvent.SERVER_STARTED.register(ArenaManager::onServerStarted);
         ArenaCommands.register();
     }
@@ -99,20 +102,97 @@ public final class ArenaManager {
         UUID uuid = player.getUUID();
         queue.remove(uuid);
 
-        if (state != ArenaState.ACTIVE) {
-            return; // no live fighters to eliminate outside an active match
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return;
         }
-        Fighter f = findFighterByUuid(uuid);
-        if (f != null && !f.eliminated) {
-            MinecraftServer server = player.getServer();
-            // Disconnect counts as elimination. Don't move them to spectator
-            // (they are leaving); instead restore their pre-match state so they
-            // return normally on relog. The win check runs on the next tick.
-            eliminate(server, f, false);
-            if (server != null) {
-                restorePlayer(server, player, f);
+        // A pending record means this player still owes a restore. Whatever the
+        // state (ACTIVE/ENDING/even IDLE after a partial cleanup), heal them on
+        // the way out so they never relog stranded in ADVENTURE/SPECTATOR.
+        RestoreRecord rec = ArenaData.get(server).getPendingRestore(uuid);
+        if (rec == null) {
+            return;
+        }
+        if (state == ArenaState.ACTIVE) {
+            Fighter f = findFighterByUuid(uuid);
+            if (f != null && !f.eliminated) {
+                // Disconnect counts as elimination. Don't move them to spectator
+                // (they are leaving). The win check runs on the next tick.
+                eliminate(server, f, false);
             }
         }
+        restorePlayer(server, player, rec);
+    }
+
+    private static void onPlayerJoin(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return;
+        }
+        // Heals crash-mid-match relogs (even days later): the record outlived the
+        // match in ArenaData, so apply it the instant the player is back.
+        RestoreRecord rec = ArenaData.get(server).getPendingRestore(player.getUUID());
+        if (rec != null) {
+            restorePlayer(server, player, rec);
+        }
+    }
+
+    private static void onPlayerRespawn(ServerPlayer player, boolean conqueredEnd) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return;
+        }
+        UUID uuid = player.getUUID();
+        if (state == ArenaState.ACTIVE || state == ArenaState.ENDING) {
+            Fighter f = findFighterByUuid(uuid);
+            if (f != null && f.eliminated) {
+                // Died in-match and clicked respawn: keep them spectating the
+                // rest of the match. Their pending record stays until match end.
+                player.setGameMode(GameType.SPECTATOR);
+                ServerLevel level = arenaDimension != null ? server.getLevel(arenaDimension) : null;
+                if (level == null) {
+                    level = server.overworld();
+                }
+                player.teleportTo(level, centerX, centerY + SPECTATE_HEIGHT, centerZ,
+                        player.getYRot(), player.getXRot());
+                return;
+            }
+        }
+        // No match running (or not an eliminated fighter): if a restore is still
+        // owed — e.g. death-screen respawn that landed after cleanup — apply it.
+        RestoreRecord rec = ArenaData.get(server).getPendingRestore(uuid);
+        if (rec != null) {
+            restorePlayer(server, player, rec);
+        }
+    }
+
+    /**
+     * Catches arena mechs the boot sweep missed (entities in unloaded/forceloaded
+     * chunks that only load after {@code SERVER_STARTED}). Cancels the addition of
+     * any tagged mech that does not belong to a live match. Non-arena entities and
+     * legitimate in-match mechs pass through untouched.
+     */
+    private static EventResult onEntityAdd(Entity entity, Level level) {
+        if (!(level instanceof ServerLevel)) {
+            return EventResult.pass();
+        }
+        if (!entity.getTags().contains(TAG_ARENA)) {
+            return EventResult.pass();
+        }
+        // A tagged arena mech is being added.
+        if (state == ArenaState.ACTIVE) {
+            Fighter f = findFighterByMech(entity);
+            if (f != null && !f.eliminated) {
+                return EventResult.pass(); // a live fighter's current mech
+            }
+            return EventResult.interruptFalse(); // stray from a prior/dead fighter
+        }
+        if (state == ArenaState.COUNTDOWN) {
+            // Deploy window: startMatch spawns mechs while still COUNTDOWN.
+            return EventResult.pass();
+        }
+        // IDLE or ENDING: no live match owns this mech.
+        return EventResult.interruptFalse();
     }
 
     private static EventResult onLivingDeath(LivingEntity entity, DamageSource source) {
@@ -190,6 +270,17 @@ public final class ArenaManager {
             return;
         }
 
+        // All pads must share one dimension. Legacy data could be mixed; refuse
+        // to run rather than teleport fighters into split arenas.
+        ResourceLocation dim0 = pads.get(0).dimension;
+        for (ArenaPoint pad : pads) {
+            if (!pad.dimension.equals(dim0)) {
+                broadcast(server, "Spawn pads span multiple dimensions. Match cancelled — reset the pads.");
+                resetToIdle();
+                return;
+            }
+        }
+
         arenaDimension = pads.get(0).dimensionKey();
         ServerLevel arenaLevel = server.getLevel(arenaDimension);
         if (arenaLevel == null) {
@@ -197,7 +288,10 @@ public final class ArenaManager {
             resetToIdle();
             return;
         }
-        computeCenter(pads);
+        double[] center = computeCenter(pads);
+        centerX = center[0];
+        centerY = center[1];
+        centerZ = center[2];
 
         fighters.clear();
         int cap = pads.size();
@@ -221,6 +315,11 @@ public final class ArenaManager {
                     player.getX(), player.getY(), player.getZ(), player.getYRot());
             // Add before deploying so a mid-deploy abort still restores this player.
             fighters.add(f);
+            // Persist the pre-match snapshot BEFORE any mutation, so even a
+            // partial deploy (or a crash) can always heal this player.
+            data.putPendingRestore(f.uuid, new RestoreRecord(
+                    f.originalGameMode, f.originalDimension,
+                    f.originalX, f.originalY, f.originalZ, f.originalYaw));
             if (!deployFighter(server, arenaLevel, f, pads.get(index))) {
                 broadcast(server, "Failed to deploy " + f.name + ". Match aborted.");
                 abortMatch(server);
@@ -276,14 +375,14 @@ public final class ArenaManager {
         mech.setYRot(pad.yaw);
         mech.addTag(TAG_ARENA);
         mech.addTag(TAG_OWNER_PREFIX + f.uuid);
-        if (mech instanceof Mob mob) {
-            mob.setPersistenceRequired();
-        }
+        // Set the reference before adding so the EntityEvent.ADD guard recognises
+        // this as a live fighter's mech and lets it through.
+        f.mech = mech;
         if (!arenaLevel.addFreshEntity(mech)) {
             mech.discard();
+            f.mech = null;
             return false;
         }
-        f.mech = mech;
 
         return player.startRiding(mech, true);
     }
@@ -315,10 +414,17 @@ public final class ArenaManager {
             if (player == null) {
                 continue; // disconnect handled by the quit event
             }
-            double dx = player.getX() - centerX;
-            double dz = player.getZ() - centerZ;
-            double distSq = dx * dx + dz * dz;
-            if (distSq > BOUNDS_RADIUS * BOUNDS_RADIUS) {
+            boolean outside;
+            if (!player.level().dimension().equals(arenaDimension)) {
+                // Left the arena dimension entirely (e.g. a nether portal). Treat
+                // as out of bounds on the same grace timer.
+                outside = true;
+            } else {
+                double dx = player.getX() - centerX;
+                double dz = player.getZ() - centerZ;
+                outside = (dx * dx + dz * dz) > BOUNDS_RADIUS * BOUNDS_RADIUS;
+            }
+            if (outside) {
                 f.outsideTicks++;
                 if (f.outsideTicks == 1 || f.outsideTicks % 20 == 0) {
                     int secsLeft = Math.max(1, (BOUNDS_GRACE - f.outsideTicks) / 20 + 1);
@@ -414,10 +520,18 @@ public final class ArenaManager {
     /** Shared, idempotent teardown used by win/draw/stop/abort. */
     private static void cleanup(MinecraftServer server) {
         killTaggedEntities(server);
+        ArenaData data = ArenaData.get(server);
         for (Fighter f : new ArrayList<>(fighters)) {
             ServerPlayer player = server.getPlayerList().getPlayer(f.uuid);
-            if (player != null) {
-                restorePlayer(server, player, f);
+            RestoreRecord rec = data.getPendingRestore(f.uuid);
+            if (rec == null) {
+                continue; // already restored (e.g. a quit mid-match)
+            }
+            // Only heal players who are online AND alive right now — a dead player
+            // on the death screen can't be teleported yet, so leave their record
+            // for the RESPAWN healer. Offline players are left for the JOIN healer.
+            if (player != null && player.isAlive()) {
+                restorePlayer(server, player, rec);
             }
         }
         fighters.clear();
@@ -428,8 +542,14 @@ public final class ArenaManager {
         cleanup(server);
     }
 
-    private static void restorePlayer(MinecraftServer server, ServerPlayer player, Fighter f) {
-        player.setGameMode(f.originalGameMode);
+    /**
+     * Restore a player from a durable {@link RestoreRecord} (not a Fighter, so it
+     * can heal players whose Fighter object no longer exists — crash relogs,
+     * post-cleanup respawns). Applies gamemode + teleport (lobby if set, else the
+     * record's own position), then clears the record so it is never re-applied.
+     */
+    private static void restorePlayer(MinecraftServer server, ServerPlayer player, RestoreRecord record) {
+        player.setGameMode(record.gameMode);
 
         ArenaData data = ArenaData.get(server);
         ArenaPoint lobby = data.getLobby();
@@ -437,15 +557,17 @@ public final class ArenaManager {
             ServerLevel level = server.getLevel(lobby.dimensionKey());
             if (level != null) {
                 player.teleportTo(level, lobby.x, lobby.y, lobby.z, lobby.yaw, 0f);
+                data.removePendingRestore(player.getUUID());
                 return;
             }
         }
         // Fall back to the recorded pre-match position.
-        ServerLevel level = server.getLevel(f.originalDimension);
+        ServerLevel level = server.getLevel(record.dimension);
         if (level == null) {
             level = server.overworld();
         }
-        player.teleportTo(level, f.originalX, f.originalY, f.originalZ, f.originalYaw, 0f);
+        player.teleportTo(level, record.x, record.y, record.z, record.yaw, 0f);
+        data.removePendingRestore(player.getUUID());
     }
 
     private static void killTaggedEntities(MinecraftServer server) {
@@ -469,16 +591,21 @@ public final class ArenaManager {
         arenaDimension = null;
     }
 
-    private static void computeCenter(List<ArenaPoint> pads) {
+    /**
+     * Pure: returns {@code [cx, cy, cz]} for the given pads without touching any
+     * static state. The live match's center statics are assigned ONLY in
+     * {@link #startMatch}, so read-only callers (e.g. /arena info) can't perturb a
+     * running match's bounds circle.
+     */
+    private static double[] computeCenter(List<ArenaPoint> pads) {
         double sx = 0, sy = 0, sz = 0;
         for (ArenaPoint pad : pads) {
             sx += pad.x;
             sy += pad.y;
             sz += pad.z;
         }
-        centerX = sx / pads.size();
-        centerY = sy / pads.size();
-        centerZ = sz / pads.size();
+        int n = pads.size();
+        return new double[]{sx / n, sy / n, sz / n};
     }
 
     // ---------------------------------------------------------------------
@@ -627,9 +754,17 @@ public final class ArenaManager {
 
     public static int commandAddPad(CommandSourceStack src) {
         ArenaData data = ArenaData.get(src.getLevel().getServer());
+        ResourceLocation newDim = src.getLevel().dimension().location();
+        List<ArenaPoint> pads = data.getPads();
+        if (!pads.isEmpty() && !pads.get(0).dimension.equals(newDim)) {
+            src.sendFailure(Component.literal(PREFIX + "Pad dimension " + newDim
+                    + " differs from existing pads in " + pads.get(0).dimension
+                    + ". Clear pads first to build the arena elsewhere."));
+            return 0;
+        }
         Vec3 pos = src.getPosition();
         Vec2 rot = src.getRotation();
-        data.addPad(new ArenaPoint(src.getLevel().dimension().location(), pos.x, pos.y, pos.z, rot.y));
+        data.addPad(new ArenaPoint(newDim, pos.x, pos.y, pos.z, rot.y));
         int count = data.getPads().size();
         src.sendSuccess(() -> Component.literal(PREFIX + "Spawn pad #" + count + " added."), false);
         return 1;
@@ -651,8 +786,8 @@ public final class ArenaManager {
             sb.append("\n").append(PREFIX).append("  #").append(i + 1).append(": ").append(data.getPads().get(i));
         }
         if (!data.getPads().isEmpty()) {
-            computeCenter(data.getPads());
-            sb.append("\n").append(PREFIX).append(String.format("Center: [%.1f, %.1f, %.1f]", centerX, centerY, centerZ));
+            double[] c = computeCenter(data.getPads());
+            sb.append("\n").append(PREFIX).append(String.format("Center: [%.1f, %.1f, %.1f]", c[0], c[1], c[2]));
         }
         String out = sb.toString();
         src.sendSuccess(() -> Component.literal(out), false);
