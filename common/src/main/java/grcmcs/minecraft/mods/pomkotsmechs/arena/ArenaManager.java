@@ -67,6 +67,7 @@ public final class ArenaManager {
     private static int countdownTicks = 0;
     private static int matchTicks = 0;
     private static int endingTicks = 0;
+    private static int sweepTimer = 0;
 
     // Geometry of the currently running match.
     private static double centerX;
@@ -169,6 +170,16 @@ public final class ArenaManager {
                         player.getYRot(), player.getXRot());
                 return;
             }
+            if (f != null) {
+                // A CURRENT, non-eliminated fighter respawning mid-match: their
+                // record is owned by the match — never consume it here, or a later
+                // eliminate() would strand them with no record left. Treat the
+                // respawn as their elimination and let the normal path handle it.
+                if (state == ArenaState.ACTIVE) {
+                    eliminate(server, f, true);
+                }
+                return;
+            }
         }
         // No match running (or not an eliminated fighter): if a restore is still
         // owed — e.g. death-screen respawn that landed after cleanup — apply it.
@@ -191,19 +202,15 @@ public final class ArenaManager {
         if (!entity.getTags().contains(TAG_ARENA)) {
             return EventResult.pass();
         }
-        // A tagged arena mech is being added.
-        if (state == ArenaState.ACTIVE) {
-            Fighter f = findFighterByMech(entity);
-            if (f != null && !f.eliminated) {
-                return EventResult.pass(); // a live fighter's current mech
-            }
-            return EventResult.interruptFalse(); // stray from a prior/dead fighter
-        }
-        if (state == ArenaState.COUNTDOWN) {
-            // Deploy window: startMatch spawns mechs while still COUNTDOWN.
+        // A tagged arena mech is being added. In ANY state, only a live fighter's
+        // current mech may enter the world. deployFighter sets f.mech before
+        // addFreshEntity, so our own deploy-window spawns resolve by reference;
+        // everything else (crash leftovers chunk-loading at any time) is culled.
+        Fighter f = findFighterByMech(entity);
+        if (f != null && !f.eliminated
+                && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN)) {
             return EventResult.pass();
         }
-        // IDLE or ENDING: no live match owns this mech.
         return EventResult.interruptFalse();
     }
 
@@ -242,6 +249,13 @@ public final class ArenaManager {
     }
 
     private static void tickIdle(MinecraftServer server) {
+        // Periodic stray-mech sweep. The EntityEvent.ADD guard covers Forge chunk
+        // loads, but on Fabric that event only fires for fresh spawns — this
+        // loader-agnostic sweep is what actually reaps crash leftovers there.
+        if (++sweepTimer >= 600) {
+            sweepTimer = 0;
+            sweepStrayMechs(server);
+        }
         ArenaData data = ArenaData.get(server);
         if (queue.size() >= MIN_FIGHTERS && data.getPads().size() >= MIN_PADS) {
             idleTimer++;
@@ -253,6 +267,24 @@ public final class ArenaManager {
         }
     }
 
+    /** Discards every tagged mech that is not a live fighter's current mech. */
+    private static void sweepStrayMechs(MinecraftServer server) {
+        for (ServerLevel level : server.getAllLevels()) {
+            List<? extends Entity> tagged = level.getEntities(
+                    EntityTypeTest.forClass(Entity.class),
+                    e -> e.getTags().contains(TAG_ARENA));
+            for (Entity e : tagged) {
+                Fighter f = findFighterByMech(e);
+                boolean owned = f != null && !f.eliminated
+                        && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
+                if (!owned) {
+                    e.ejectPassengers();
+                    e.discard();
+                }
+            }
+        }
+    }
+
     private static void beginCountdown(MinecraftServer server) {
         state = ArenaState.COUNTDOWN;
         countdownTicks = COUNTDOWN_LENGTH;
@@ -261,6 +293,13 @@ public final class ArenaManager {
     }
 
     private static void tickCountdown(MinecraftServer server) {
+        if (queue.size() < MIN_FIGHTERS) {
+            // Someone left/quit during the countdown. Cancel WITHOUT wiping the
+            // queue; auto-start re-arms once enough players are queued again.
+            broadcast(server, "Not enough players — countdown cancelled.");
+            resetToIdle();
+            return;
+        }
         countdownTicks--;
         if (countdownTicks > 0 && countdownTicks % 20 == 0) {
             int secs = countdownTicks / 20;
@@ -301,6 +340,17 @@ public final class ArenaManager {
             return;
         }
         double[] center = computeCenter(pads);
+        // Misconfigured pads outside the bounds circle would self-eliminate
+        // everyone who spawns on them; refuse to start instead.
+        for (ArenaPoint pad : pads) {
+            double pdx = pad.x - center[0];
+            double pdz = pad.z - center[2];
+            if (pdx * pdx + pdz * pdz > (BOUNDS_RADIUS - 10) * (BOUNDS_RADIUS - 10)) {
+                broadcast(server, "A spawn pad lies outside the arena bounds circle. Match cancelled — fix the pads.");
+                abortMatch(server);
+                return;
+            }
+        }
         centerX = center[0];
         centerY = center[1];
         centerZ = center[2];
@@ -314,8 +364,9 @@ public final class ArenaManager {
         while (it.hasNext() && index < cap) {
             Map.Entry<UUID, String> entry = it.next();
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-            if (player == null) {
-                // Queued player is offline; leave them queued and skip.
+            if (player == null || !player.isAlive() || player.hasDisconnected()) {
+                // Offline, on the death screen, or mid-disconnect: not viable to
+                // deploy right now. Leave them queued and skip.
                 continue;
             }
             Fighter f = new Fighter(
@@ -328,10 +379,14 @@ public final class ArenaManager {
             // Add before deploying so a mid-deploy abort still restores this player.
             fighters.add(f);
             // Persist the pre-match snapshot BEFORE any mutation, so even a
-            // partial deploy (or a crash) can always heal this player.
-            data.putPendingRestore(f.uuid, new RestoreRecord(
-                    f.originalGameMode, f.originalDimension,
-                    f.originalX, f.originalY, f.originalZ, f.originalYaw));
+            // partial deploy (or a crash) can always heal this player. Never
+            // overwrite an unapplied record: it holds the player's TRUE original
+            // state from an earlier match that hasn't been healed yet.
+            if (data.getPendingRestore(f.uuid) == null) {
+                data.putPendingRestore(f.uuid, new RestoreRecord(
+                        f.originalGameMode, f.originalDimension,
+                        f.originalX, f.originalY, f.originalZ, f.originalYaw));
+            }
             if (!deployFighter(server, arenaLevel, f, pads.get(index))) {
                 broadcast(server, "Failed to deploy " + f.name + ". Match aborted.");
                 abortMatch(server);
@@ -406,6 +461,13 @@ public final class ArenaManager {
 
     private static void tickActive(MinecraftServer server) {
         matchTicks++;
+
+        // Mid-match stray sweep (every 5s): catches crash leftovers whose chunks
+        // load during a match on loaders where EntityEvent.ADD misses them.
+        if (++sweepTimer >= 100) {
+            sweepTimer = 0;
+            sweepStrayMechs(server);
+        }
 
         ejectMechThieves();
 
@@ -687,7 +749,14 @@ public final class ArenaManager {
         }
         if (ownerTag != null) {
             try {
-                return findFighterByUuid(UUID.fromString(ownerTag));
+                Fighter f = findFighterByUuid(UUID.fromString(ownerTag));
+                if (f != null && mech instanceof LivingEntity le
+                        && (f.mech == null || !f.mech.isAlive())) {
+                    // The mech was chunk-unloaded and reloaded as a new instance:
+                    // heal the stale reference so eject/discard keep working.
+                    f.mech = le;
+                }
+                return f;
             } catch (IllegalArgumentException ignored) {
                 // malformed tag; ignore
             }
