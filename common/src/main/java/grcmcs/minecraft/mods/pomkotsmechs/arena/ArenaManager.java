@@ -7,19 +7,25 @@ import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.entity.EntityTypeTest;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
@@ -55,8 +61,17 @@ public final class ArenaManager {
     private static final int BOUNDS_GRACE = 200;       // ticks allowed outside before elimination
     private static final int SPECTATE_HEIGHT = 30;
 
+    // Royale tuning.
+    private static final int CAGE_LENGTH = 200;        // 10s the glass cage holds fighters
+    private static final double RING_RADIUS = 3.0;     // fighters spawn on this ring inside the cage
+    private static final int CAGE_HALF = 4;            // 9x9 footprint (center +/- 4)
+    private static final int CAGE_WALL_HEIGHT = 5;     // wall blocks; roof sits one above
+    private static final int SCATTER_MIN_DIST = 30;    // nearest a scattered mech may spawn
+    private static final double ROYALE_BOUNDS_FACTOR = 1.25; // bounds = royale radius * this
+
     private static final String TAG_ARENA = "mecharena";
     private static final String TAG_OWNER_PREFIX = "mecharena_owner_";
+    private static final String TAG_MATCH_PREFIX = "mecharena_match_";
     private static final String PREFIX = "[Arena] ";
 
     private static ArenaState state = ArenaState.IDLE;
@@ -68,12 +83,24 @@ public final class ArenaManager {
     private static int matchTicks = 0;
     private static int endingTicks = 0;
     private static int sweepTimer = 0;
+    private static int cageTicks = 0;   // royale only: ticks the cage still holds fighters
 
     // Geometry of the currently running match.
     private static double centerX;
     private static double centerY;
     private static double centerZ;
     private static net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> arenaDimension;
+
+    // Mode + bounds of the currently running match, snapshotted so a mid-match
+    // config change can never perturb a live match (mode changes are IDLE-only
+    // anyway). matchMode is set in beginCountdown so it is already correct for
+    // the whole COUNTDOWN + ACTIVE window that the seam checks read it in.
+    private static Mode matchMode = Mode.DUEL;
+    private static double matchBoundsRadius = BOUNDS_RADIUS;
+    // Monotonic per-royale-match id. Scattered mechs are tagged with it; the
+    // stray sweeps treat only the CURRENT id as legitimate, so a crash-leftover
+    // scatter from an older match is culled like any other stray.
+    private static int matchId = 0;
 
     /** Wired from the mod's common init. Registers all server-side event hooks. */
     public static void init() {
@@ -99,6 +126,9 @@ public final class ArenaManager {
         queue.clear();
         fighters.clear();
         killTaggedEntities(server);
+        // A crash mid-royale can leave a glass cage in the city; the recorded
+        // positions outlive the process in ArenaData, so remove them now.
+        removeCageBlocks(server);
     }
 
     private static void onServerStopping(MinecraftServer server) {
@@ -215,6 +245,17 @@ public final class ArenaManager {
         if (!entity.getTags().contains(TAG_ARENA)) {
             return EventResult.pass();
         }
+        // ROYALE scattered mechs are unowned gear, so the DUEL identity check
+        // can't recognise them. During a live royale match legitimacy is by the
+        // current match tag instead; anything tagged for an older match (or with
+        // no match tag at all) is culled exactly as a DUEL stray would be.
+        if (matchMode == Mode.ROYALE
+                && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN)) {
+            if (entity.getTags().contains(TAG_MATCH_PREFIX + matchId)) {
+                return EventResult.pass();
+            }
+            return EventResult.interruptFalse();
+        }
         // A tagged arena mech is being added. In ANY state, only a live fighter's
         // current mech may enter the world. Ownership requires IDENTITY, not just
         // the owner tag: deployFighter sets f.mech before addFreshEntity, and
@@ -235,10 +276,18 @@ public final class ArenaManager {
             MinecraftServer server = entity.getServer();
             if (server != null) {
                 if (entity.getTags().contains(TAG_ARENA)) {
-                    // An arena mech died -> eliminate its owner.
-                    Fighter f = findFighterByMech(entity);
-                    if (f != null) {
-                        eliminate(server, f, true);
+                    if (matchMode == Mode.ROYALE) {
+                        // Mechs are GEAR, not lives: a downed mech eliminates no
+                        // one. Just report how many scattered mechs are left
+                        // (excluding the one dying this tick, still un-removed).
+                        int remain = countRoyaleMechs(server, entity);
+                        broadcast(server, "A mech went down — " + remain + " mechs remain.");
+                    } else {
+                        // DUEL: an arena mech died -> eliminate its owner.
+                        Fighter f = findFighterByMech(entity);
+                        if (f != null) {
+                            eliminate(server, f, true);
+                        }
                     }
                 } else if (entity instanceof ServerPlayer) {
                     Fighter f = findFighterByUuid(entity.getUUID());
@@ -273,7 +322,12 @@ public final class ArenaManager {
             sweepStrayMechs(server);
         }
         ArenaData data = ArenaData.get(server);
-        if (countViableQueued(server) >= MIN_FIGHTERS && data.getPads().size() >= MIN_PADS) {
+        // ROYALE needs a center, not pads; DUEL needs pads. Fighter minimum is
+        // shared. Anything else keeps the auto-start timer disarmed.
+        boolean venueReady = data.getMode() == Mode.ROYALE
+                ? data.getRoyaleCenter() != null
+                : data.getPads().size() >= MIN_PADS;
+        if (countViableQueued(server) >= MIN_FIGHTERS && venueReady) {
             idleTimer++;
             if (idleTimer >= AUTO_START_DELAY) {
                 beginCountdown(server);
@@ -299,17 +353,26 @@ public final class ArenaManager {
         return n;
     }
 
-    /** Discards every tagged mech that is not a live fighter's current mech. */
+    /** Discards every tagged mech that is not legitimate for the current match. */
     private static void sweepStrayMechs(MinecraftServer server) {
+        boolean royaleLive = matchMode == Mode.ROYALE
+                && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
         for (ServerLevel level : server.getAllLevels()) {
             List<? extends Entity> tagged = level.getEntities(
                     EntityTypeTest.forClass(Entity.class),
                     e -> e.getTags().contains(TAG_ARENA));
             for (Entity e : tagged) {
-                Fighter f = findFighterByMech(e);
-                boolean owned = f != null && !f.eliminated && f.mech == e
-                        && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
-                if (!owned) {
+                boolean legit;
+                if (royaleLive) {
+                    // ROYALE: scattered mechs are unowned; the current match tag
+                    // is what keeps them from being reaped by our own sweep.
+                    legit = e.getTags().contains(TAG_MATCH_PREFIX + matchId);
+                } else {
+                    Fighter f = findFighterByMech(e);
+                    legit = f != null && !f.eliminated && f.mech == e
+                            && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
+                }
+                if (!legit) {
                     e.ejectPassengers();
                     e.discard();
                 }
@@ -321,6 +384,14 @@ public final class ArenaManager {
         state = ArenaState.COUNTDOWN;
         countdownTicks = COUNTDOWN_LENGTH;
         idleTimer = 0;
+        // Lock in the mode for the whole match now (mode changes are IDLE-only),
+        // so every seam that reads matchMode is correct across COUNTDOWN + ACTIVE.
+        // A fresh royale match gets a fresh id so its scatter can be told apart
+        // from any crash-leftover mechs of an earlier match.
+        matchMode = ArenaData.get(server).getMode();
+        if (matchMode == Mode.ROYALE) {
+            matchId++;
+        }
         broadcast(server, "Match starting in 10 seconds! (" + queue.size() + " queued)");
     }
 
@@ -346,49 +417,78 @@ public final class ArenaManager {
 
     private static void startMatch(MinecraftServer server) {
         ArenaData data = ArenaData.get(server);
-        List<ArenaPoint> pads = data.getPads();
-        if (pads.size() < MIN_PADS) {
-            broadcast(server, "Not enough spawn pads. Match cancelled.");
-            abortMatch(server);
-            return;
-        }
+        Mode mode = matchMode; // locked in at beginCountdown
 
-        // All pads must share one dimension. Legacy data could be mixed; refuse
-        // to run rather than teleport fighters into split arenas.
-        ResourceLocation dim0 = pads.get(0).dimension;
-        for (ArenaPoint pad : pads) {
-            if (!pad.dimension.equals(dim0)) {
-                broadcast(server, "Spawn pads span multiple dimensions. Match cancelled — reset the pads.");
+        // --- Venue setup seam. DUEL validates spawn pads; ROYALE needs a
+        // center. Both end with arenaDimension/arenaLevel/center/matchBoundsRadius
+        // set so the shared fighter loop and the match ticker are mode-agnostic.
+        ServerLevel arenaLevel;
+        double[] center;
+        List<ArenaPoint> pads = null;
+        if (mode == Mode.ROYALE) {
+            ArenaPoint rc = data.getRoyaleCenter();
+            if (rc == null) {
+                broadcast(server, "Royale center is not set. Match cancelled.");
                 abortMatch(server);
                 return;
             }
-        }
-
-        arenaDimension = pads.get(0).dimensionKey();
-        ServerLevel arenaLevel = server.getLevel(arenaDimension);
-        if (arenaLevel == null) {
-            broadcast(server, "Arena dimension is not loaded. Match cancelled.");
-            abortMatch(server);
-            return;
-        }
-        double[] center = computeCenter(pads);
-        // Misconfigured pads outside the bounds circle would self-eliminate
-        // everyone who spawns on them; refuse to start instead.
-        for (ArenaPoint pad : pads) {
-            double pdx = pad.x - center[0];
-            double pdz = pad.z - center[2];
-            if (pdx * pdx + pdz * pdz > (BOUNDS_RADIUS - 10) * (BOUNDS_RADIUS - 10)) {
-                broadcast(server, "A spawn pad lies outside the arena bounds circle. Match cancelled — fix the pads.");
+            arenaDimension = rc.dimensionKey();
+            arenaLevel = server.getLevel(arenaDimension);
+            if (arenaLevel == null) {
+                broadcast(server, "Royale dimension is not loaded. Match cancelled.");
                 abortMatch(server);
                 return;
             }
+            center = new double[]{rc.x, rc.y, rc.z};
+            matchBoundsRadius = data.getRoyaleRadius() * ROYALE_BOUNDS_FACTOR;
+        } else {
+            pads = data.getPads();
+            if (pads.size() < MIN_PADS) {
+                broadcast(server, "Not enough spawn pads. Match cancelled.");
+                abortMatch(server);
+                return;
+            }
+
+            // All pads must share one dimension. Legacy data could be mixed; refuse
+            // to run rather than teleport fighters into split arenas.
+            ResourceLocation dim0 = pads.get(0).dimension;
+            for (ArenaPoint pad : pads) {
+                if (!pad.dimension.equals(dim0)) {
+                    broadcast(server, "Spawn pads span multiple dimensions. Match cancelled — reset the pads.");
+                    abortMatch(server);
+                    return;
+                }
+            }
+
+            arenaDimension = pads.get(0).dimensionKey();
+            arenaLevel = server.getLevel(arenaDimension);
+            if (arenaLevel == null) {
+                broadcast(server, "Arena dimension is not loaded. Match cancelled.");
+                abortMatch(server);
+                return;
+            }
+            center = computeCenter(pads);
+            // Misconfigured pads outside the bounds circle would self-eliminate
+            // everyone who spawns on them; refuse to start instead.
+            for (ArenaPoint pad : pads) {
+                double pdx = pad.x - center[0];
+                double pdz = pad.z - center[2];
+                if (pdx * pdx + pdz * pdz > (BOUNDS_RADIUS - 10) * (BOUNDS_RADIUS - 10)) {
+                    broadcast(server, "A spawn pad lies outside the arena bounds circle. Match cancelled — fix the pads.");
+                    abortMatch(server);
+                    return;
+                }
+            }
+            matchBoundsRadius = BOUNDS_RADIUS;
         }
         centerX = center[0];
         centerY = center[1];
         centerZ = center[2];
 
         fighters.clear();
-        int cap = pads.size();
+        // DUEL is capped by pad count; ROYALE has no pads, so every viable queued
+        // player deploys onto the spawn ring.
+        int cap = mode == Mode.ROYALE ? countViableQueued(server) : pads.size();
         int index = 0;
         List<UUID> consumed = new ArrayList<>();
 
@@ -419,7 +519,12 @@ public final class ArenaManager {
                         f.originalGameMode, f.originalDimension,
                         f.originalX, f.originalY, f.originalZ, f.originalYaw));
             }
-            if (!deployFighter(server, arenaLevel, f, pads.get(index))) {
+            // Deploy seam: DUEL mounts a mech on a pad; ROYALE drops the fighter
+            // on foot onto the cage ring (loot mechs are scattered separately).
+            boolean deployed = mode == Mode.ROYALE
+                    ? deployFighterRoyale(server, arenaLevel, f, center, cap, index)
+                    : deployFighter(server, arenaLevel, f, pads.get(index));
+            if (!deployed) {
                 broadcast(server, "Failed to deploy " + f.name + ". Match aborted.");
                 abortMatch(server);
                 return;
@@ -438,9 +543,25 @@ public final class ArenaManager {
             return;
         }
 
+        if (mode == Mode.ROYALE) {
+            // Build the holding cage around the ring and scatter the loot mechs
+            // while state is still COUNTDOWN, so the ADD guard admits the scatter
+            // under the current match tag.
+            buildCage(server, arenaLevel, center);
+            scatterMechs(server, arenaLevel, center, data.getRoyaleRadius(), data.getMechCount());
+            cageTicks = CAGE_LENGTH;
+        } else {
+            cageTicks = 0;
+        }
+
         state = ArenaState.ACTIVE;
         matchTicks = 0;
-        broadcast(server, "Match started! " + fighters.size() + " fighters enter the arena.");
+        if (mode == Mode.ROYALE) {
+            broadcast(server, "Royale started! " + fighters.size()
+                    + " fighters caged — grab a mech when the cage drops.");
+        } else {
+            broadcast(server, "Match started! " + fighters.size() + " fighters enter the arena.");
+        }
     }
 
     /**
@@ -491,17 +612,181 @@ public final class ArenaManager {
         return player.startRiding(mech, true);
     }
 
+    /**
+     * ROYALE deploy: the pre-match snapshot is already recorded (same shared code
+     * path as DUEL), so this only performs the physical setup — ADVENTURE + a
+     * teleport onto the cage ring. NO mech is spawned or mounted: royale mechs
+     * are scattered loot, not a fighter's life. Returns false if the teleport was
+     * cancelled, in which case the caller aborts and everyone is restored.
+     */
+    private static boolean deployFighterRoyale(MinecraftServer server, ServerLevel arenaLevel, Fighter f,
+                                               double[] center, int ringCount, int index) {
+        ServerPlayer player = server.getPlayerList().getPlayer(f.uuid);
+        if (player == null) {
+            return false;
+        }
+        double angle = ringCount > 0 ? (2.0 * Math.PI * index / ringCount) : 0.0;
+        double px = center[0] + RING_RADIUS * Math.cos(angle);
+        double pz = center[2] + RING_RADIUS * Math.sin(angle);
+        // Face the ring center so caged fighters look inward.
+        float yaw = (float) (Math.toDegrees(-Math.atan2(center[0] - px, center[2] - pz)));
+
+        player.setGameMode(GameType.ADVENTURE);
+        player.teleportTo(arenaLevel, px, center[1], pz, yaw, 0f);
+        return player.serverLevel() == arenaLevel;
+    }
+
+    /**
+     * Builds the glass holding cage around the spawn ring: a hollow 9x9 box, five
+     * walls high, with a roof, plus a floor only where the ground is missing.
+     * Only positions that are AIR are overwritten (never real terrain), and every
+     * placed position is recorded in ArenaData so it can be removed exactly — even
+     * after a crash.
+     */
+    private static void buildCage(MinecraftServer server, ServerLevel level, double[] center) {
+        ArenaData data = ArenaData.get(server);
+        ResourceLocation dim = level.dimension().location();
+        BlockState glass = Blocks.GLASS.defaultBlockState();
+        int bx = Mth.floor(center[0]);
+        int by = Mth.floor(center[1]);
+        int bz = Mth.floor(center[2]);
+        for (int dx = -CAGE_HALF; dx <= CAGE_HALF; dx++) {
+            for (int dz = -CAGE_HALF; dz <= CAGE_HALF; dz++) {
+                // Floor one below the fighters' feet, roof above the walls.
+                placeCageBlock(level, data, dim, glass, bx + dx, by - 1, bz + dz);
+                placeCageBlock(level, data, dim, glass, bx + dx, by + CAGE_WALL_HEIGHT, bz + dz);
+                // Walls: perimeter of the footprint only.
+                boolean perimeter = dx == -CAGE_HALF || dx == CAGE_HALF
+                        || dz == -CAGE_HALF || dz == CAGE_HALF;
+                if (perimeter) {
+                    for (int dy = 0; dy < CAGE_WALL_HEIGHT; dy++) {
+                        placeCageBlock(level, data, dim, glass, bx + dx, by + dy, bz + dz);
+                    }
+                }
+            }
+        }
+    }
+
+    /** Places one glass block iff the target is AIR, recording what it placed. */
+    private static void placeCageBlock(ServerLevel level, ArenaData data, ResourceLocation dim,
+                                       BlockState glass, int x, int y, int z) {
+        BlockPos pos = new BlockPos(x, y, z);
+        if (level.getBlockState(pos).isAir()) {
+            level.setBlockAndUpdate(pos, glass);
+            data.addCageBlock(new CageBlock(dim, pos));
+        }
+    }
+
+    /**
+     * Scatters {@code mechCount} unowned loot mechs across the city: uniform angle,
+     * distance {@code SCATTER_MIN_DIST}..radius from center, surface Y from the
+     * motion-blocking heightmap. The chunk is force-generated first so getHeight is
+     * meaningful on ungenerated terrain. Each mech is tagged with the current match
+     * id (and no owner tag) so the stray sweeps treat it as legitimate loot.
+     */
+    private static void scatterMechs(MinecraftServer server, ServerLevel level, double[] center,
+                                     int radius, int mechCount) {
+        RandomSource rand = level.getRandom();
+        double span = Math.max(0.0, radius - SCATTER_MIN_DIST);
+        for (int i = 0; i < mechCount; i++) {
+            String mechId = ROSTER.get(i % ROSTER.size());
+            ResourceLocation id = new ResourceLocation(PomkotsMechs.MODID, mechId);
+            if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
+                continue;
+            }
+            double angle = rand.nextDouble() * 2.0 * Math.PI;
+            double dist = SCATTER_MIN_DIST + rand.nextDouble() * span;
+            int x = Mth.floor(center[0] + dist * Math.cos(angle));
+            int z = Mth.floor(center[2] + dist * Math.sin(angle));
+            // Force full chunk generation BEFORE reading the heightmap, or an
+            // ungenerated column would report a bogus surface height.
+            level.getChunk(x >> 4, z >> 4);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+
+            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+            Entity spawned = type.create(level);
+            if (!(spawned instanceof LivingEntity mech)) {
+                if (spawned != null) {
+                    spawned.discard();
+                }
+                continue;
+            }
+            mech.setPos(x + 0.5, y, z + 0.5);
+            mech.setYRot(rand.nextFloat() * 360.0f);
+            mech.addTag(TAG_ARENA);
+            mech.addTag(TAG_MATCH_PREFIX + matchId);
+            if (!level.addFreshEntity(mech)) {
+                mech.discard();
+            }
+        }
+    }
+
+    /**
+     * Removes every recorded cage block (setting it back to AIR only if it is
+     * still our glass, so a player-replaced block is left alone) and clears the
+     * ledger. Blocks in an unloadable dimension are kept recorded for a later
+     * retry rather than silently forgotten.
+     */
+    private static void removeCageBlocks(MinecraftServer server) {
+        ArenaData data = ArenaData.get(server);
+        List<CageBlock> blocks = data.getCageBlocks();
+        if (blocks.isEmpty()) {
+            return;
+        }
+        List<CageBlock> retained = new ArrayList<>();
+        for (CageBlock cb : new ArrayList<>(blocks)) {
+            ServerLevel level = server.getLevel(cb.dimensionKey());
+            if (level == null) {
+                retained.add(cb);
+                continue;
+            }
+            if (level.getBlockState(cb.pos).is(Blocks.GLASS)) {
+                level.setBlockAndUpdate(cb.pos, Blocks.AIR.defaultBlockState());
+            }
+        }
+        data.setCageBlocks(retained);
+    }
+
+    /** Live, current-match loot mechs remaining in the royale dimension. */
+    private static int countRoyaleMechs(MinecraftServer server, Entity exclude) {
+        ServerLevel level = arenaDimension != null ? server.getLevel(arenaDimension) : null;
+        if (level == null) {
+            return 0;
+        }
+        int n = 0;
+        for (Entity e : level.getEntities(EntityTypeTest.forClass(Entity.class),
+                e -> e.getTags().contains(TAG_MATCH_PREFIX + matchId))) {
+            if (e != exclude && e.isAlive()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
     private static void tickActive(MinecraftServer server) {
         matchTicks++;
 
         // Mid-match stray sweep (every 5s): catches crash leftovers whose chunks
-        // load during a match on loaders where EntityEvent.ADD misses them.
+        // load during a match on loaders where EntityEvent.ADD misses them. The
+        // sweep is match-tag aware, so it never reaps the current scatter.
         if (++sweepTimer >= 100) {
             sweepTimer = 0;
             sweepStrayMechs(server);
         }
 
-        ejectMechThieves();
+        // ROYALE cage phase: fighters are held in the glass box. No mount policy,
+        // no out-of-bounds, no win check while the cage still stands — just count
+        // it down and break it. (DUEL keeps cageTicks == 0 and skips all of this.)
+        if (matchMode == Mode.ROYALE && cageTicks > 0) {
+            tickCage(server);
+            return;
+        }
+
+        // Mount policy seam: DUEL evicts mech thieves. In ROYALE any player may
+        // mount any mech — that scramble IS the game — so this never runs.
+        if (matchMode == Mode.DUEL) {
+            ejectMechThieves();
+        }
 
         ServerLevel arenaLevel = arenaDimension != null ? server.getLevel(arenaDimension) : null;
         if (arenaLevel != null) {
@@ -515,6 +800,26 @@ public final class ArenaManager {
         if (matchTicks >= MATCH_TIMEOUT) {
             broadcast(server, "Time limit reached — the match is a draw.");
             beginEnding(server);
+        }
+    }
+
+    /**
+     * ROYALE cage countdown. Announces the break at 10/5/4/3/2/1 seconds and, when
+     * it lapses, removes ONLY the recorded cage blocks and turns the fighters
+     * loose. No elimination can happen here — the ACTIVE tick skips bounds and win
+     * checks entirely while {@code cageTicks > 0}.
+     */
+    private static void tickCage(MinecraftServer server) {
+        if (cageTicks % 20 == 0) {
+            int secs = cageTicks / 20;
+            if (secs == 10 || secs <= 5) {
+                broadcast(server, "Cage breaks in " + secs + "...");
+            }
+        }
+        cageTicks--;
+        if (cageTicks <= 0) {
+            removeCageBlocks(server);
+            broadcast(server, "GO! Find a mech!");
         }
     }
 
@@ -554,7 +859,9 @@ public final class ArenaManager {
             } else {
                 double dx = player.getX() - centerX;
                 double dz = player.getZ() - centerZ;
-                outside = (dx * dx + dz * dz) > BOUNDS_RADIUS * BOUNDS_RADIUS;
+                // Per-match radius: DUEL uses BOUNDS_RADIUS, ROYALE uses its
+                // configured play radius scaled by ROYALE_BOUNDS_FACTOR.
+                outside = (dx * dx + dz * dz) > matchBoundsRadius * matchBoundsRadius;
             }
             if (outside) {
                 f.outsideTicks++;
@@ -652,6 +959,10 @@ public final class ArenaManager {
     /** Shared, idempotent teardown used by win/draw/stop/abort. */
     private static void cleanup(MinecraftServer server) {
         killTaggedEntities(server);
+        // Royale leaves a glass cage and scattered mechs: killTaggedEntities
+        // reaps the mechs; this restores the cage blocks. No-op for DUEL (the
+        // ledger is empty), so DUEL teardown is unchanged.
+        removeCageBlocks(server);
         ArenaData data = ArenaData.get(server);
         for (Fighter f : new ArrayList<>(fighters)) {
             ServerPlayer player = server.getPlayerList().getPlayer(f.uuid);
@@ -732,6 +1043,7 @@ public final class ArenaManager {
         countdownTicks = 0;
         matchTicks = 0;
         endingTicks = 0;
+        cageTicks = 0;
         arenaDimension = null;
     }
 
@@ -853,7 +1165,16 @@ public final class ArenaManager {
 
     public static int commandStatus(CommandSourceStack src) {
         MinecraftServer server = src.getLevel().getServer();
-        StringBuilder sb = new StringBuilder(PREFIX + "State: " + state);
+        ArenaData data = ArenaData.get(server);
+        StringBuilder sb = new StringBuilder(PREFIX + "State: " + state
+                + " | Mode: " + data.getMode());
+        if (data.getMode() == Mode.ROYALE) {
+            // Royale venue/tuning at a glance, mirroring what /arena info shows.
+            sb.append("\n").append(PREFIX).append("Royale: center ")
+                    .append(data.getRoyaleCenter() != null ? data.getRoyaleCenter().toString() : "not set")
+                    .append(", radius ").append(data.getRoyaleRadius())
+                    .append(", mechs ").append(data.getMechCount());
+        }
         switch (state) {
             case IDLE, COUNTDOWN -> {
                 sb.append("\n").append(PREFIX).append("Queued (").append(queue.size()).append("): ");
@@ -934,8 +1255,9 @@ public final class ArenaManager {
 
     public static int commandInfo(CommandSourceStack src) {
         ArenaData data = ArenaData.get(src.getLevel().getServer());
-        StringBuilder sb = new StringBuilder(PREFIX + "Lobby: "
-                + (data.getLobby() != null ? data.getLobby().toString() : "not set"));
+        StringBuilder sb = new StringBuilder(PREFIX + "Mode: " + data.getMode());
+        sb.append("\n").append(PREFIX).append("Lobby: ")
+                .append(data.getLobby() != null ? data.getLobby().toString() : "not set");
         sb.append("\n").append(PREFIX).append("Pads: ").append(data.getPads().size());
         for (int i = 0; i < data.getPads().size(); i++) {
             sb.append("\n").append(PREFIX).append("  #").append(i + 1).append(": ").append(data.getPads().get(i));
@@ -944,6 +1266,10 @@ public final class ArenaManager {
             double[] c = computeCenter(data.getPads());
             sb.append("\n").append(PREFIX).append(String.format("Center: [%.1f, %.1f, %.1f]", c[0], c[1], c[2]));
         }
+        sb.append("\n").append(PREFIX).append("Royale center: ")
+                .append(data.getRoyaleCenter() != null ? data.getRoyaleCenter().toString() : "not set");
+        sb.append("\n").append(PREFIX).append("Royale radius: ").append(data.getRoyaleRadius());
+        sb.append("\n").append(PREFIX).append("Royale mechs: ").append(data.getMechCount());
         String out = sb.toString();
         src.sendSuccess(() -> Component.literal(out), false);
         return 1;
@@ -959,7 +1285,14 @@ public final class ArenaManager {
             src.sendFailure(Component.literal(PREFIX + "Need at least " + MIN_FIGHTERS + " queued players (online and alive)."));
             return 0;
         }
-        if (ArenaData.get(server).getPads().size() < MIN_PADS) {
+        // Venue requirement seam: ROYALE needs a center; DUEL needs pads.
+        ArenaData data = ArenaData.get(server);
+        if (data.getMode() == Mode.ROYALE) {
+            if (data.getRoyaleCenter() == null) {
+                src.sendFailure(Component.literal(PREFIX + "Royale center not set. Use /arena royale setcenter first."));
+                return 0;
+            }
+        } else if (data.getPads().size() < MIN_PADS) {
             src.sendFailure(Component.literal(PREFIX + "Need at least " + MIN_PADS + " spawn pads."));
             return 0;
         }
@@ -973,6 +1306,55 @@ public final class ArenaManager {
         cleanup(server);
         queue.clear();
         src.sendSuccess(() -> Component.literal(PREFIX + "Arena stopped, cleaned up, queue cleared."), true);
+        return 1;
+    }
+
+    // ---------------------------------------------------------------------
+    // Royale command handlers
+    // ---------------------------------------------------------------------
+
+    public static int commandMode(CommandSourceStack src, Mode mode) {
+        MinecraftServer server = src.getLevel().getServer();
+        // Never flip mode under a live/starting match: the match snapshots its
+        // mode at beginCountdown and the venue seams assume it can't change.
+        if (state != ArenaState.IDLE) {
+            src.sendFailure(Component.literal(PREFIX + "Cannot change mode while a match is starting or running."));
+            return 0;
+        }
+        ArenaData.get(server).setMode(mode);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Arena mode set to " + mode + "."), true);
+        return 1;
+    }
+
+    public static int commandRoyaleSetCenter(CommandSourceStack src) {
+        ArenaData data = ArenaData.get(src.getLevel().getServer());
+        // Read the source position + dimension exactly like setlobby, so admins
+        // can drive it via `execute in <dim> positioned X Y Z run arena royale setcenter`.
+        Vec3 pos = src.getPosition();
+        Vec2 rot = src.getRotation();
+        ArenaPoint center = new ArenaPoint(src.getLevel().dimension().location(), pos.x, pos.y, pos.z, rot.y);
+        data.setRoyaleCenter(center);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale center saved at " + center + "."), false);
+        return 1;
+    }
+
+    public static int commandRoyaleRadius(CommandSourceStack src, int radius) {
+        if (radius < 50 || radius > 1000) {
+            src.sendFailure(Component.literal(PREFIX + "Radius must be between 50 and 1000."));
+            return 0;
+        }
+        ArenaData.get(src.getLevel().getServer()).setRoyaleRadius(radius);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale radius set to " + radius + "."), false);
+        return 1;
+    }
+
+    public static int commandRoyaleMechs(CommandSourceStack src, int count) {
+        if (count < 2 || count > 64) {
+            src.sendFailure(Component.literal(PREFIX + "Mech count must be between 2 and 64."));
+            return 0;
+        }
+        ArenaData.get(src.getLevel().getServer()).setMechCount(count);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale mech count set to " + count + "."), false);
         return 1;
     }
 }
