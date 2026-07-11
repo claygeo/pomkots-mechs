@@ -61,6 +61,7 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.MobCategory;
 import net.minecraft.world.entity.SpawnPlacements;
 import net.minecraft.world.entity.player.Player;
@@ -70,13 +71,19 @@ import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 public class PomkotsMechs {
 	public static final String MODID = "pomkotsmechs";
@@ -861,6 +868,67 @@ public class PomkotsMechs {
 		});
 	}
 
+	// ---------------------------------------------------------------------
+	// Server-authoritative lock-on validation.
+	//
+	// The client asks the server to lock a raw entity id. Historically the
+	// server obeyed with ZERO checks (any id, any range, no line of sight),
+	// which is aimbot-grade. Every lock request is now validated on the server
+	// inside the receiver's context.queue block: the requester must be piloting
+	// a pomkots vehicle, the target must be a live LivingEntity that is not the
+	// pilot/their own mech/a co-passenger, within range, with clear line of
+	// sight, and under a per-player rate cap. Failing requests are dropped
+	// silently (there is no feedback channel). Legitimate locks call exactly the
+	// same lock methods as before, so normal play is unchanged.
+	// ---------------------------------------------------------------------
+
+	/** Slightly above the client's 150-block lock cone so legit locks never fail on range. */
+	private static final double LOCK_MAX_RANGE = 160.0;
+	/** Max lock requests honoured per player per game-second; excess dropped silently. */
+	private static final int LOCK_MAX_PER_SECOND = 10;
+	// Per-player rate window: [gameSecond, countThisSecond]. All access happens on
+	// the server thread (inside context.queue), so a plain HashMap is safe here.
+	private static final Map<UUID, long[]> LOCK_RATE_WINDOWS = new HashMap<>();
+
+	/** Counts this lock request and returns false once the player exceeds the per-second cap. */
+	private static boolean allowLockRequest(Player player) {
+		long second = player.level().getGameTime() / 20L;
+		long[] window = LOCK_RATE_WINDOWS.computeIfAbsent(player.getUUID(), k -> new long[]{second, 0L});
+		if (window[0] != second) {
+			window[0] = second;
+			window[1] = 0L;
+		}
+		window[1]++;
+		return window[1] <= LOCK_MAX_PER_SECOND;
+	}
+
+	/**
+	 * Server-side validity check for a lock target. The player must be piloting
+	 * {@code vehicle}; the target must be a live LivingEntity that is neither the
+	 * player, the mech itself, nor a co-passenger of it, within range, with a
+	 * clear (block-free) line of sight from the vehicle's eye to the target centre.
+	 */
+	private static boolean isValidLockTarget(Player player, Entity vehicle, Entity target) {
+		if (target == null || !target.isAlive() || !(target instanceof LivingEntity)) {
+			return false;
+		}
+		// Never lock self, the ridden mech, or anything sharing the mech.
+		if (target == player || target == vehicle
+				|| vehicle.hasPassenger(target) || target.getVehicle() == vehicle) {
+			return false;
+		}
+		Vec3 eye = vehicle.getEyePosition();
+		Vec3 center = target.getBoundingBox().getCenter();
+		if (eye.distanceToSqr(center) > LOCK_MAX_RANGE * LOCK_MAX_RANGE) {
+			return false;
+		}
+		// Line of sight: a solid block between the mech's eye and the target blocks
+		// the lock (same context vanilla mobs use for sight checks).
+		ClipContext clip = new ClipContext(eye, center,
+				ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, vehicle);
+		return vehicle.level().clip(clip).getType() != HitResult.Type.BLOCK;
+	}
+
 	public static void registerServerTargetLock() {
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_HARD), (buf, context) -> {
 			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
@@ -871,7 +939,10 @@ public class PomkotsMechs {
 
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof PomkotsVehicle bot) {
-					bot.getLockTargets().lockTargetHard(player.level().getEntity(targetEntityId));
+					Entity target = player.level().getEntity(targetEntityId);
+					if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
+						bot.getLockTargets().lockTargetHard(target);
+					}
 				}
 			});
 		});
@@ -896,7 +967,10 @@ public class PomkotsMechs {
 
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof PomkotsVehicle bot) {
-					bot.getLockTargets().lockTargetSoft(player.level().getEntity(targetEntityId));
+					Entity target = player.level().getEntity(targetEntityId);
+					if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
+						bot.getLockTargets().lockTargetSoft(target);
+					}
 				}
 			});
 		});
@@ -921,7 +995,12 @@ public class PomkotsMechs {
 
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof PomkotsVehicle bot) {
-					bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId));
+					// Each multi-lock packet carries a single id; validate it and
+					// drop it if invalid (keeping any previously-added valid locks).
+					Entity target = player.level().getEntity(targetEntityId);
+					if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
+						bot.getLockTargets().lockTargetMulti(target);
+					}
 				}
 			});
 		});
@@ -947,7 +1026,10 @@ public class PomkotsMechs {
 
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof Pmvc01Entity bot) {
-					bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId), slot, bot);
+					Entity target = player.level().getEntity(targetEntityId);
+					if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
+						bot.getLockTargets().lockTargetMulti(target, slot, bot);
+					}
 				}
 			});
 		});
