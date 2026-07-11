@@ -9,14 +9,17 @@ import grcmcs.minecraft.mods.pomkotsmechs.util.Utils;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.entity.ChestBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -54,6 +57,18 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
     private UUID raidControllerUUID;
     private RaidControllerEntity raidControllerEntity;
 
+    // Key escrow: the key is removed from the player's hand when the countdown
+    // starts and only truly consumed when the raid controller spawns. Every
+    // cancellation path (opener leaves, controller spawn fails, reload) refunds it.
+    private ItemStack escrowedKey = ItemStack.EMPTY;
+    private boolean refundEscrowOnTick = false;
+
+    // Lazy resolution of the raid controller after a restart. The guard UUID is
+    // only cleared once the controller has been unresolvable for this many ticks
+    // (its chunk may simply not have loaded yet).
+    private int raidControllerResolveGrace = 0;
+    private static final int RAID_CONTROLLER_RESOLVE_GRACE_TICKS = 100;
+
     @Override
     public void saveAdditional(@NotNull CompoundTag tag) {
         super.saveAdditional(tag);
@@ -72,6 +87,11 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
             tag.remove(PomkotsMechs.nbtName("RaidControllerUUID"));
         }
 
+        if (!escrowedKey.isEmpty()) {
+            tag.put(PomkotsMechs.nbtName("EscrowedKey"), escrowedKey.save(new CompoundTag()));
+        } else {
+            tag.remove(PomkotsMechs.nbtName("EscrowedKey"));
+        }
     }
 
     @Override
@@ -85,16 +105,28 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
             refillLootTable = new ResourceLocation(tag.getString(PomkotsMechs.nbtName("RefillLootTable")));
         }
         if (tag.contains(PomkotsMechs.nbtName("RaidControllerUUID"))) {
+            // Keep the persisted guard UUID even if the controller entity is not
+            // resolvable yet (its chunk may load after this block entity). tick()
+            // resolves it lazily with a grace period; nulling it here would void
+            // the double-raid guard across a restart.
             raidControllerUUID = tag.getUUID(PomkotsMechs.nbtName("RaidControllerUUID"));
-
-            if (this.level instanceof ServerLevel sl) {
-                if (sl.getEntity(raidControllerUUID) instanceof RaidControllerEntity raid) {
-                    raidControllerEntity = raid;
-                } else {
-                    raidControllerUUID = null;
-                }
-            }
+            raidControllerEntity = null;
+            raidControllerResolveGrace = 0;
         }
+
+        if (tag.contains(PomkotsMechs.nbtName("EscrowedKey"))) {
+            escrowedKey = ItemStack.of(tag.getCompound(PomkotsMechs.nbtName("EscrowedKey")));
+        }
+
+        // A pending countdown cannot be safely resumed across a reload (the opener
+        // reference is gone), so treat any escrowed key as a cancelled attempt and
+        // refund it at the cube on the next server tick. Reset the countdown.
+        this.summonActionTickCount = 0;
+        this.opener = null;
+        if (!escrowedKey.isEmpty()) {
+            this.refundEscrowOnTick = true;
+        }
+
         tryRefill();
     }
 
@@ -156,24 +188,28 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
     // ====================== 基本機能 ======================
 
     public void openBox(Player p) {
-        this.opener = p;
-
         switch (getMode()) {
             case PomkotsCubeBlockEntity.MODE_BLUE:
                 if (!level.isClientSide) {
+                    // Commit: a blue cube open is a real open.
+                    this.opener = p;
                     if (!openedOnce) {
                         openedOnce = true;
                         lastRefillGameTime = level.dayTime();
                         setChanged();
                     }
                 }
-
                 break;
 
             case PomkotsCubeBlockEntity.MODE_YELLOW:
                 if (!this.level.isClientSide) {
+                    // Free raid trigger. Only commit (set opener + start countdown)
+                    // when nothing is already pending/live; a second click during
+                    // the countdown must not hijack ownership.
                     if (raidControllerUUID == null && summonActionTickCount == 0) {
-                        summonActionTickCount = 1;
+                        this.opener = p;
+                        this.summonActionTickCount = 1;
+                        setChanged();
                     }
                 } else {
                     playOpenFailAnimation();
@@ -182,33 +218,9 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
 
             case PomkotsCubeBlockEntity.MODE_RED:
                 if (!this.level.isClientSide) {
-                    if (p.getMainHandItem().is(PomkotsMechs.CUBEKEY_ITEM.get())) {
-                        if (raidControllerUUID == null && summonActionTickCount == 0 && this.lootTable != null) {
-                            var chestData = PomkotsDataPackManager.getInstance().getDataPack().getChestData(this.lootTable.toString());
-                            var raidData = PomkotsDataPackManager.getInstance().getDataPack().getRaidData(chestData.raid_id);
-
-                            if (raidData != null) {
-                                if ("activate".equals(raidData.type)) {
-                                    var bosses = RaidControllerEntity.getInactiveBossesAroundPos(this.level, this.getBlockPos());
-                                    if (bosses.isEmpty()) {
-                                        sendMessageForOpener("{text.pomkotsmechs.messages.pomkotscube.01}");
-                                        break;
-                                    }
-                                }
-
-                                summonActionTickCount = 1;
-
-                                if (!PomkotsMechs.CONFIG.debugModeEnabled) {
-                                    p.getMainHandItem().shrink(1);
-                                }
-                            } else {
-                                break;
-                            }
-                        }
-                    } else {
-                        sendMessageForOpener("{text.pomkotsmechs.messages.pomkotscube.02}");
-                        break;
-                    }
+                    tryStartKeyedRaid(p, PomkotsMechs.CUBEKEY_ITEM.get(),
+                            "{text.pomkotsmechs.messages.pomkotscube.02}",
+                            !PomkotsMechs.CONFIG.debugModeEnabled);
                 } else {
                     playOpenFailAnimation();
                 }
@@ -216,38 +228,78 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
 
             case PomkotsCubeBlockEntity.MODE_PURPLE:
                 if (!this.level.isClientSide) {
-                    if (p.getMainHandItem().is(PomkotsMechs.CUBEKEY_ITEM_PURPLE.get())) {
-                        if (raidControllerUUID == null && summonActionTickCount == 0 && this.lootTable != null) {
-                            var chestData = PomkotsDataPackManager.getInstance().getDataPack().getChestData(this.lootTable.toString());
-                            var raidData = PomkotsDataPackManager.getInstance().getDataPack().getRaidData(chestData.raid_id);
-
-                            if (raidData != null) {
-                                if ("activate".equals(raidData.type)) {
-                                    var bosses = RaidControllerEntity.getInactiveBossesAroundPos(this.level, this.getBlockPos());
-                                    if (bosses.isEmpty()) {
-                                        sendMessageForOpener("{text.pomkotsmechs.messages.pomkotscube.01}");
-                                        break;
-                                    }
-                                }
-
-                                summonActionTickCount = 1;
-                                p.getMainHandItem().shrink(1);
-                            } else {
-                                break;
-                            }
-                        }
-                    } else {
-                        sendMessageForOpener("{text.pomkotsmechs.messages.pomkotscube.03}");
-                        break;
-                    }
+                    tryStartKeyedRaid(p, PomkotsMechs.CUBEKEY_ITEM_PURPLE.get(),
+                            "{text.pomkotsmechs.messages.pomkotscube.03}", true);
                 } else {
                     playOpenFailAnimation();
                 }
                 break;
+
             default:
                 playOpenFailAnimation();
                 break;
         }
+    }
+
+    /**
+     * Red/purple keyed-raid open. Runs all checks BEFORE committing anything, so a
+     * missing chest.json mapping, missing raid, wrong key, or an already-pending
+     * countdown never consumes the key or overwrites the raid owner.
+     */
+    private void tryStartKeyedRaid(Player p, Item requiredKey, String wrongKeyMsg, boolean consumeKey) {
+        // Wrong key: message the clicker, consume nothing.
+        if (!p.getMainHandItem().is(requiredKey)) {
+            sendMessageTo(p, wrongKeyMsg);
+            return;
+        }
+
+        // A countdown is already pending or a raid controller is live: ignore this
+        // click entirely (no opener hijack, no key consumed).
+        if (raidControllerUUID != null || summonActionTickCount != 0) {
+            return;
+        }
+
+        if (this.lootTable == null) {
+            sendMessageTo(p, "{text.pomkotsmechs.messages.pomkotscube.02}");
+            PomkotsMechs.LOGGER.error("Cube at {} has no loot table; cannot start raid.", worldPosition);
+            return;
+        }
+
+        var dp = PomkotsDataPackManager.getInstance().getDataPack();
+        var chestData = dp.getChestData(this.lootTable.toString());
+        if (chestData == null) {
+            // 16 of 22 shipped loot tables have no chest.json mapping. A null-deref
+            // here used to NPE-crash the server; instead warn + log + do nothing.
+            sendMessageTo(p, "{text.pomkotsmechs.messages.pomkotscube.02}");
+            PomkotsMechs.LOGGER.error("No chest.json mapping for loot table {} (cube at {}); ignoring open.",
+                    this.lootTable, worldPosition);
+            return;
+        }
+        var raidData = dp.getRaidData(chestData.raid_id);
+        if (raidData == null) {
+            sendMessageTo(p, "{text.pomkotsmechs.messages.pomkotscube.02}");
+            PomkotsMechs.LOGGER.error("No raid.json entry '{}' for cube loot table {}; ignoring open.",
+                    chestData.raid_id, this.lootTable);
+            return;
+        }
+
+        // ACTIVATE raids need an inactive boss nearby to be winnable.
+        if ("activate".equals(raidData.type)) {
+            var bosses = RaidControllerEntity.getInactiveBossesAroundPos(this.level, this.getBlockPos());
+            if (bosses.isEmpty()) {
+                sendMessageTo(p, "{text.pomkotsmechs.messages.pomkotscube.01}");
+                return;
+            }
+        }
+
+        // Commit: escrow the key (removed from hand, refunded on any cancellation),
+        // set the raid owner, and start the countdown.
+        if (consumeKey) {
+            this.escrowedKey = p.getMainHandItem().split(1);
+        }
+        this.opener = p;
+        this.summonActionTickCount = 1;
+        setChanged();
     }
 
     public static void serverTick(Level level, BlockPos blockPos, BlockState blockState, PomkotsCubeBlockEntity entity) {
@@ -255,32 +307,93 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
     }
 
     public void tick() {
-        if (level != null && !level.isClientSide) {
-            if (this.mode == MODE_BLUE) {
-                tryRefill();
-            } else {
-                if (summonActionTickCount > 0) {
-                    if (opener == null || !opener.isAlive()) {
-                        summonActionTickCount = 0;
-                        return;
-                    }
+        if (level == null || level.isClientSide) return;
 
-                    summonActionTickCount++;
+        // Refund a key escrowed by a countdown that a reload interrupted.
+        if (refundEscrowOnTick) {
+            refundEscrowOnTick = false;
+            refundEscrowedKey();
+        }
 
-                    if (summonActionTickCount == 10) {
-                        spawnAlertEffect();
+        // Maintain the double-raid guard every tick: lazily resolve the controller
+        // UUID with a grace period so a not-yet-loaded controller is not mistaken
+        // for a finished raid (which would let a second raid start after a restart).
+        tickRaidControllerGuard();
 
-                    } else if (summonActionTickCount > 50) {
-                        startRaid();
-                        summonActionTickCount = 0;
-                    }
-                } else if (raidControllerEntity == null || !raidControllerEntity.isAlive()) {
-                    this.raidControllerUUID = null;
-                    this.raidControllerEntity = null;
-                    this.setChanged();
-                }
+        if (this.mode == MODE_BLUE) {
+            tryRefill();
+            return;
+        }
+
+        if (summonActionTickCount > 0) {
+            if (opener == null || !opener.isAlive()) {
+                // Opener left/died during the countdown: cancel and refund the key.
+                cancelPendingCountdown();
+                return;
+            }
+
+            summonActionTickCount++;
+
+            if (summonActionTickCount == 10) {
+                spawnAlertEffect();
+            } else if (summonActionTickCount > 50) {
+                startRaid();
+                summonActionTickCount = 0;
             }
         }
+    }
+
+    /** Lazily resolve the raid controller after a restart; only conclude it is gone
+     *  once it has been unresolvable for the whole grace window. */
+    private void tickRaidControllerGuard() {
+        if (raidControllerUUID == null) {
+            raidControllerEntity = null;
+            raidControllerResolveGrace = 0;
+            return;
+        }
+        if (!(level instanceof ServerLevel sl)) return;
+
+        if (raidControllerEntity != null && raidControllerEntity.isAlive()) {
+            raidControllerResolveGrace = 0;
+            return;
+        }
+        if (sl.getEntity(raidControllerUUID) instanceof RaidControllerEntity rce && rce.isAlive()) {
+            raidControllerEntity = rce;
+            raidControllerResolveGrace = 0;
+            return;
+        }
+
+        // Unresolved this tick: it may just be in an unloaded chunk. Only clear the
+        // guard once the grace window elapses.
+        raidControllerEntity = null;
+        if (++raidControllerResolveGrace > RAID_CONTROLLER_RESOLVE_GRACE_TICKS) {
+            raidControllerUUID = null;
+            raidControllerResolveGrace = 0;
+            setChanged();
+        }
+    }
+
+    private void cancelPendingCountdown() {
+        summonActionTickCount = 0;
+        refundEscrowedKey();
+        opener = null;
+        setChanged();
+    }
+
+    /** Return the escrowed key to the opener if online, otherwise drop it at the cube. */
+    private void refundEscrowedKey() {
+        if (escrowedKey.isEmpty()) return;
+        if (!(level instanceof ServerLevel)) return;
+
+        ItemStack toReturn = escrowedKey;
+        escrowedKey = ItemStack.EMPTY;
+
+        if (opener instanceof ServerPlayer sp && sp.isAlive()) {
+            sp.getInventory().placeItemBackInInventory(toReturn);
+        } else {
+            Block.popResource(level, worldPosition.above(), toReturn);
+        }
+        setChanged();
     }
 
     private void spawnAlertEffect() {
@@ -298,62 +411,77 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
     }
 
     private void startRaid() {
-        if (opener != null
-                && this.lootTable != null
-                && this.lootTable.getNamespace().equals("pomkotsmechs")
-                && PomkotsDataPackManager.getInstance().getDataPack().getChestData(this.lootTable.toString()) != null) {
-
-            var chestData = PomkotsDataPackManager.getInstance().getDataPack().getChestData(this.lootTable.toString());
-            var raidData = PomkotsDataPackManager.getInstance().getDataPack().getRaidData(chestData.raid_id);
-
-            if (raidData != null) {
-                RaidControllerEntity rce = PomkotsMechs.RAID_CONTROLLER.get().create(level);
-
-                if (rce != null) {
-                    var raidEntityPos = getRaidEntitySpawnPos(raidData);
-                    rce.setPos(raidEntityPos.getX(), raidEntityPos.getY(), raidEntityPos.getZ());
-
-                    BlockPos cubePos = this.getBlockPos();
-
-                    String failCommand;
-
-                    if (raidData.type.equals(RaidControllerEntity.RaidType.ACTIVATE.getId())) {
-                        var bosses = RaidControllerEntity.getInactiveBossesAroundPos(level, this.getBlockPos());
-
-                        if (bosses == null || bosses.isEmpty()) {
-                            failCommand = "say mission failed...";
-                        } else {
-                            var boss = bosses.get(0);
-                            UUID uuid = boss.getUUID();
-                            BlockPos pos = boss.blockPosition();
-
-                            failCommand = String.format(
-                                    "pomkots:reset_boss_pos %s %d %d %d",
-                                    uuid,
-                                    pos.getX(),
-                                    pos.getY(),
-                                    pos.getZ()
-                            );
-                        }
-                    } else {
-                        failCommand = "say mission failed...";
-                    }
-
-                    CompoundTag tag = RaidControllerEntity.buildCompoundTag(
-                            chestData.raid_id, opener.getUUID(), "data modify block " + cubePos.getX() + " " + cubePos.getY() + " " + cubePos.getZ() + " pomkotsmechsCubeMode set value " + MODE_BLUE, failCommand
-                    );
-                    rce.readAdditionalSaveData(tag);
-                    level.addFreshEntity(rce);
-
-                    this.raidControllerUUID = rce.getUUID();
-                    this.raidControllerEntity = rce;
-
-                    this.setChanged();
-                }
-            } else {
-                PomkotsMechs.LOGGER.error("Specified raid does not exist:" + chestData.raid_id);
-            }
+        // Any failure before the controller is spawned refunds the escrowed key.
+        if (opener == null
+                || this.lootTable == null
+                || !this.lootTable.getNamespace().equals("pomkotsmechs")) {
+            failRaidStart();
+            return;
         }
+
+        var dp = PomkotsDataPackManager.getInstance().getDataPack();
+        var chestData = dp.getChestData(this.lootTable.toString());
+        if (chestData == null) {
+            PomkotsMechs.LOGGER.error("startRaid: no chest.json mapping for {}", this.lootTable);
+            failRaidStart();
+            return;
+        }
+        var raidData = dp.getRaidData(chestData.raid_id);
+        if (raidData == null) {
+            PomkotsMechs.LOGGER.error("startRaid: raid '{}' does not exist", chestData.raid_id);
+            failRaidStart();
+            return;
+        }
+
+        RaidControllerEntity rce = PomkotsMechs.RAID_CONTROLLER.get().create(level);
+        if (rce == null) {
+            PomkotsMechs.LOGGER.error("startRaid: failed to create raid controller");
+            failRaidStart();
+            return;
+        }
+
+        var raidEntityPos = getRaidEntitySpawnPos(raidData);
+        rce.setPos(raidEntityPos.getX(), raidEntityPos.getY(), raidEntityPos.getZ());
+
+        BlockPos cubePos = this.getBlockPos();
+        // On success, flip the cube back to blue via a vanilla data command. The
+        // ACTIVATE boss reset (formerly the unported pomkots:reset_boss_pos command)
+        // is now handled directly in code on the controller, so no fail command.
+        String successCommand = "data modify block " + cubePos.getX() + " " + cubePos.getY() + " " + cubePos.getZ()
+                + " pomkotsmechsCubeMode set value " + MODE_BLUE;
+
+        // Tell the controller which key to drop if it must fail closed at runtime
+        // (unknown/invalid mob). Null for free (keyless) raids.
+        String keyItemId = escrowedKey.isEmpty()
+                ? null
+                : BuiltInRegistries.ITEM.getKey(escrowedKey.getItem()).toString();
+
+        CompoundTag tag = RaidControllerEntity.buildCompoundTag(
+                chestData.raid_id, opener.getUUID(), successCommand, null);
+        if (keyItemId != null) {
+            tag.putString(PomkotsMechs.nbtName("RaidRefundKeyItem"), keyItemId);
+        }
+        rce.readAdditionalSaveData(tag);
+
+        if (!level.addFreshEntity(rce)) {
+            PomkotsMechs.LOGGER.error("startRaid: addFreshEntity rejected the raid controller");
+            failRaidStart();
+            return;
+        }
+
+        // Commit point: the controller exists. The escrowed key is now spent.
+        this.escrowedKey = ItemStack.EMPTY;
+        this.raidControllerUUID = rce.getUUID();
+        this.raidControllerEntity = rce;
+        this.raidControllerResolveGrace = 0;
+        this.setChanged();
+    }
+
+    /** Abort a raid start before commit: refund the escrowed key, clear pending state. */
+    private void failRaidStart() {
+        refundEscrowedKey();
+        this.opener = null;
+        this.setChanged();
     }
 
     private BlockPos getRaidEntitySpawnPos(RaidDefinition raidData) {
@@ -370,6 +498,12 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
 
     @Override
     public void unpackLootTable(Player player) {
+        // Only a blue (unlocked) cube may ever materialize its loot. This is the
+        // container-level gate: hoppers / hopper-minecarts call getItem ->
+        // unpackLootTable(null) directly, bypassing the GUI, so a locked cube must
+        // refuse to unpack no matter who asks.
+        if (getMode() != MODE_BLUE) return;
+
         if (!level.isClientSide && refillLootTable == null) {
             refillLootTable = this.lootTable;
 
@@ -379,6 +513,27 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
 
             setChanged();
         }
+    }
+
+    // Defense in depth against automation draining a locked cube: while the cube is
+    // not blue, present an empty container to every reader/mutator.
+
+    @Override
+    public @NotNull ItemStack getItem(int slot) {
+        if (getMode() != MODE_BLUE) return ItemStack.EMPTY;
+        return super.getItem(slot);
+    }
+
+    @Override
+    public @NotNull ItemStack removeItem(int slot, int amount) {
+        if (getMode() != MODE_BLUE) return ItemStack.EMPTY;
+        return super.removeItem(slot, amount);
+    }
+
+    @Override
+    public @NotNull ItemStack removeItemNoUpdate(int slot) {
+        if (getMode() != MODE_BLUE) return ItemStack.EMPTY;
+        return super.removeItemNoUpdate(slot);
     }
 
     private void compactStacksRespectNBT() {
@@ -555,17 +710,10 @@ public class PomkotsCubeBlockEntity extends ChestBlockEntity implements GeoBlock
 
     // ====================== メッセージ関係 ======================
 
-    private void sendMessageForOpener(String message) {
-        if (opener instanceof ServerPlayer sp) {
-            var l = new ArrayList<ServerPlayer>();
-            l.add(sp);
-            sendMessage(message, l);
-        }
-    }
-
-    private void sendMessage(String message, Collection<ServerPlayer> players) {
-        for (ServerPlayer player : players) {
-            player.sendSystemMessage(Utils.string2Component(message));
+    /** Immediate feedback to the clicking player (not the raid owner). */
+    private void sendMessageTo(Player p, String message) {
+        if (p instanceof ServerPlayer sp) {
+            sp.sendSystemMessage(Utils.string2Component(message));
         }
     }
 }

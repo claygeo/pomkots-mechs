@@ -88,7 +88,10 @@ public class PomkotsCubeBlock extends ChestBlock implements PomkotsUnbreakableBl
 
         if (be instanceof PomkotsCubeBlockEntity cubeBe) {
             if (player.isShiftKeyDown()) {
-                if (!level.isClientSide) {
+                // Tier cycling is a level-design tool, not a player verb: an
+                // unguarded cycle lets anyone wrap a keycard-locked cube back
+                // to the free tier. Creative/ops only.
+                if (!level.isClientSide && (player.isCreative() || player.hasPermissions(2))) {
                     cubeBe.incrementMode();
                 }
                 return InteractionResult.SUCCESS;
