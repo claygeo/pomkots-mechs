@@ -18,8 +18,13 @@ import java.util.List;
 public class DataPackLoader {
     @SubscribeEvent
     public static void onServerStarting(ServerStartingEvent event) {
-        MinecraftServer server = event.getServer();
-        ResourceManager manager = server.getResourceManager();
-        PomkotsMechs.loadDataPack(manager);
+        // A malformed datapack must never abort server startup.
+        try {
+            MinecraftServer server = event.getServer();
+            ResourceManager manager = server.getResourceManager();
+            PomkotsMechs.loadDataPack(manager);
+        } catch (Throwable t) {
+            PomkotsMechs.LOGGER.error("Pomkots datapack load failed during server start; continuing.", t);
+        }
     }
 }

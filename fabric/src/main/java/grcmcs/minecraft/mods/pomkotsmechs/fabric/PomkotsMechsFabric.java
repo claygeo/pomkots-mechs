@@ -26,7 +26,12 @@ public final class PomkotsMechsFabric implements ModInitializer {
         ResourceManagerHelper.get(PackType.SERVER_DATA).registerReloadListener(new SimpleSynchronousResourceReloadListener() {
             @Override
             public void onResourceManagerReload(ResourceManager resourceManager) {
-                PomkotsMechs.loadDataPack(resourceManager);
+                // A malformed datapack must never abort the resource reload / boot.
+                try {
+                    PomkotsMechs.loadDataPack(resourceManager);
+                } catch (Throwable t) {
+                    PomkotsMechs.LOGGER.error("Pomkots datapack load failed during reload; continuing.", t);
+                }
             }
 
             @Override

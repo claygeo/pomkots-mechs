@@ -47,6 +47,18 @@ public class PomkotsDataPack implements Serializable {
         raidData.put(raidName, data);
     }
 
+    /** Atomically swap the whole raid map (used after a validated snapshot pass). */
+    public void replaceRaidData(Map<String, RaidDefinition> data) {
+        raidData.clear();
+        raidData.putAll(data);
+    }
+
+    /** Atomically swap the whole chest map (used after a validated snapshot pass). */
+    public void replaceChestData(Map<String, ChestData> data) {
+        chestData.clear();
+        chestData.putAll(data);
+    }
+
     public ChestData getChestData(String chestLootTable) {
         return chestData.get(chestLootTable);
     }
