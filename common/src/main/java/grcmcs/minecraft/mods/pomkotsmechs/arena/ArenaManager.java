@@ -159,6 +159,12 @@ public final class ArenaManager {
         if (state == ArenaState.ACTIVE || state == ArenaState.ENDING) {
             Fighter f = findFighterByUuid(uuid);
             if (f != null && f.eliminated) {
+                if (ArenaData.get(server).getPendingRestore(uuid) == null) {
+                    // Already healed (e.g. on quit) — the match no longer owns
+                    // this player. Never re-capture them into spectator: there is
+                    // no record left, so nothing would ever release them.
+                    return;
+                }
                 // Died in-match and clicked respawn: keep them spectating the
                 // rest of the match. Their pending record stays until match end.
                 player.setGameMode(GameType.SPECTATOR);
@@ -172,11 +178,18 @@ public final class ArenaManager {
             }
             if (f != null) {
                 // A CURRENT, non-eliminated fighter respawning mid-match: their
-                // record is owned by the match — never consume it here, or a later
-                // eliminate() would strand them with no record left. Treat the
+                // record is owned by the match — never consume it here during
+                // ACTIVE, or a later eliminate() would strand them. Treat the
                 // respawn as their elimination and let the normal path handle it.
                 if (state == ArenaState.ACTIVE) {
                     eliminate(server, f, true);
+                    return;
+                }
+                // ENDING: the outcome can no longer change, so the record is
+                // safe to consume now instead of leaving them at their bed.
+                RestoreRecord rec = ArenaData.get(server).getPendingRestore(uuid);
+                if (rec != null) {
+                    restorePlayer(server, player, rec);
                 }
                 return;
             }
@@ -203,11 +216,14 @@ public final class ArenaManager {
             return EventResult.pass();
         }
         // A tagged arena mech is being added. In ANY state, only a live fighter's
-        // current mech may enter the world. deployFighter sets f.mech before
-        // addFreshEntity, so our own deploy-window spawns resolve by reference;
-        // everything else (crash leftovers chunk-loading at any time) is culled.
+        // current mech may enter the world. Ownership requires IDENTITY, not just
+        // the owner tag: deployFighter sets f.mech before addFreshEntity, and
+        // findFighterByMech heals f.mech for a legitimately chunk-reloaded mech,
+        // so f.mech == entity holds in both valid cases. A crash-leftover
+        // duplicate carrying the same owner tag while the real mech lives fails
+        // the identity test and is culled.
         Fighter f = findFighterByMech(entity);
-        if (f != null && !f.eliminated
+        if (f != null && !f.eliminated && f.mech == entity
                 && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN)) {
             return EventResult.pass();
         }
@@ -257,7 +273,7 @@ public final class ArenaManager {
             sweepStrayMechs(server);
         }
         ArenaData data = ArenaData.get(server);
-        if (queue.size() >= MIN_FIGHTERS && data.getPads().size() >= MIN_PADS) {
+        if (countViableQueued(server) >= MIN_FIGHTERS && data.getPads().size() >= MIN_PADS) {
             idleTimer++;
             if (idleTimer >= AUTO_START_DELAY) {
                 beginCountdown(server);
@@ -265,6 +281,22 @@ public final class ArenaManager {
         } else {
             idleTimer = 0;
         }
+    }
+
+    /**
+     * Queue members who could actually be deployed right now (online, alive, not
+     * mid-disconnect). Dead/AFK queue entries must not arm a countdown that
+     * startMatch would immediately abort.
+     */
+    private static int countViableQueued(MinecraftServer server) {
+        int n = 0;
+        for (UUID uuid : queue.keySet()) {
+            ServerPlayer p = server.getPlayerList().getPlayer(uuid);
+            if (p != null && p.isAlive() && !p.hasDisconnected()) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /** Discards every tagged mech that is not a live fighter's current mech. */
@@ -275,7 +307,7 @@ public final class ArenaManager {
                     e -> e.getTags().contains(TAG_ARENA));
             for (Entity e : tagged) {
                 Fighter f = findFighterByMech(e);
-                boolean owned = f != null && !f.eliminated
+                boolean owned = f != null && !f.eliminated && f.mech == e
                         && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
                 if (!owned) {
                     e.ejectPassengers();
@@ -293,7 +325,7 @@ public final class ArenaManager {
     }
 
     private static void tickCountdown(MinecraftServer server) {
-        if (queue.size() < MIN_FIGHTERS) {
+        if (countViableQueued(server) < MIN_FIGHTERS) {
             // Someone left/quit during the countdown. Cancel WITHOUT wiping the
             // queue; auto-start re-arms once enough players are queued again.
             broadcast(server, "Not enough players — countdown cancelled.");
@@ -923,8 +955,8 @@ public final class ArenaManager {
             src.sendFailure(Component.literal(PREFIX + "A match is already starting or running."));
             return 0;
         }
-        if (queue.size() < MIN_FIGHTERS) {
-            src.sendFailure(Component.literal(PREFIX + "Need at least " + MIN_FIGHTERS + " queued players."));
+        if (countViableQueued(server) < MIN_FIGHTERS) {
+            src.sendFailure(Component.literal(PREFIX + "Need at least " + MIN_FIGHTERS + " queued players (online and alive)."));
             return 0;
         }
         if (ArenaData.get(server).getPads().size() < MIN_PADS) {
