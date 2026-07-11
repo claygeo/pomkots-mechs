@@ -438,7 +438,10 @@ public final class ArenaManager {
         double cz = Mth.floor(rc.z) + 0.5;
         double span = Math.max(0.0, data.getRoyaleRadius() - SCATTER_MIN_DIST);
         java.util.LinkedHashSet<Long> chunks = new java.util.LinkedHashSet<>();
-        for (int i = 0; i < data.getMechCount(); i++) {
+        // Over-plan 3x the needed points: scatterMechs later PREFERS points whose
+        // surface sits near the center's street level, so mechs land where a
+        // player on foot can actually reach them instead of on tower roofs.
+        for (int i = 0; i < data.getMechCount() * 3; i++) {
             double angle = rand.nextDouble() * 2.0 * Math.PI;
             double dist = SCATTER_MIN_DIST + rand.nextDouble() * span;
             int x = Mth.floor(cx + dist * Math.cos(angle));
@@ -766,8 +769,35 @@ public final class ArenaManager {
     private static void scatterMechs(ServerLevel level) {
         RandomSource rand = level.getRandom();
         royaleMechsAlive = 0;
-        for (int i = 0; i < scatterPoints.size(); i++) {
-            int[] pt = scatterPoints.get(i);
+        int want = ArenaData.get(level.getServer()).getMechCount();
+        // Reachability pass: prefer planned points whose surface sits within a
+        // band of the center's street level (a player on foot can get there);
+        // top up from the leftovers only if the streets can't fill the quota.
+        List<int[]> ordered = new ArrayList<>();
+        List<int[]> rooftops = new ArrayList<>();
+        for (int[] pt : scatterPoints) {
+            // Chunks were prepped across the countdown (planScatter/tickCountdown);
+            // getChunk here is a cheap cache hit that also covers the rare case of
+            // a countdown too short to exhaust the prep list.
+            level.getChunk(pt[0] >> 4, pt[1] >> 4);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pt[0], pt[1]);
+            if (y <= centerY + 8) {
+                ordered.add(new int[]{pt[0], pt[1], y});
+            } else {
+                rooftops.add(new int[]{pt[0], pt[1], y});
+            }
+            if (ordered.size() >= want) {
+                break;
+            }
+        }
+        for (int[] r : rooftops) {
+            if (ordered.size() >= want) {
+                break;
+            }
+            ordered.add(r);
+        }
+        for (int i = 0; i < ordered.size(); i++) {
+            int[] pt = ordered.get(i);
             String mechId = ROSTER.get(i % ROSTER.size());
             ResourceLocation id = new ResourceLocation(PomkotsMechs.MODID, mechId);
             if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
@@ -775,11 +805,7 @@ public final class ArenaManager {
             }
             int x = pt[0];
             int z = pt[1];
-            // Chunks were prepped across the countdown (planScatter/tickCountdown);
-            // getChunk here is a cheap cache hit that also covers the rare case of
-            // a countdown too short to exhaust the prep list.
-            level.getChunk(x >> 4, z >> 4);
-            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+            int y = pt[2];
 
             EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
             Entity spawned = type.create(level);
