@@ -16,10 +16,13 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.PomkotsVehicle;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -30,10 +33,12 @@ import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -53,7 +58,8 @@ public final class ArenaManager {
 
     private static final int MIN_FIGHTERS = 2;
     private static final int MIN_PADS = 2;
-    private static final int AUTO_START_DELAY = 200;   // ticks queue must stay ready before auto-start
+    private static final int AUTO_START_DELAY = 200;   // DUEL: ticks queue must stay ready before auto-start
+    private static final int ROYALE_AUTO_START_DELAY = 600; // ROYALE: sustained-min-players auto-start delay (30s)
     private static final int COUNTDOWN_LENGTH = 200;   // 10s
     private static final int ENDING_LENGTH = 100;      // 5s wind-down
     private static final int MATCH_TIMEOUT = 8 * 60 * 20; // 8 minutes of ACTIVE
@@ -62,10 +68,12 @@ public final class ArenaManager {
     private static final int SPECTATE_HEIGHT = 30;
 
     // Royale tuning.
-    private static final int CAGE_LENGTH = 200;        // 10s the glass cage holds fighters
-    private static final double RING_RADIUS = 3.0;     // fighters spawn on this ring inside the cage
-    private static final int CAGE_HALF = 4;            // 9x9 footprint (center +/- 4)
-    private static final int CAGE_WALL_HEIGHT = 5;     // wall blocks; roof sits one above
+    private static final int CAGE_LENGTH = 200;        // 10s the glass cages hold fighters before dropping
+    private static final double SKY_CAGE_RING_RADIUS = 24.0; // per-fighter cages sit on this ring around center
+    private static final int SKY_CAGE_Y_OFFSET = 60;   // cages float this many blocks above center Y
+    private static final int SKY_CAGE_HALF = 2;        // 5x5 footprint (center +/- 2)
+    private static final int SKY_CAGE_WALL_HEIGHT = 4; // wall blocks; glass roof sits one above the top wall
+    private static final int PVE_MOBS_PER_WAVE = 6;    // hostiles per PvE wave at GRACE end (light=1, heavy=2)
     private static final int SCATTER_MIN_DIST = 30;    // nearest a scattered mech may spawn
     private static final double ROYALE_BOUNDS_FACTOR = 1.25; // bounds = royale radius * this
     private static final int PREP_CHUNKS_PER_TICK = 2; // scatter chunk-gen budget during countdown
@@ -76,6 +84,13 @@ public final class ArenaManager {
     private static final String TAG_ARENA = "mecharena";
     private static final String TAG_OWNER_PREFIX = "mecharena_owner_";
     private static final String TAG_MATCH_PREFIX = "mecharena_match_";
+    // PvE hostiles carry TAG_ARENA (so all existing cleanup/sweep paths reap them)
+    // plus the current match tag (so the guards treat them as legitimate) plus this
+    // marker, which keeps their deaths OUT of the loot-mech accounting.
+    private static final String TAG_PVE = "mecharena_pve";
+    // Hostile roster for the PvE hook: charging, gun, and spider mobs. All are
+    // Monsters that autonomously target the nearest player (hostile to everyone).
+    private static final List<String> PVE_ROSTER = List.of("pms01", "pms03", "pms05");
     private static final String PREFIX = "[Arena] ";
 
     private static ArenaState state = ArenaState.IDLE;
@@ -87,7 +102,12 @@ public final class ArenaManager {
     private static int matchTicks = 0;
     private static int endingTicks = 0;
     private static int sweepTimer = 0;
-    private static int cageTicks = 0;   // royale only: ticks the cage still holds fighters
+    private static int cageTicks = 0;   // royale only: ticks the cages still hold fighters before dropping
+    private static int graceTicks = 0;  // royale only: ticks left in the no-combat GRACE window after the drop
+
+    // First-mount control-card tracker. In-memory only (per server session):
+    // cleared on every (re)start so returning players see the card once per boot.
+    private static final Set<UUID> mountHinted = new HashSet<>();
 
     // Geometry of the currently running match.
     private static double centerX;
@@ -107,6 +127,13 @@ public final class ArenaManager {
     // mechs are tagged with it; the stray sweeps treat only the CURRENT id as
     // legitimate.
     private static int matchId = 0;
+    // Per-match snapshots taken at startMatch (like matchMode/matchBoundsRadius) so
+    // a mid-match config change can never perturb a live match. matchRingCount is
+    // the sky-cage ring divisor; the grace/pve snapshots freeze the GRACE window
+    // length and the PvE tier for the whole match.
+    private static int matchRingCount = 0;
+    private static int matchGraceDuration = 1200;
+    private static RoyalePve matchPve = RoyalePve.OFF;
     // Scatter plan computed at countdown start: spawn points plus the deduped
     // set of chunks they need. Chunks are generated a few per tick DURING the
     // countdown so startMatch never forces dozens of Lost Cities chunks in one
@@ -143,6 +170,7 @@ public final class ArenaManager {
         resetToIdle();
         queue.clear();
         fighters.clear();
+        mountHinted.clear();
         killTaggedEntities(server);
         // A crash mid-royale can leave a glass cage in the city; the recorded
         // positions outlive the process in ArenaData, so remove them now.
@@ -298,7 +326,11 @@ public final class ArenaManager {
                         // Mechs are GEAR, not lives: a downed mech eliminates no
                         // one. The count is tracked at spawn/death rather than
                         // scanned, so mechs idling in unloaded chunks still count.
-                        if (entity.getTags().contains(TAG_MATCH_PREFIX + matchId)) {
+                        // PvE hostiles share TAG_ARENA + the match tag (so cleanup
+                        // reaps them) but are NOT loot mechs, so their deaths must
+                        // not touch the mech count.
+                        if (entity.getTags().contains(TAG_MATCH_PREFIX + matchId)
+                                && !entity.getTags().contains(TAG_PVE)) {
                             royaleMechsAlive = Math.max(0, royaleMechsAlive - 1);
                             broadcast(server, "A mech went down — " + royaleMechsAlive + " mechs remain.");
                         }
@@ -325,11 +357,30 @@ public final class ArenaManager {
     // ---------------------------------------------------------------------
 
     private static void onServerTick(MinecraftServer server) {
+        // Global QoL, orthogonal to the match FSM: the first time a player pilots a
+        // pomkots mech this session, hand them the control card. Runs in every state
+        // (and reads no match config/phase), so it leaves DUEL flow untouched.
+        tickMountHints(server);
+
         switch (state) {
             case IDLE -> tickIdle(server);
             case COUNTDOWN -> tickCountdown(server);
             case ACTIVE -> tickActive(server);
             case ENDING -> tickEnding(server);
+        }
+    }
+
+    /**
+     * Detects the first mech mount per player per server session and sends the
+     * one-time control card. Cheap: a single {@code getVehicle()} check per online
+     * player, gated by an in-memory UUID set so it fires exactly once.
+     */
+    private static void tickMountHints(MinecraftServer server) {
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            if (player.getVehicle() instanceof PomkotsVehicle
+                    && mountHinted.add(player.getUUID())) {
+                player.sendSystemMessage(mountHelpCard());
+            }
         }
     }
 
@@ -342,18 +393,44 @@ public final class ArenaManager {
             sweepStrayMechs(server);
         }
         ArenaData data = ArenaData.get(server);
-        // ROYALE needs a center, not pads; DUEL needs pads. Fighter minimum is
-        // shared. Anything else keeps the auto-start timer disarmed.
-        boolean venueReady = data.getMode() == Mode.ROYALE
+        // ROYALE needs a center, not pads; DUEL needs pads. Anything else keeps the
+        // auto-start timer disarmed.
+        Mode mode = data.getMode();
+        boolean venueReady = mode == Mode.ROYALE
                 ? data.getRoyaleCenter() != null
                 : data.getPads().size() >= MIN_PADS;
-        if (countViableQueued(server) >= MIN_FIGHTERS && venueReady) {
-            idleTimer++;
-            if (idleTimer >= AUTO_START_DELAY) {
+        if (!venueReady) {
+            idleTimer = 0;
+            return;
+        }
+        int viable = countViableQueued(server);
+        if (mode == Mode.ROYALE) {
+            // Two start gates: a full lobby (>= startAt) fires immediately; a viable
+            // lobby (>= min) fires after a sustained idle delay. Below min disarms.
+            int startAt = Math.max(MIN_FIGHTERS, data.getRoyaleStartAtPlayers());
+            int min = Math.max(MIN_FIGHTERS, data.getRoyaleMinPlayers());
+            if (viable >= startAt) {
                 beginCountdown(server);
+                return;
+            }
+            if (viable >= min) {
+                idleTimer++;
+                if (idleTimer >= ROYALE_AUTO_START_DELAY) {
+                    beginCountdown(server);
+                }
+            } else {
+                idleTimer = 0;
             }
         } else {
-            idleTimer = 0;
+            // DUEL: unchanged — >= MIN_FIGHTERS sustained for AUTO_START_DELAY.
+            if (viable >= MIN_FIGHTERS) {
+                idleTimer++;
+                if (idleTimer >= AUTO_START_DELAY) {
+                    beginCountdown(server);
+                }
+            } else {
+                idleTimer = 0;
+            }
         }
     }
 
@@ -515,6 +592,10 @@ public final class ArenaManager {
             // otherwise place a cage wall through a fighter's bounding box.
             center = new double[]{Mth.floor(rc.x) + 0.5, rc.y, Mth.floor(rc.z) + 0.5};
             matchBoundsRadius = data.getRoyaleRadius() * ROYALE_BOUNDS_FACTOR;
+            // Freeze the GRACE length and PvE tier for the whole match, so an admin
+            // config change (idle-only anyway) can never perturb a running match.
+            matchGraceDuration = data.getRoyaleGraceTicks();
+            matchPve = data.getRoyalePve();
         } else {
             pads = data.getPads();
             if (pads.size() < MIN_PADS) {
@@ -561,8 +642,10 @@ public final class ArenaManager {
 
         fighters.clear();
         // DUEL is capped by pad count; ROYALE has no pads, so every viable queued
-        // player deploys onto the spawn ring.
+        // player deploys into their own sky cage on the ring.
         int cap = mode == Mode.ROYALE ? countViableQueued(server) : pads.size();
+        // Freeze the sky-cage ring divisor so deploy and buildCage agree on geometry.
+        matchRingCount = cap;
         int index = 0;
         List<UUID> consumed = new ArrayList<>();
 
@@ -618,21 +701,23 @@ public final class ArenaManager {
         }
 
         if (mode == Mode.ROYALE) {
-            // Build the holding cage around the ring and scatter the loot mechs
-            // while state is still COUNTDOWN, so the ADD guard admits the scatter
-            // under the current match tag.
+            // Build the floating sky cages around the ring and scatter the loot
+            // mechs while state is still COUNTDOWN, so the ADD guard admits the
+            // scatter under the current match tag.
             buildCage(server, arenaLevel, center);
             scatterMechs(arenaLevel);
             cageTicks = CAGE_LENGTH;
+            graceTicks = 0; // grace begins only once the cages drop
         } else {
             cageTicks = 0;
+            graceTicks = 0;
         }
 
         state = ArenaState.ACTIVE;
         matchTicks = 0;
         if (mode == Mode.ROYALE) {
             broadcast(server, "Royale started! " + fighters.size()
-                    + " fighters caged — grab a mech when the cage drops.");
+                    + " fighters caged in the sky — you drop when the cages break.");
         } else {
             broadcast(server, "Match started! " + fighters.size() + " fighters enter the arena.");
         }
@@ -689,9 +774,11 @@ public final class ArenaManager {
     /**
      * ROYALE deploy: the pre-match snapshot is already recorded (same shared code
      * path as DUEL), so this only performs the physical setup — ADVENTURE + a
-     * teleport onto the cage ring. NO mech is spawned or mounted: royale mechs
-     * are scattered loot, not a fighter's life. Returns false if the teleport was
-     * cancelled, in which case the caller aborts and everyone is restored.
+     * teleport into this fighter's own floating sky cage. NO mech is spawned or
+     * mounted: royale mechs are scattered loot, not a fighter's life. The ring
+     * index is stored so {@link #buildCage} raises each cage exactly where the
+     * fighter stands. Returns false if the teleport was cancelled, in which case
+     * the caller aborts and everyone is restored.
      */
     private static boolean deployFighterRoyale(MinecraftServer server, ServerLevel arenaLevel, Fighter f,
                                                double[] center, int ringCount, int index) {
@@ -699,47 +786,48 @@ public final class ArenaManager {
         if (player == null) {
             return false;
         }
-        double angle = ringCount > 0 ? (2.0 * Math.PI * index / ringCount) : 0.0;
-        double px = center[0] + RING_RADIUS * Math.cos(angle);
-        double pz = center[2] + RING_RADIUS * Math.sin(angle);
+        f.ringIndex = index;
+        double[] base = skyCageBase(center, ringCount, index);
         // Face the ring center so caged fighters look inward.
-        float yaw = (float) (Math.toDegrees(-Math.atan2(center[0] - px, center[2] - pz)));
+        float yaw = (float) (Math.toDegrees(-Math.atan2(center[0] - base[0], center[2] - base[2])));
 
         player.setGameMode(GameType.ADVENTURE);
-        player.teleportTo(arenaLevel, px, center[1], pz, yaw, 0f);
+        player.teleportTo(arenaLevel, base[0], base[1], base[2], yaw, 0f);
         return player.serverLevel() == arenaLevel;
     }
 
     /**
-     * Builds the glass holding cage around the spawn ring: a hollow 9x9 box, five
-     * walls high, with a roof, plus a floor only where the ground is missing.
-     * Only positions that are AIR are overwritten (never real terrain), and every
-     * placed position is recorded in ArenaData so it can be removed exactly — even
-     * after a crash.
+     * The block-centered feet position of a fighter's sky cage: an evenly-spaced
+     * slot on a ring of {@link #SKY_CAGE_RING_RADIUS} around the center, lifted
+     * {@link #SKY_CAGE_Y_OFFSET} blocks. Snapped to the block grid so the cage
+     * walls never clip the fighter's bounding box. Both the deploy teleport and
+     * the cage build call this, so their geometry can never diverge.
+     */
+    private static double[] skyCageBase(double[] center, int ringCount, int index) {
+        double angle = ringCount > 0 ? (2.0 * Math.PI * index / ringCount) : 0.0;
+        double x = center[0] + SKY_CAGE_RING_RADIUS * Math.cos(angle);
+        double z = center[2] + SKY_CAGE_RING_RADIUS * Math.sin(angle);
+        return new double[]{Mth.floor(x) + 0.5, center[1] + SKY_CAGE_Y_OFFSET, Mth.floor(z) + 0.5};
+    }
+
+    /**
+     * Builds one floating glass sky cage per fighter around the spawn ring. Each
+     * cage is a hollow 5x5 box, four walls high, with a glass roof AND a glass
+     * floor (the fighters are in mid-air, so the floor is what holds them up until
+     * it drops). Only positions that are AIR/replaceable are overwritten (never
+     * real terrain — at +60 in the sky that is everything), and every placed
+     * position across ALL cages is recorded in one ledger so /arena stop and the
+     * crash boot-sweep remove every cage exactly.
      */
     private static void buildCage(MinecraftServer server, ServerLevel level, double[] center) {
         ArenaData data = ArenaData.get(server);
         ResourceLocation dim = level.dimension().location();
-        int bx = Mth.floor(center[0]);
-        int by = Mth.floor(center[1]);
-        int bz = Mth.floor(center[2]);
         // Pass 1: compute every position we would fill (currently AIR) into the
-        // ledger — a WRITE-AHEAD log. Nothing is placed yet.
+        // ledger — a WRITE-AHEAD log across all N cages. Nothing is placed yet.
         List<CageBlock> plan = new ArrayList<>();
-        for (int dx = -CAGE_HALF; dx <= CAGE_HALF; dx++) {
-            for (int dz = -CAGE_HALF; dz <= CAGE_HALF; dz++) {
-                // Floor one below the fighters' feet, roof above the walls.
-                planCageBlock(level, dim, plan, bx + dx, by - 1, bz + dz);
-                planCageBlock(level, dim, plan, bx + dx, by + CAGE_WALL_HEIGHT, bz + dz);
-                // Walls: perimeter of the footprint only.
-                boolean perimeter = dx == -CAGE_HALF || dx == CAGE_HALF
-                        || dz == -CAGE_HALF || dz == CAGE_HALF;
-                if (perimeter) {
-                    for (int dy = 0; dy < CAGE_WALL_HEIGHT; dy++) {
-                        planCageBlock(level, dim, plan, bx + dx, by + dy, bz + dz);
-                    }
-                }
-            }
+        for (Fighter f : fighters) {
+            double[] base = skyCageBase(center, matchRingCount, f.ringIndex);
+            planSkyCage(level, dim, plan, Mth.floor(base[0]), Mth.floor(base[1]), Mth.floor(base[2]));
         }
         // Ledger to disk BEFORE any glass exists in the world: after a crash the
         // ledger can only ever list MORE positions than were placed (removal
@@ -750,6 +838,27 @@ public final class ArenaManager {
         BlockState glass = Blocks.GLASS.defaultBlockState();
         for (CageBlock cb : plan) {
             level.setBlockAndUpdate(cb.pos, glass);
+        }
+    }
+
+    /** Plans one 5x5 sky cage (glass floor + roof + four walls) centered on the
+     *  fighter's feet block, recording only currently AIR/replaceable positions. */
+    private static void planSkyCage(ServerLevel level, ResourceLocation dim,
+                                    List<CageBlock> plan, int bx, int by, int bz) {
+        for (int dx = -SKY_CAGE_HALF; dx <= SKY_CAGE_HALF; dx++) {
+            for (int dz = -SKY_CAGE_HALF; dz <= SKY_CAGE_HALF; dz++) {
+                // Glass floor one below the fighters' feet, glass roof above the walls.
+                planCageBlock(level, dim, plan, bx + dx, by - 1, bz + dz);
+                planCageBlock(level, dim, plan, bx + dx, by + SKY_CAGE_WALL_HEIGHT, bz + dz);
+                // Walls: perimeter of the footprint only.
+                boolean perimeter = dx == -SKY_CAGE_HALF || dx == SKY_CAGE_HALF
+                        || dz == -SKY_CAGE_HALF || dz == SKY_CAGE_HALF;
+                if (perimeter) {
+                    for (int dy = 0; dy < SKY_CAGE_WALL_HEIGHT; dy++) {
+                        planCageBlock(level, dim, plan, bx + dx, by + dy, bz + dz);
+                    }
+                }
+            }
         }
     }
 
@@ -836,6 +945,84 @@ public final class ArenaManager {
     }
 
     /**
+     * PvE pressure fired at GRACE end. light -> one wave, heavy -> two waves of
+     * {@link #PVE_MOBS_PER_WAVE} hostiles.
+     *
+     * <p>Implementation choice: direct tagged-mob spawns, NOT the raid controller.
+     * {@link grcmcs.minecraft.mods.pomkotsmechs.entity.event.RaidControllerEntity}
+     * hard-requires a living owner (it ends the raid the moment {@code raidOwner}
+     * resolves null) and layers on objective entities, advancements, finalize
+     * commands and boss bars — none of which fit an ownerless free-for-all where
+     * the "owner" fighter can be eliminated at any moment. The spec sanctions this
+     * simplification, so we spawn the mod's own Monsters directly. They already
+     * target the nearest player autonomously (hostile to everyone equally) and are
+     * tagged so every existing arena cleanup path reaps them.
+     */
+    private static void triggerPve(MinecraftServer server) {
+        if (matchPve == RoyalePve.OFF) {
+            return;
+        }
+        ServerLevel level = arenaDimension != null ? server.getLevel(arenaDimension) : null;
+        if (level == null) {
+            return;
+        }
+        int waves = matchPve == RoyalePve.HEAVY ? 2 : 1;
+        int spawned = spawnPveMobs(level, waves * PVE_MOBS_PER_WAVE);
+        if (spawned > 0) {
+            broadcast(server, "Hostiles inbound — " + spawned + " enemy units deployed across the city!");
+        }
+    }
+
+    /**
+     * Spawns {@code count} hostile mobs at random scatter points, at the surface
+     * heightmap Y. Each carries TAG_ARENA + the current match tag (so the ADD guard
+     * and stray sweeps treat it as legitimate and every cleanup path reaps it) plus
+     * TAG_PVE (so its death is never mistaken for a loot mech). Returns the number
+     * actually spawned.
+     */
+    private static int spawnPveMobs(ServerLevel level, int count) {
+        if (scatterPoints.isEmpty()) {
+            return 0;
+        }
+        RandomSource rand = level.getRandom();
+        int spawned = 0;
+        for (int i = 0; i < count; i++) {
+            int[] pt = scatterPoints.get(rand.nextInt(scatterPoints.size()));
+            int x = pt[0];
+            int z = pt[1];
+            level.getChunk(x >> 4, z >> 4);
+            int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
+            String mobId = PVE_ROSTER.get(i % PVE_ROSTER.size());
+            ResourceLocation id = new ResourceLocation(PomkotsMechs.MODID, mobId);
+            if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
+                continue;
+            }
+            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+            Entity spawnedEntity = type.create(level);
+            if (!(spawnedEntity instanceof LivingEntity mob)) {
+                if (spawnedEntity != null) {
+                    spawnedEntity.discard();
+                }
+                continue;
+            }
+            mob.setPos(x + 0.5, y, z + 0.5);
+            mob.setYRot(rand.nextFloat() * 360.0f);
+            mob.addTag(TAG_ARENA);
+            mob.addTag(TAG_MATCH_PREFIX + matchId);
+            mob.addTag(TAG_PVE);
+            if (mob instanceof Mob m) {
+                m.setPersistenceRequired(); // never despawn mid-match
+            }
+            if (!level.addFreshEntity(mob)) {
+                mob.discard();
+            } else {
+                spawned++;
+            }
+        }
+        return spawned;
+    }
+
+    /**
      * Removes every recorded cage block (setting it back to AIR only if it is
      * still our glass, so a player-replaced block is left alone) and clears the
      * ledger. Blocks in an unloadable dimension are kept recorded for a later
@@ -881,11 +1068,20 @@ public final class ArenaManager {
             sweepStrayMechs(server);
         }
 
-        // ROYALE cage phase: fighters are held in the glass box. No mount policy,
-        // no out-of-bounds, no win check while the cage still stands — just count
-        // it down and break it. (DUEL keeps cageTicks == 0 and skips all of this.)
+        // ROYALE cage phase: fighters are held in the floating glass boxes. No
+        // mount policy, no out-of-bounds, no win check while the cages still stand
+        // — just count them down and drop them. (DUEL keeps cageTicks == 0.)
         if (matchMode == Mode.ROYALE && cageTicks > 0) {
             tickCage(server);
+            return;
+        }
+
+        // ROYALE GRACE phase: the cages have dropped and fighters are falling in /
+        // scrambling for a mech. Damage is blocked (see isGraceProtected), fall
+        // damage is neutralised, out-of-bounds only WARNS, and the win check is
+        // paused — nobody can be eliminated until the fight actually starts.
+        if (matchMode == Mode.ROYALE && graceTicks > 0) {
+            tickGrace(server);
             return;
         }
 
@@ -897,7 +1093,7 @@ public final class ArenaManager {
 
         ServerLevel arenaLevel = arenaDimension != null ? server.getLevel(arenaDimension) : null;
         if (arenaLevel != null) {
-            checkOutOfBounds(server);
+            checkOutOfBounds(server, true);
         }
 
         if (evaluateWinCondition(server)) {
@@ -933,22 +1129,73 @@ public final class ArenaManager {
     }
 
     /**
-     * ROYALE cage countdown. Announces the break at 10/5/4/3/2/1 seconds and, when
-     * it lapses, removes ONLY the recorded cage blocks and turns the fighters
-     * loose. No elimination can happen here — the ACTIVE tick skips bounds and win
-     * checks entirely while {@code cageTicks > 0}.
+     * ROYALE cage countdown. Announces the drop at 10/5/4/3/2/1 seconds and, when
+     * it lapses, removes ALL recorded cage blocks (glass floors go with the walls
+     * and roofs, so fighters fall straight through) and opens the GRACE window. No
+     * elimination can happen here — the ACTIVE tick skips bounds and win checks
+     * entirely while {@code cageTicks > 0}.
      */
     private static void tickCage(MinecraftServer server) {
         if (cageTicks % 20 == 0) {
             int secs = cageTicks / 20;
             if (secs == 10 || secs <= 5) {
-                broadcast(server, "Cage breaks in " + secs + "...");
+                broadcast(server, "Cages drop in " + secs + "...");
             }
         }
         cageTicks--;
         if (cageTicks <= 0) {
+            // Removing every recorded position at once takes the floors out with the
+            // walls/roofs; the fighters drop toward the city below. Grace opens now,
+            // covering the fall and the mech scramble.
             removeCageBlocks(server);
-            broadcast(server, "GO! Find a mech!");
+            for (Fighter f : fighters) {
+                f.outsideTicks = 0; // fresh bounds grace once real combat begins
+            }
+            graceTicks = matchGraceDuration;
+            broadcast(server, "The cages drop — fall in! No damage for "
+                    + (matchGraceDuration / 20) + "s. Grab a mech!");
+        }
+    }
+
+    /**
+     * ROYALE GRACE countdown. Keeps fall damage off every fighter (descent from the
+     * sky cages), warns anyone who strays out of bounds WITHOUT eliminating them,
+     * announces the fight start at 30/10/5/4/3/2/1 seconds, and — when it lapses —
+     * ends grace and fires the configured PvE pressure. Win evaluation stays paused
+     * for the whole window (this returns before the ACTIVE tick reaches it).
+     */
+    private static void tickGrace(MinecraftServer server) {
+        // Neutralise the descent: zeroing fallDistance every tick means fighters
+        // land unharmed even at the exact tick grace ends (belt-and-suspenders with
+        // isGraceProtected, which also cancels the hurt). Non-mixin by design.
+        for (Fighter f : fighters) {
+            if (f.eliminated) {
+                continue;
+            }
+            ServerPlayer player = server.getPlayerList().getPlayer(f.uuid);
+            if (player != null) {
+                player.fallDistance = 0.0f;
+                if (player.getVehicle() != null) {
+                    player.getVehicle().fallDistance = 0.0f;
+                }
+            }
+        }
+        // Warnings only — eliminations are paused during grace.
+        checkOutOfBounds(server, false);
+
+        if (graceTicks % 20 == 0) {
+            int secs = graceTicks / 20;
+            if (secs == 30 || secs == 10 || (secs >= 1 && secs <= 5)) {
+                broadcast(server, "Grace: " + secs + "s until the fight begins.");
+            }
+        }
+        graceTicks--;
+        if (graceTicks <= 0) {
+            for (Fighter f : fighters) {
+                f.outsideTicks = 0; // clear any grace-time OOB debounce -> full bounds grace
+            }
+            broadcast(server, "GRACE OVER — fight!");
+            triggerPve(server);
         }
     }
 
@@ -971,7 +1218,12 @@ public final class ArenaManager {
         }
     }
 
-    private static void checkOutOfBounds(MinecraftServer server) {
+    /**
+     * @param allowElimination when false (ROYALE grace), fighters who stray out of
+     *        bounds are still WARNED but never eliminated — the countdown to
+     *        elimination is frozen. Normal ACTIVE combat passes true.
+     */
+    private static void checkOutOfBounds(MinecraftServer server, boolean allowElimination) {
         for (Fighter f : fighters) {
             if (f.eliminated) {
                 continue;
@@ -993,6 +1245,16 @@ public final class ArenaManager {
                 outside = (dx * dx + dz * dz) > matchBoundsRadius * matchBoundsRadius;
             }
             if (outside) {
+                if (!allowElimination) {
+                    // Grace: warn but do not charge the elimination timer, so a
+                    // fighter still drifting in when the fight starts gets the full
+                    // bounds grace fresh (tickCage already zeroed outsideTicks).
+                    if (f.outsideTicks == 0) {
+                        sendTo(player, "You're outside the arena — get back in before the fight starts.");
+                        f.outsideTicks = 1; // debounce the warning; reset at grace end
+                    }
+                    continue;
+                }
                 f.outsideTicks++;
                 if (f.outsideTicks == 1 || f.outsideTicks % 20 == 0) {
                     int secsLeft = Math.max(1, (BOUNDS_GRACE - f.outsideTicks) / 20 + 1);
@@ -1173,10 +1435,12 @@ public final class ArenaManager {
         matchTicks = 0;
         endingTicks = 0;
         cageTicks = 0;
+        graceTicks = 0;
         arenaDimension = null;
         scatterPoints.clear();
         scatterChunksToPrep.clear();
         royaleMechsAlive = 0;
+        matchRingCount = 0;
         zoneShrinkPerTick = ZONE_SHRINK_PER_TICK;
     }
 
@@ -1239,6 +1503,47 @@ public final class ArenaManager {
             }
         }
         return null;
+    }
+
+    /**
+     * True while the ROYALE GRACE window is open AND the given entity is protected
+     * by it: an active fighter (on foot mid-scramble) or a current-match arena mech
+     * (a loot mech, possibly already piloted). The {@link LivingEntityMixin} hurt
+     * hook consults this to cancel ALL non-bypass damage during grace — player,
+     * AI/mob, and fall alike — so the drop-in scramble is completely safe and no
+     * elimination can happen until "GRACE OVER — fight!".
+     *
+     * <p>Reads only static state, so it is a cheap no-op outside a live royale
+     * grace (and on a client JVM, where these statics never leave their defaults).
+     * DUEL never opens a grace window, so this is always false there.
+     */
+    public static boolean isGraceProtected(LivingEntity entity) {
+        if (matchMode != Mode.ROYALE || state != ArenaState.ACTIVE || graceTicks <= 0) {
+            return false;
+        }
+        if (entity instanceof Player) {
+            Fighter f = findFighterByUuid(entity.getUUID());
+            return f != null && !f.eliminated;
+        }
+        return entity.getTags().contains(TAG_ARENA)
+                && entity.getTags().contains(TAG_MATCH_PREFIX + matchId);
+    }
+
+    /**
+     * The one-time mech control card, sent on first mount and re-sendable via
+     * {@code /mechhelp}. Self-contained en_US text describing the DEFAULT
+     * keybinds (all rebindable in Controls). Kept as a single multi-line
+     * component so it prints as one chat block.
+     */
+    private static Component mountHelpCard() {
+        return Component.literal(
+                "===== MECH CONTROLS =====\n"
+                + "Move: W A S D    Jump / Boost: Space    Dash: Left Ctrl\n"
+                + "Fire right weapon: Left Mouse    Fire left weapon: Right Mouse\n"
+                + "Shoulder weapons: P (right) / O (left)    Switch mode: Y\n"
+                + "Lock-on: U (hold to track targets in your sights)\n"
+                + "Your mech is your health bar — if it dies, you EJECT.\n"
+                + "You only lose when YOU die. Type /mechhelp to see this again.");
     }
 
     private static void broadcast(MinecraftServer server, String message) {
@@ -1511,6 +1816,72 @@ public final class ArenaManager {
         }
         ArenaData.get(src.getLevel().getServer()).setMechCount(count);
         src.sendSuccess(() -> Component.literal(PREFIX + "Royale mech count set to " + count + "."), false);
+        return 1;
+    }
+
+    public static int commandRoyaleMinPlayers(CommandSourceStack src, int min) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
+        ArenaData data = ArenaData.get(src.getLevel().getServer());
+        data.setRoyaleMinPlayers(min);
+        // Keep the startAt >= min invariant: raise startAt if it now sits below min.
+        String extra = "";
+        if (data.getRoyaleStartAtPlayers() < min) {
+            data.setRoyaleStartAtPlayers(min);
+            extra = " (start-at raised to " + min + " to stay >= min)";
+        }
+        String msg = extra;
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale min players set to " + min + "." + msg), false);
+        return 1;
+    }
+
+    public static int commandRoyaleStartAt(CommandSourceStack src, int startAt) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
+        ArenaData data = ArenaData.get(src.getLevel().getServer());
+        if (startAt < data.getRoyaleMinPlayers()) {
+            src.sendFailure(Component.literal(PREFIX + "Start-at (" + startAt
+                    + ") must be >= min players (" + data.getRoyaleMinPlayers() + ")."));
+            return 0;
+        }
+        data.setRoyaleStartAtPlayers(startAt);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale start-at players set to " + startAt + "."), false);
+        return 1;
+    }
+
+    public static int commandRoyaleGrace(CommandSourceStack src, int ticks) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
+        if (ticks < 200 || ticks > 2400) {
+            src.sendFailure(Component.literal(PREFIX + "Grace must be between 200 and 2400 ticks."));
+            return 0;
+        }
+        ArenaData.get(src.getLevel().getServer()).setRoyaleGraceTicks(ticks);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale grace set to " + ticks
+                + " ticks (" + (ticks / 20) + "s)."), false);
+        return 1;
+    }
+
+    public static int commandRoyalePve(CommandSourceStack src, RoyalePve pve) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
+        ArenaData.get(src.getLevel().getServer()).setRoyalePve(pve);
+        src.sendSuccess(() -> Component.literal(PREFIX + "Royale PvE set to "
+                + pve.name().toLowerCase() + "."), false);
+        return 1;
+    }
+
+    /** Re-sends the mech control card to the invoking player. No permission needed. */
+    public static int commandMechHelp(CommandSourceStack src) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal(PREFIX + "Only players can use /mechhelp."));
+            return 0;
+        }
+        player.sendSystemMessage(mountHelpCard());
         return 1;
     }
 }

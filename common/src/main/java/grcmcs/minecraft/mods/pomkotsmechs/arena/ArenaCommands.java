@@ -16,8 +16,13 @@ public final class ArenaCommands {
     }
 
     public static void register() {
-        CommandRegistrationEvent.EVENT.register((dispatcher, registry, selection) ->
-                dispatcher.register(build()));
+        CommandRegistrationEvent.EVENT.register((dispatcher, registry, selection) -> {
+            dispatcher.register(build());
+            // Standalone control-card command (no permission), re-sends the card a
+            // player first sees on mount.
+            dispatcher.register(Commands.literal("mechhelp")
+                    .executes(ctx -> ArenaManager.commandMechHelp(ctx.getSource())));
+        });
     }
 
     private static LiteralArgumentBuilder<CommandSourceStack> build() {
@@ -68,6 +73,25 @@ public final class ArenaCommands {
                         .then(Commands.literal("mechs")
                                 .then(Commands.argument("count", IntegerArgumentType.integer(2, 64))
                                         .executes(ctx -> ArenaManager.commandRoyaleMechs(ctx.getSource(),
-                                                IntegerArgumentType.getInteger(ctx, "count"))))));
+                                                IntegerArgumentType.getInteger(ctx, "count")))))
+                        .then(Commands.literal("minplayers")
+                                .then(Commands.argument("min", IntegerArgumentType.integer(2, 64))
+                                        .executes(ctx -> ArenaManager.commandRoyaleMinPlayers(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "min")))))
+                        .then(Commands.literal("startat")
+                                .then(Commands.argument("startat", IntegerArgumentType.integer(2, 64))
+                                        .executes(ctx -> ArenaManager.commandRoyaleStartAt(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "startat")))))
+                        .then(Commands.literal("grace")
+                                .then(Commands.argument("ticks", IntegerArgumentType.integer(200, 2400))
+                                        .executes(ctx -> ArenaManager.commandRoyaleGrace(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "ticks")))))
+                        .then(Commands.literal("pve")
+                                .then(Commands.literal("off")
+                                        .executes(ctx -> ArenaManager.commandRoyalePve(ctx.getSource(), RoyalePve.OFF)))
+                                .then(Commands.literal("light")
+                                        .executes(ctx -> ArenaManager.commandRoyalePve(ctx.getSource(), RoyalePve.LIGHT)))
+                                .then(Commands.literal("heavy")
+                                        .executes(ctx -> ArenaManager.commandRoyalePve(ctx.getSource(), RoyalePve.HEAVY)))));
     }
 }

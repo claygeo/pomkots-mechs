@@ -39,6 +39,12 @@ public class ArenaData extends SavedData {
     private ArenaPoint royaleCenter;
     private int royaleRadius = 200;
     private int mechCount = 12;
+    // Royale start gates + match tuning (all admin-set, all persisted). Defaults
+    // chosen so an un-migrated world reads as sane royale settings untouched.
+    private int royaleMinPlayers = 8;      // sustained-queue floor for a delayed auto-start
+    private int royaleStartAtPlayers = 16; // queue size that triggers an immediate auto-start
+    private int royaleGraceTicks = 1200;   // no-combat GRACE window after the cages drop (60s)
+    private RoyalePve royalePve = RoyalePve.OFF; // PvE pressure at GRACE end
     // Glass positions the current royale cage actually placed. Persisted so a
     // crash cannot leave a glass box in the city; emptied when the cage is
     // removed (cage break, cleanup, or the SERVER_STARTED boot sweep).
@@ -83,6 +89,22 @@ public class ArenaData extends SavedData {
         if (tag.contains("mechCount")) {
             data.mechCount = tag.getInt("mechCount");
         }
+        if (tag.contains("royaleMinPlayers")) {
+            data.royaleMinPlayers = tag.getInt("royaleMinPlayers");
+        }
+        if (tag.contains("royaleStartAtPlayers")) {
+            data.royaleStartAtPlayers = tag.getInt("royaleStartAtPlayers");
+        }
+        if (tag.contains("royaleGraceTicks")) {
+            data.royaleGraceTicks = tag.getInt("royaleGraceTicks");
+        }
+        if (tag.contains("royalePve")) {
+            try {
+                data.royalePve = RoyalePve.valueOf(tag.getString("royalePve"));
+            } catch (IllegalArgumentException ignored) {
+                data.royalePve = RoyalePve.OFF; // unrecognised value -> safe default
+            }
+        }
         ListTag cageList = tag.getList("cageBlocks", Tag.TAG_COMPOUND);
         for (int i = 0; i < cageList.size(); i++) {
             data.cageBlocks.add(CageBlock.load(cageList.getCompound(i)));
@@ -116,6 +138,10 @@ public class ArenaData extends SavedData {
         }
         tag.putInt("royaleRadius", royaleRadius);
         tag.putInt("mechCount", mechCount);
+        tag.putInt("royaleMinPlayers", royaleMinPlayers);
+        tag.putInt("royaleStartAtPlayers", royaleStartAtPlayers);
+        tag.putInt("royaleGraceTicks", royaleGraceTicks);
+        tag.putString("royalePve", royalePve.name());
         ListTag cageList = new ListTag();
         for (CageBlock cb : cageBlocks) {
             cageList.add(cb.save());
@@ -221,6 +247,42 @@ public class ArenaData extends SavedData {
 
     public void setMechCount(int mechCount) {
         this.mechCount = mechCount;
+        setDirty();
+    }
+
+    public int getRoyaleMinPlayers() {
+        return royaleMinPlayers;
+    }
+
+    public void setRoyaleMinPlayers(int royaleMinPlayers) {
+        this.royaleMinPlayers = royaleMinPlayers;
+        setDirty();
+    }
+
+    public int getRoyaleStartAtPlayers() {
+        return royaleStartAtPlayers;
+    }
+
+    public void setRoyaleStartAtPlayers(int royaleStartAtPlayers) {
+        this.royaleStartAtPlayers = royaleStartAtPlayers;
+        setDirty();
+    }
+
+    public int getRoyaleGraceTicks() {
+        return royaleGraceTicks;
+    }
+
+    public void setRoyaleGraceTicks(int royaleGraceTicks) {
+        this.royaleGraceTicks = royaleGraceTicks;
+        setDirty();
+    }
+
+    public RoyalePve getRoyalePve() {
+        return royalePve;
+    }
+
+    public void setRoyalePve(RoyalePve royalePve) {
+        this.royalePve = royalePve;
         setDirty();
     }
 

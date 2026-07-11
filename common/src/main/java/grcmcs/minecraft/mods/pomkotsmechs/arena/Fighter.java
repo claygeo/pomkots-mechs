@@ -30,6 +30,12 @@ public class Fighter {
     public boolean eliminated = false;
     /** Consecutive ticks spent outside the arena bounds (reset when back inside). */
     public int outsideTicks = 0;
+    /**
+     * ROYALE only: this fighter's slot on the sky-cage ring, assigned at deploy.
+     * The cage build reuses it so each fighter's floating cage sits exactly where
+     * the fighter was teleported. Unused in DUEL.
+     */
+    public int ringIndex = 0;
 
     public Fighter(UUID uuid, String name, String mechId, GameType originalGameMode,
                    ResourceKey<Level> originalDimension,
