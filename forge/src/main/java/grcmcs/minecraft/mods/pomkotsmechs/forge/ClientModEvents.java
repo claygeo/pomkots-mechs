@@ -4,6 +4,7 @@ import dev.architectury.registry.client.rendering.BlockEntityRendererRegistry;
 import dev.architectury.registry.menu.MenuRegistry;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import grcmcs.minecraft.mods.pomkotsmechs.client.gui.MechWorkbenchScreen;
+import grcmcs.minecraft.mods.pomkotsmechs.client.gui.PartsWorkbenchScreen;
 import grcmcs.minecraft.mods.pomkotsmechs.client.renderer.PomkotsCubeRenderer;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.PomkotsVehicle;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.Pmvc01Entity;
@@ -24,6 +25,10 @@ public class ClientModEvents {
         event.enqueueWork(() -> {
             MenuRegistry.registerScreenFactory(
                     PomkotsMechs.MECH_WORKBENCH_GUI.get(), MechWorkbenchScreen::new
+            );
+
+            MenuRegistry.registerScreenFactory(
+                    PomkotsMechs.PARTS_WORKBENCH_GUI.get(), PartsWorkbenchScreen::new
             );
 
             BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY.get(), (context)->{

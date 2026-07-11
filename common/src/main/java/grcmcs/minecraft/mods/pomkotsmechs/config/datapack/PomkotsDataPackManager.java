@@ -11,6 +11,7 @@ import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class PomkotsDataPackManager {
@@ -135,6 +136,21 @@ public class PomkotsDataPackManager {
                 levelData.energy = getInt(levelParamsObj, "energy");
 
                 data.levels.add(levelData);
+            }
+        }
+
+        var recipeArrayEle = itemRoot.get("recipes");
+        if (recipeArrayEle != null) {
+            var recipeArray = recipeArrayEle.getAsJsonArray();
+
+            for (var recipeEle: recipeArray.asList()) {
+                var recipe = recipeEle.getAsJsonObject().asMap();
+
+                List<PomkotsDataPack.SerializablePair<String, Integer>> rec = new ArrayList<>();
+                for (var material: recipe.entrySet()) {
+                    rec.add(new PomkotsDataPack.SerializablePair<String, Integer>(material.getKey(), material.getValue().getAsInt()));
+                }
+                data.recipes.add(rec);
             }
         }
 

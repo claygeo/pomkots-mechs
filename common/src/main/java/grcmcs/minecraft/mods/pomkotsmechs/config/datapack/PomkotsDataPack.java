@@ -39,10 +39,34 @@ public class PomkotsDataPack implements Serializable {
         public int weight;
         public String description;
         public List<LevelData> levels = new ArrayList<>();
+        public List<List<SerializablePair<String, Integer>>> recipes = new ArrayList<>();
 
         @Override
         public String toString() {
-            return "{" + id + "," + weight + "," + levels.toString() + "}";
+            return "{" + id + "," + weight + "," + levels.toString() + "," + recipes.toString() + "}";
+        }
+    }
+
+    public static class SerializablePair<F, S> implements Serializable {
+        private final F first;
+        private final S second;
+
+        public SerializablePair(final F first, final S second) {
+            this.first = first;
+            this.second = second;
+        }
+
+        public F getFirst() {
+            return first;
+        }
+
+        public S getSecond() {
+            return second;
+        }
+
+        @Override
+        public String toString() {
+            return "[" + first + "," + second + "]";
         }
     }
 

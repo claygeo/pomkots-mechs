@@ -268,7 +268,15 @@
         {"damage": 36},
         {"damage": 38},
         {"damage": 40}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_biwa": 1, "pomkotsmechs:p_titanium_ingot": 64, "minecraft:iron_ingot": 64, "minecraft:coal": 48, "minecraft:redstone": 64},
+              {"pomkotsmechs:p_titanium_ingot": 16, "minecraft:iron_ingot": 20, "minecraft:coal": 8, "minecraft:redstone": 20},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 24, "minecraft:coal": 16, "minecraft:redstone": 24},
+              {"pomkotsmechs:p_titanium_ingot": 48, "minecraft:iron_ingot": 28, "minecraft:coal": 32, "minecraft:redstone": 28},
+              {"pomkotsmechs:p_titanium_ingot": 64, "minecraft:iron_ingot": 64, "minecraft:coal": 48, "minecraft:redstone": 64}
+            ]
+    },
     "jinba": {
       "type": "weapon",
       "description": "Drill on arm",
@@ -290,7 +298,15 @@
         {"damage": 36},
         {"damage": 38},
         {"damage": 40}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_kagami": 1, "pomkotsmechs:p_titanium_ingot": 64, "minecraft:iron_ingot": 64, "minecraft:coal": 48, "minecraft:redstone": 64},
+              {"pomkotsmechs:p_titanium_ingot": 16, "minecraft:iron_ingot": 20, "minecraft:coal": 8, "minecraft:redstone": 20},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 24, "minecraft:coal": 16, "minecraft:redstone": 24},
+              {"pomkotsmechs:p_titanium_ingot": 48, "minecraft:iron_ingot": 28, "minecraft:coal": 32, "minecraft:redstone": 28},
+              {"pomkotsmechs:p_titanium_ingot": 64, "minecraft:iron_ingot": 64, "minecraft:coal": 48, "minecraft:redstone": 64}
+            ]
+    },
     "kagenobu": {
       "type": "weapon",
       "description": "Pile bunker on arm",
@@ -334,7 +350,15 @@
         {"damage": 70},
         {"damage": 80},
         {"damage": 90}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_mashu": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:netherite_ingot": 8, "minecraft:diamond": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:netherite_ingot": 2, "minecraft:diamond": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:netherite_ingot": 4, "minecraft:diamond": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:netherite_ingot": 6, "minecraft:diamond": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:netherite_ingot": 8, "minecraft:diamond": 32}
+            ]
+    },
     "mukudori": {
       "type": "weapon",
       "description": "x6 curved multi way missile on shoulder",
@@ -345,7 +369,15 @@
         {"damage": 16, "missile_max_num": 4, "missile_lock_interval": 2},
         {"damage": 18, "missile_max_num": 5, "missile_lock_interval": 2},
         {"damage": 20, "missile_max_num": 6, "missile_lock_interval": 2}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_mukudori": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:coal": 8, "minecraft:emerald": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:coal": 2, "minecraft:emerald": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:coal": 4, "minecraft:emerald": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:coal": 6, "minecraft:emerald": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:coal": 8, "minecraft:emerald": 32}
+            ]
+    },
     "nosuri": {
       "type": "weapon",
       "description": "x6 vertical multi missile on shoulder",
@@ -429,7 +461,15 @@
         {"damage": 45},
         {"damage": 55},
         {"damage": 60}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_tsurugi": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:coal": 8, "minecraft:redstone": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:coal": 2, "minecraft:redstone": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:coal": 4, "minecraft:redstone": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:coal": 6, "minecraft:redstone": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:coal": 8, "minecraft:redstone": 32}
+            ]
+    },
     "uguisu": {
       "type": "weapon",
       "description": "x4 multi missile on arm",
@@ -458,7 +498,15 @@
       "weight": 500,
       "level_param": [
         {"max_energy": 150, "energy_charge_per_tick": 2, "work_sec_per_fuel": 5}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_chiba": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:diamond": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:redstone_block": 2, "minecraft:diamond": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:redstone_block": 4, "minecraft:diamond": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:redstone_block": 6, "minecraft:diamond": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:diamond": 32}
+            ]
+    },
     "shiga": {
       "type": "generator",
       "description": "Middle generator",
@@ -472,14 +520,30 @@
       "weight": 100,
       "level_param": [
         {"max_energy": 75, "energy_charge_per_tick": 2, "work_sec_per_fuel": 10}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_saga": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:lapis_lazuli": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:redstone_block": 2, "minecraft:lapis_lazuli": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:redstone_block": 4, "minecraft:lapis_lazuli": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:redstone_block": 6, "minecraft:lapis_lazuli": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:lapis_lazuli": 32}
+            ]
+    },
     "haneda": {
       "type": "booster",
       "description": "Large booster",
       "weight": 50,
       "level_param": [
         {"energy_consume_evasion": 60, "energy_consume_vertical": 7, "speed_modifier_evasion": 1.4, "speed_modifier_vertical": 1.3}
-      ]},
+      ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_haneda": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:diamond": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:redstone_block": 2, "minecraft:diamond": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:redstone_block": 4, "minecraft:diamond": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:redstone_block": 6, "minecraft:diamond": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:diamond": 32}
+            ]
+    },
     "narita": {
       "type": "booster",
       "description": "Middle booster",
@@ -493,7 +557,15 @@
       "weight": 10,
       "level_param": [
         {"energy_consume_evasion": 40, "energy_consume_vertical": 5, "speed_modifier_evasion": 1.0, "speed_modifier_vertical": 1.1}
-    ]},
+    ],
+      "recipes": [
+              {"pomkotsmechs:blue_print_kansai": 1, "pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:lapis_lazuli": 32},
+              {"pomkotsmechs:p_titanium_ingot": 20, "minecraft:iron_ingot": 20, "minecraft:redstone_block": 2, "minecraft:lapis_lazuli": 20},
+              {"pomkotsmechs:p_titanium_ingot": 24, "minecraft:iron_ingot": 24, "minecraft:redstone_block": 4, "minecraft:lapis_lazuli": 24},
+              {"pomkotsmechs:p_titanium_ingot": 28, "minecraft:iron_ingot": 28, "minecraft:redstone_block": 6, "minecraft:lapis_lazuli": 28},
+              {"pomkotsmechs:p_titanium_ingot": 32, "minecraft:iron_ingot": 32, "minecraft:redstone_block": 8, "minecraft:lapis_lazuli": 32}
+            ]
+    },
     "circuitsoftlock": {
       "type": "extension",
       "description": "Enable target lock(soft) on aiming",

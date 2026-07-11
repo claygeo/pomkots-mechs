@@ -10,6 +10,8 @@ import dev.architectury.registry.level.entity.EntityAttributeRegistry;
 import dev.architectury.registry.registries.RegistrySupplier;
 import grcmcs.minecraft.mods.pomkotsmechs.block.*;
 import grcmcs.minecraft.mods.pomkotsmechs.client.gui.MechWorkbenchMenu;
+import grcmcs.minecraft.mods.pomkotsmechs.client.gui.PartsWorkbenchMenu;
+import net.minecraft.core.registries.BuiltInRegistries;
 import grcmcs.minecraft.mods.pomkotsmechs.client.input.DriverInput;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.boss.*;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.boss.legacy.HitBoxEntity;
@@ -193,10 +195,12 @@ public class PomkotsMechs {
 	public static final RegistrySupplier<Block> POMKOTS_CUBE_BLOCK = BLOCKS.register("pomkotscube", ()-> new PomkotsCubeBlock());
 	public static final RegistrySupplier<Block> EXCHANGE_BLOCK = BLOCKS.register("exchange", ()-> new ExchangeBlock());
 	public static final RegistrySupplier<Block> CASK_BLOCK = BLOCKS.register("cask", ()-> new CaskBlock());
+	public static final RegistrySupplier<Block> PARTS_WORKBENCH_BLOCK = BLOCKS.register("partsworkbench", ()-> new PartsWorkbenchBlock());
 
 	public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =  DeferredRegister.create(MODID, Registries.BLOCK_ENTITY_TYPE);
 	public static final RegistrySupplier<BlockEntityType<MechWorkbenchBlockEntity>> MECH_WORKBENCH_BLOCK_ENTITY = BLOCK_ENTITIES.register("mechworkbenchentity", () -> BlockEntityType.Builder.of(MechWorkbenchBlockEntity::new, MECH_WORKBENCH_BLOCK.get()).build(null));
 	public static final RegistrySupplier<BlockEntityType<PomkotsCubeBlockEntity>> POMKOTS_CUBE_BLOCK_ENTITY = BLOCK_ENTITIES.register("pomkotscubeentity", () -> BlockEntityType.Builder.of(PomkotsCubeBlockEntity::new, POMKOTS_CUBE_BLOCK.get()).build(null));
+	public static final RegistrySupplier<BlockEntityType<PartsWorkbenchBlockEntity>> PARTS_WORKBENCH_BLOCK_ENTITY = BLOCK_ENTITIES.register("partsworkbenchentity", () -> BlockEntityType.Builder.of(PartsWorkbenchBlockEntity::new, PARTS_WORKBENCH_BLOCK.get()).build(null));
 
 	// PARTICLES -------------------------------------------------------------------------------------------
 
@@ -249,6 +253,7 @@ public class PomkotsMechs {
 	public static final RegistrySupplier<Item> POMKOTS_CUBE_BLOCK_ITEM = ITEMS.register("pomkotscube", () -> new BlockItem(POMKOTS_CUBE_BLOCK.get(), new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> EXCHANGE_BLOCK_ITEM = ITEMS.register("exchange", () -> new BlockItem(EXCHANGE_BLOCK.get(), new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> CASK_BLOCK_ITEM = ITEMS.register("cask", () -> new BlockItem(CASK_BLOCK.get(), new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> PARTS_WORKBENCH_BLOCK_ITEM = ITEMS.register("partsworkbench_block_item", () -> new BlockItem(PARTS_WORKBENCH_BLOCK.get(), new Item.Properties().stacksTo(64)));
 
 	public static final RegistrySupplier<Item> WRENCH_ITEM = ITEMS.register("pomkots_wrench", () -> new PomkotsWrenchItem(new Item.Properties().stacksTo(1)));
 
@@ -348,6 +353,7 @@ public class PomkotsMechs {
 			.title(Component.translatable("itemGroup." + PomkotsMechs.MODID))
 			.displayItems((parameters, output) -> {
 				output.accept(new ItemStack(MECH_WORKBENCH_BLOCK_ITEM.get()));
+				output.accept(new ItemStack(PARTS_WORKBENCH_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(POMKOTS_CUBE_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(EXCHANGE_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(CASK_BLOCK_ITEM.get()));
@@ -646,6 +652,10 @@ public class PomkotsMechs {
 			"mechworkbench_gui",
 			() -> new MenuType<>(MechWorkbenchMenu::new, FeatureFlagSet.of())
 	);
+	public static final RegistrySupplier<MenuType<PartsWorkbenchMenu>> PARTS_WORKBENCH_GUI = MENUS.register(
+			"partsworkbench_gui",
+			() -> new MenuType<>(PartsWorkbenchMenu::new, FeatureFlagSet.of())
+	);
 
 	public static void initialize() {
 		AutoConfig.register(PomkotsConfig.class, GsonConfigSerializer::new);
@@ -709,6 +719,7 @@ public class PomkotsMechs {
 		registerServerUserInteraction();
 		registerServerChangeTexture();
 		registerServerTargetLock();
+		registerServerPartsWorkbenchReceiver();
 
 		PlayerEvent.PLAYER_JOIN.register(PomkotsMechs::sendDataPack2Player);
 
@@ -742,6 +753,9 @@ public class PomkotsMechs {
 	public static final String PACKET_UNLOCK_MULTI = "ulm";
 	public static final String PACKET_CHANGE_TEXTURE = "ctx";
 	public static final String PACKET_UPDATE_DATAPACK = "udp";
+	public static final String PACKET_PARTS_WKBNCH_TAB_CHANGE = "pwt";
+	public static final String PACKET_PARTS_WKBNCH_CRAFT = "pwc";
+	public static final String PACKET_PARTS_WKBNCH_UPGRADE = "pwu";
 
 	public static void registerServerUserInteraction() {
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_DRIVER_INPUT), (buf, context) -> {
@@ -862,6 +876,48 @@ public class PomkotsMechs {
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof Pmvc01Entity bot) {
 					bot.getLockTargets().lockTargetMulti(player.level().getEntity(targetEntityId), slot, bot);
+				}
+			});
+		});
+	}
+
+	public static void registerServerPartsWorkbenchReceiver() {
+		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_PARTS_WKBNCH_TAB_CHANGE), (buf, context) -> {
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
+			int tabId = buf.readInt();
+
+			context.queue(() -> {
+				Player p = context.getPlayer();
+				PartsWorkbenchMenu.Tab tab = PartsWorkbenchMenu.getTab(tabId);
+
+				if (tab != null && p instanceof ServerPlayer player && player.containerMenu instanceof PartsWorkbenchMenu menu) {
+					menu.setTab(tab);
+				}
+			});
+		});
+
+		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_PARTS_WKBNCH_CRAFT), (buf, context) -> {
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
+			var item = buf.readById(BuiltInRegistries.ITEM);
+
+			context.queue(() -> {
+				Player p = context.getPlayer();
+
+				if (p instanceof ServerPlayer player && player.containerMenu instanceof PartsWorkbenchMenu menu) {
+					menu.craftItem(item, player);
+				}
+			});
+		});
+
+		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_PARTS_WKBNCH_UPGRADE), (buf, context) -> {
+			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
+			var item = buf.readById(BuiltInRegistries.ITEM);
+
+			context.queue(() -> {
+				Player p = context.getPlayer();
+
+				if (p instanceof ServerPlayer player && player.containerMenu instanceof PartsWorkbenchMenu menu) {
+					menu.upgradeParts(player);
 				}
 			});
 		});

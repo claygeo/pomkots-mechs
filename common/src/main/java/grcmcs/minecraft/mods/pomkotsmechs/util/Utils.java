@@ -11,6 +11,7 @@ import grcmcs.minecraft.mods.pomkotsmechs.items.parts.BasePartsItem;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundSource;
@@ -315,5 +316,18 @@ public class Utils {
         double distanceXZSquared = dx * dx + dz * dz;
 
         return distanceXZSquared <= distance * distance;
+    }
+
+    public static Component string2Component(String input) {
+        if (input == null || input.isEmpty()) {
+            return Component.empty();
+        }
+
+        if (input.startsWith("{") && input.endsWith("}")) {
+            String key = input.substring(1, input.length() - 1);
+            return Component.translatable(key);
+        }
+
+        return Component.literal(input);
     }
 }

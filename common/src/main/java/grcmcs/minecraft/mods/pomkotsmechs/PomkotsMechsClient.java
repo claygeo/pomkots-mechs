@@ -8,6 +8,7 @@ import dev.architectury.registry.client.particle.ParticleProviderRegistry;
 import dev.architectury.registry.client.rendering.BlockEntityRendererRegistry;
 import dev.architectury.registry.menu.MenuRegistry;
 import grcmcs.minecraft.mods.pomkotsmechs.client.gui.MechWorkbenchScreen;
+import grcmcs.minecraft.mods.pomkotsmechs.client.gui.PartsWorkbenchScreen;
 import grcmcs.minecraft.mods.pomkotsmechs.client.hud.PomkotsHud;
 import grcmcs.minecraft.mods.pomkotsmechs.client.input.UserInteractionManager;
 import grcmcs.minecraft.mods.pomkotsmechs.client.particles.ExplosionCore;
@@ -226,6 +227,7 @@ public class PomkotsMechsClient {
 				return new PomkotsCubeRenderer(context);
 			});
 			MenuRegistry.registerScreenFactory(PomkotsMechs.MECH_WORKBENCH_GUI.get(), MechWorkbenchScreen::new);
+			MenuRegistry.registerScreenFactory(PomkotsMechs.PARTS_WORKBENCH_GUI.get(), PartsWorkbenchScreen::new);
 		}
 
 		keyPressManager.registerClient();
