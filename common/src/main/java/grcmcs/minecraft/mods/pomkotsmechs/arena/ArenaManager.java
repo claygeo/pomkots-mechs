@@ -1034,6 +1034,11 @@ public final class ArenaManager {
      * motion-blocking heightmap. The chunk is force-generated first so getHeight is
      * meaningful on ungenerated terrain. Each mech is tagged with the current match
      * id (and no owner tag) so the stray sweeps treat it as legitimate loot.
+     *
+     * <p>The deployed mechs come from the {@link GarageFleet}: fully-assembled preset
+     * custom-mech builds (frame + generator + booster + fuel + weapons with loaded ammo),
+     * cycled by index so varied archetypes spread across the city rather than the three
+     * identical stock frames the scatter used to place.
      */
     private static void scatterMechs(ServerLevel level) {
         RandomSource rand = level.getRandom();
@@ -1067,21 +1072,14 @@ public final class ArenaManager {
         }
         for (int i = 0; i < ordered.size(); i++) {
             int[] pt = ordered.get(i);
-            String mechId = ROSTER.get(i % ROSTER.size());
-            ResourceLocation id = new ResourceLocation(PomkotsMechs.MODID, mechId);
-            if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
-                continue;
-            }
             int x = pt[0];
             int z = pt[1];
             int y = pt[2];
 
-            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
-            Entity spawned = type.create(level);
-            if (!(spawned instanceof LivingEntity mech)) {
-                if (spawned != null) {
-                    spawned.discard();
-                }
+            // Deploy a preset custom-mech loadout from the garage fleet, cycling the fleet by
+            // index (GarageFleet.build wraps modulo its size) so distinct builds spread out.
+            LivingEntity mech = GarageFleet.build(level, i);
+            if (mech == null) {
                 continue;
             }
             mech.setPos(x + 0.5, y, z + 0.5);
@@ -1094,7 +1092,7 @@ public final class ArenaManager {
                 royaleMechsAlive++;
             }
         }
-        broadcast(level.getServer(), royaleMechsAlive + " mechs deployed across the city.");
+        broadcast(level.getServer(), royaleMechsAlive + " custom mechs deployed across the city.");
     }
 
     /**
