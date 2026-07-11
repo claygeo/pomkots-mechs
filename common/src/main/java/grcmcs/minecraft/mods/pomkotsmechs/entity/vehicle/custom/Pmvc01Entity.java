@@ -998,7 +998,11 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
 
     @Override
     public void remove(Entity.RemovalReason removalReason) {
-        if (!this.level().isClientSide && removalReason.shouldDestroy()) {
+        // Drop the loadout ONLY on a combat kill (lootable wreckage). DISCARDED
+        // also has shouldDestroy=true in 1.20.1, so the old check turned every
+        // arena cleanup/sweep discard into a ~15-item litter burst per mech —
+        // hundreds of untagged ItemEntities nothing ever reaped.
+        if (!this.level().isClientSide && removalReason == Entity.RemovalReason.KILLED) {
             Containers.dropContents(this.level(), this, this);
         }
 
