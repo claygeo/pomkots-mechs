@@ -32,6 +32,18 @@ public class ArenaData extends SavedData {
     // while a player still owes a restore; it is removed once actually applied.
     private final Map<UUID, RestoreRecord> pendingRestores = new LinkedHashMap<>();
 
+    // Royale mode configuration. Defaults chosen so an un-migrated world reads
+    // exactly as DUEL with sane royale settings if the admin never touched them.
+    private Mode mode = Mode.DUEL;
+    @Nullable
+    private ArenaPoint royaleCenter;
+    private int royaleRadius = 200;
+    private int mechCount = 12;
+    // Glass positions the current royale cage actually placed. Persisted so a
+    // crash cannot leave a glass box in the city; emptied when the cage is
+    // removed (cage break, cleanup, or the SERVER_STARTED boot sweep).
+    private final List<CageBlock> cageBlocks = new ArrayList<>();
+
     public ArenaData() {
     }
 
@@ -50,6 +62,26 @@ public class ArenaData extends SavedData {
             if (entry.hasUUID("uuid")) {
                 data.pendingRestores.put(entry.getUUID("uuid"), RestoreRecord.load(entry));
             }
+        }
+        if (tag.contains("mode")) {
+            try {
+                data.mode = Mode.valueOf(tag.getString("mode"));
+            } catch (IllegalArgumentException ignored) {
+                data.mode = Mode.DUEL; // unrecognised value -> safe default
+            }
+        }
+        if (tag.contains("royaleCenter")) {
+            data.royaleCenter = ArenaPoint.load(tag.getCompound("royaleCenter"));
+        }
+        if (tag.contains("royaleRadius")) {
+            data.royaleRadius = tag.getInt("royaleRadius");
+        }
+        if (tag.contains("mechCount")) {
+            data.mechCount = tag.getInt("mechCount");
+        }
+        ListTag cageList = tag.getList("cageBlocks", Tag.TAG_COMPOUND);
+        for (int i = 0; i < cageList.size(); i++) {
+            data.cageBlocks.add(CageBlock.load(cageList.getCompound(i)));
         }
         return data;
     }
@@ -71,6 +103,17 @@ public class ArenaData extends SavedData {
             restoreList.add(entry);
         }
         tag.put("pendingRestores", restoreList);
+        tag.putString("mode", mode.name());
+        if (royaleCenter != null) {
+            tag.put("royaleCenter", royaleCenter.save());
+        }
+        tag.putInt("royaleRadius", royaleRadius);
+        tag.putInt("mechCount", mechCount);
+        ListTag cageList = new ListTag();
+        for (CageBlock cb : cageBlocks) {
+            cageList.add(cb.save());
+        }
+        tag.put("cageBlocks", cageList);
         return tag;
     }
 
@@ -130,5 +173,65 @@ public class ArenaData extends SavedData {
     /** Defensive copy for safe iteration while records may be mutated. */
     public Map<UUID, RestoreRecord> copyPendingRestores() {
         return new LinkedHashMap<>(pendingRestores);
+    }
+
+    // ---------------------------------------------------------------------
+    // Royale configuration
+    // ---------------------------------------------------------------------
+
+    public Mode getMode() {
+        return mode;
+    }
+
+    public void setMode(Mode mode) {
+        this.mode = mode;
+        setDirty();
+    }
+
+    @Nullable
+    public ArenaPoint getRoyaleCenter() {
+        return royaleCenter;
+    }
+
+    public void setRoyaleCenter(ArenaPoint royaleCenter) {
+        this.royaleCenter = royaleCenter;
+        setDirty();
+    }
+
+    public int getRoyaleRadius() {
+        return royaleRadius;
+    }
+
+    public void setRoyaleRadius(int royaleRadius) {
+        this.royaleRadius = royaleRadius;
+        setDirty();
+    }
+
+    public int getMechCount() {
+        return mechCount;
+    }
+
+    public void setMechCount(int mechCount) {
+        this.mechCount = mechCount;
+        setDirty();
+    }
+
+    // ---------------------------------------------------------------------
+    // Royale cage block ledger (durable, crash-safe)
+    // ---------------------------------------------------------------------
+
+    public List<CageBlock> getCageBlocks() {
+        return cageBlocks;
+    }
+
+    public void addCageBlock(CageBlock block) {
+        cageBlocks.add(block);
+        setDirty();
+    }
+
+    public void setCageBlocks(List<CageBlock> blocks) {
+        cageBlocks.clear();
+        cageBlocks.addAll(blocks);
+        setDirty();
     }
 }
