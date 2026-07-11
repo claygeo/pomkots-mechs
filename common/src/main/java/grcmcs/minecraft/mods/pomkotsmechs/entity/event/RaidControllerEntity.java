@@ -32,10 +32,13 @@ import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.*;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipBlockStateContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.BlockHitResult;
@@ -97,6 +100,12 @@ public class RaidControllerEntity extends LivingEntity {
     private static final String NBT_END_EVENT_WHEN_KILLED_ALL   = "EndEventWhenKilledAllMobs";
     private static final String NBT_SPAWNED_MOBS                = "SpawnedMobs";
     private static final String NBT_SPAWNED_MOBS_NUM            = "SpawnedMobsNum";
+    private static final String NBT_ACTIVATE_BOSS_UUID          = "ActivateBossUUID";
+    private static final String NBT_ACTIVATE_BOSS_ORIGIN        = "ActivateBossOrigin";
+    private static final String NBT_REFUND_KEY_ITEM             = "RaidRefundKeyItem";
+
+    /** Prefix for the per-controller scoreboard tag stamped on every raid mob. */
+    public static final String RAID_TAG_PREFIX = "pomkots_raid_";
 
     // -------------------------------------------------------------------------
     // フィールド
@@ -116,12 +125,24 @@ public class RaidControllerEntity extends LivingEntity {
     private boolean endEventWhenKilledAllMobs = false;
     private int     spawnedMobsNum         = -1;
 
+    // レイド対象Mobの真実の源はUUIDの集合（NBT保存対象）。生存参照ではなくUUIDで
+    // 追跡することで、チャンク非ロード中のMobを「死亡」と誤判定しない（＝放置勝利や
+    // 再起動即勝利を防ぐ）。
+    private final Set<UUID>          spawnedMobUuids = new HashSet<>();
+    // 各MobのlastKnownチャンク（NBT非保存。再起動後は空＝未解決は生存扱いでfail-closed）
+    private final Map<UUID, BlockPos> lastKnownMobPos = new HashMap<>();
+
+    // ACTIVATEレイドで起動したボス（1体のみ）。失敗/撤去時にコードで直接リセットする。
+    private UUID     activateBossUUID     = null;
+    private BlockPos activateBossOriginPos = null;
+
+    // ランタイムのスポーン失敗（不正Mob）時に払い戻す鍵アイテムID（NBT保存対象）
+    private String   refundKeyItemId      = null;
+
     // 実行時のみ（NBT保存不要 or 復元）
     private RaidDefinition raidDefinition  = null;
     private LivingEntity   raidTargetEntity = null;
     private Entity         raidOwner       = null;
-    private List<Entity>   spawnedMobs     = new ArrayList<>();
-    private ListTag        spawnedMobsTag  = null;
 
     // BossBar
     private final ServerBossEvent timeBar;
@@ -232,7 +253,24 @@ public class RaidControllerEntity extends LivingEntity {
         endEventWhenKilledAllMobs = tag.contains(nbt(NBT_END_EVENT_WHEN_KILLED_ALL))
                 && tag.getBoolean(nbt(NBT_END_EVENT_WHEN_KILLED_ALL));
 
-        spawnedMobsTag = (ListTag) tag.get(nbt(NBT_SPAWNED_MOBS));
+        // Persisted source of truth for outstanding raid mobs (UUIDs). We do NOT
+        // resolve/prune them here (level may be mid-load); tick() reconciles them.
+        spawnedMobUuids.clear();
+        lastKnownMobPos.clear();
+        ListTag mobList = tag.getList(nbt(NBT_SPAWNED_MOBS), Tag.TAG_INT_ARRAY);
+        for (Tag t : mobList) {
+            try {
+                spawnedMobUuids.add(NbtUtils.loadUUID(t));
+            } catch (Exception ignored) {
+                // skip malformed uuid entry
+            }
+        }
+
+        activateBossUUID     = readUUID(tag, NBT_ACTIVATE_BOSS_UUID);
+        activateBossOriginPos = tag.contains(nbt(NBT_ACTIVATE_BOSS_ORIGIN))
+                ? BlockPos.of(tag.getLong(nbt(NBT_ACTIVATE_BOSS_ORIGIN)))
+                : null;
+        refundKeyItemId      = readString(tag, NBT_REFUND_KEY_ITEM);
     }
 
     @Override
@@ -259,10 +297,22 @@ public class RaidControllerEntity extends LivingEntity {
         }
 
         ListTag list = new ListTag();
-        for (Entity ent : spawnedMobs) {
-            list.add(NbtUtils.createUUID(ent.getUUID()));
+        for (UUID id : spawnedMobUuids) {
+            list.add(NbtUtils.createUUID(id));
         }
         tag.put(nbt(NBT_SPAWNED_MOBS), list);
+
+        if (activateBossUUID != null) {
+            tag.putUUID(nbt(NBT_ACTIVATE_BOSS_UUID), activateBossUUID);
+        } else {
+            tag.remove(nbt(NBT_ACTIVATE_BOSS_UUID));
+        }
+        if (activateBossOriginPos != null) {
+            tag.putLong(nbt(NBT_ACTIVATE_BOSS_ORIGIN), activateBossOriginPos.asLong());
+        } else {
+            tag.remove(nbt(NBT_ACTIVATE_BOSS_ORIGIN));
+        }
+        writeString(tag, NBT_REFUND_KEY_ITEM, refundKeyItemId);
     }
 
     // NBTヘルパー
@@ -295,10 +345,6 @@ public class RaidControllerEntity extends LivingEntity {
 
     @Override
     public void tick() {
-        if (this.firstTick && !this.level().isClientSide) {
-            loadSpawnedMobs();
-        }
-
         super.tick();
 
         if (this.level().isClientSide) return;
@@ -311,11 +357,13 @@ public class RaidControllerEntity extends LivingEntity {
 
         ServerLevel serverLevel = (ServerLevel) this.level();
 
-        spawnedMobs.removeIf(e -> e == null || !e.isAlive());
+        // UUIDベースで生存Mobを照合。死亡が確定したUUIDのみ集合から外す（fail-closed）。
+        updateSpawnedMobs(serverLevel);
 
         // レイド開始処理
         if (startTargetRaidName != null) {
             if (!initializeRaid(serverLevel)) return;
+            if (this.isRemoved()) return; // setupRaidTarget may have failed the raid closed
         }
 
         // raidOwner解決
@@ -349,6 +397,10 @@ public class RaidControllerEntity extends LivingEntity {
         currentWaveIndex = 0;
 
         setupRaidTarget(serverLevel);
+        if (this.isRemoved()) {
+            // setupRaidTarget failed the raid closed (e.g. ACTIVATE with no boss).
+            return false;
+        }
         startTargetRaidName = null;
         return true;
     }
@@ -376,12 +428,21 @@ public class RaidControllerEntity extends LivingEntity {
 
                 if (RaidType.of(raidDefinition.type) == RaidType.ACTIVATE) {
                     List<BaseBossEntity> bosses = getInactiveBossesAroundPos(this.level(), this.blockPosition());
-                    List<Player> players        = getPlayersAroundPos(this.level(), this.blockPosition());
-                    for (BaseBossEntity boss : bosses) {
-                        boss.boot();
-                        players.forEach(p -> boss.addHateToEntity(p, 50));
-                        spawnedMobs.add(boss);
+                    if (bosses.isEmpty()) {
+                        // No boss to activate -> the raid cannot be won legitimately.
+                        // Fail closed instead of instant-completing an empty raid.
+                        failRaidClosed("ACTIVATE raid started with no inactive boss nearby");
+                        return;
                     }
+                    // Activate exactly ONE boss and remember its identity + original
+                    // position so we can reset it directly on any failure path.
+                    BaseBossEntity boss = bosses.get(0);
+                    activateBossUUID      = boss.getUUID();
+                    activateBossOriginPos = boss.blockPosition();
+                    boss.boot();
+                    List<Player> players = getPlayersAroundPos(this.level(), this.blockPosition());
+                    players.forEach(p -> boss.addHateToEntity(p, 50));
+                    addSpawnedMob(boss);
                 }
             }
         }
@@ -431,6 +492,7 @@ public class RaidControllerEntity extends LivingEntity {
 
         // イベント発火
         fireEvent(wave);
+        if (this.isRemoved()) return; // a runtime spawn failure may have failed the raid closed
 
         // Wave終了チェック
         checkWaveEnd(wave, type);
@@ -450,7 +512,10 @@ public class RaidControllerEntity extends LivingEntity {
                     endRaid(false);
                     return true;
                 }
-                if (spawnedMobs.isEmpty() && remainMaxMobs[0] <= 0) {
+                // Only conclude the sweep when every tracked mob UUID is CONFIRMED
+                // dead (set empty) and nothing is left to spawn. Unresolved mobs in
+                // unloaded chunks keep the set non-empty, so victory pauses.
+                if (spawnedMobUuids.isEmpty() && remainMaxMobs[0] <= 0) {
                     if (isFinalWave(raidDefinition, currentWaveIndex)) {
                         endRaid(true);
                     } else {
@@ -460,7 +525,7 @@ public class RaidControllerEntity extends LivingEntity {
                 }
             }
             case ACTIVATE -> {
-                if (spawnedMobs.isEmpty()) {
+                if (spawnedMobUuids.isEmpty()) {
                     endRaid(true);
                     return true;
                 }
@@ -475,10 +540,11 @@ public class RaidControllerEntity extends LivingEntity {
         tickCounter = 0;
     }
 
-    /** 全Mobが撃破されたか（キャリア機構は撤去済みのため、生存Mobが残っていれば未撃破） */
+    /** 全Mobが撃破されたか（UUID集合が空＝死亡確定Mobのみ、かつ残スポーン無し） */
     private boolean areAllMobsDefeated(int[] remainMaxMobs) {
-        // spawnedMobs は毎tick死亡分を除去済み。生存Mobが1体でも残っていれば未撃破。
-        return spawnedMobs.isEmpty() && remainMaxMobs[0] <= 0;
+        // spawnedMobUuids からは「死亡確定」のUUIDのみ除去される。1件でも残っていれば
+        // （非ロードチャンクの未解決含む）未撃破扱い＝fail-closed。
+        return spawnedMobUuids.isEmpty() && remainMaxMobs[0] <= 0;
     }
 
     /** Wave終了条件チェック */
@@ -521,7 +587,7 @@ public class RaidControllerEntity extends LivingEntity {
 
         RaidType type = RaidType.of(raidDefinition.type);
         if ((type == RaidType.SWEEP || type == RaidType.SWEEP_BOSS_BOX || type == RaidType.ACTIVATE) && remainingMobs != null) {
-            int total   = remainingMobs[0] + spawnedMobs.size();
+            int total   = remainingMobs[0] + spawnedMobUuids.size();
             float prog  = total / (float) remainingMobs[1];
             baseHpBar.setName(Component.literal("Target Monsters: " + total + "/" + remainingMobs[1]));
             baseHpBar.setProgress(Mth.clamp(prog, 0f, 1f));
@@ -577,54 +643,75 @@ public class RaidControllerEntity extends LivingEntity {
 
     private void fireSpawnEvent(EventDefinition event) {
         if (event.spawn_targets == null) return;
+        if (!(this.level() instanceof ServerLevel sl)) return;
+
+        AABB spawnSpace = new AABB(0, 0, 0, 2, 2, 2);
+        BlockPos base = this.blockPosition();
 
         for (SpawnTarget st : event.spawn_targets) {
-            if (st.position == null) continue;
-
             var type = getEntityType(st.mob_type);
-            if (type == null) continue;
+            if (type == null) {
+                // Unknown/invalid mob at runtime -> fail the raid CLOSED (never a
+                // free win from a missing mob). Datapack validation makes this rare.
+                failRaidClosed("unknown mob type in spawn event: " + st.mob_type);
+                return;
+            }
 
-            BlockPos pos = parseBlockPos(st.position);
-            if (pos == null || this.level() == null) continue;
+            BlockPos rel = (st.position == null) ? BlockPos.ZERO : parseBlockPos(st.position);
+            if (rel == null) rel = BlockPos.ZERO;
 
-            Entity entity = type.get().create(this.level());
-            if (entity == null) continue;
+            Entity entity = type.get().create(sl);
+            if (entity == null) {
+                failRaidClosed("failed to create mob: " + st.mob_type);
+                return;
+            }
 
-            BlockPos offset = this.blockPosition();
-            entity.setPos(
-                    offset.getX() + pos.getX(),
-                    offset.getY() + pos.getY(),
-                    offset.getZ() + pos.getZ()
-            );
+            int x = base.getX() + rel.getX();
+            int z = base.getZ() + rel.getZ();
+            // Ground-resolve the drop so mobs land near the cube (within sim range,
+            // no former ±200/+100 carrier offset) on solid, collision-free ground.
+            BlockPos placed = resolveGroundSpawn(sl, x, z, base.getY() + rel.getY(), spawnSpace);
+            entity.moveTo(placed.getX() + 0.5, placed.getY(), placed.getZ() + 0.5, entity.getYRot(), 0);
 
             applySnbt(entity, st.snbt);
             setupSpawnedMob(entity);
-            spawnedMobs.add(entity);
-            this.level().addFreshEntity(entity);
+            sl.addFreshEntity(entity);
+            addSpawnedMob(entity);
         }
+    }
+
+    /** Find a solid, collision-free placement near (x,z) at/above ground level. */
+    private BlockPos resolveGroundSpawn(ServerLevel level, int x, int z, int preferredY, AABB spawnSpace) {
+        int ground = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        int startY = Math.min(preferredY, ground);
+        int y = findSpawnY(level, x, startY, z, spawnSpace);
+        return new BlockPos(x, y, z);
     }
 
     private void fireSpawnRandomEvent(EventDefinition event) {
         if (event.spawn_targets == null) return;
+        if (!(this.level() instanceof ServerLevel sl)) return;
+
+        var mobTypeList = getMobList(event);
+        if (mobTypeList.length == 0) {
+            // Every referenced mob type failed to resolve -> fail closed.
+            failRaidClosed("no resolvable mob types in spawn_random event");
+            return;
+        }
 
         Random rand        = new Random();
-        Level  level       = this.level();
-        var    mobTypeList = getMobList(event);
         int    count       = event.amount;
         BlockPos center    = this.blockPosition();
         LivingEntity opener = getTargetCandidate();
         AABB spawnSpace = new AABB(0, 0, 0, 2, 2, 2);
-        int maxHops = (event.range_x + event.range_z)/2;
+        int maxHops = Math.max(1, (event.range_x + event.range_z) / 2);
 
         int spawned = 0;
         for (int i = 0; i < 100 && spawned < count; i++) {
-//            int x = center.getX() + rand.nextInt(event.range_x) - event.range_x / 2;
-//            int z = center.getZ() + rand.nextInt(event.range_z) - event.range_z / 2;
-//            int y = findSpawnY(level, x, center.getY(), z, spawnSpace);
-            var pos = findSpawnPos(maxHops, spawnSpace, (ServerLevel) level, center, random, event);
+            var pos = findSpawnPos(maxHops, spawnSpace, sl, center, random, event);
 
             if (pos.isPresent()) {
-                Entity mob = getRandomMobType(rand, mobTypeList).create(level);
+                Entity mob = getRandomMobType(rand, mobTypeList).create(sl);
                 if (mob == null) continue;
 
                 mob.moveTo(pos.get().getX() + 0.5, pos.get().getY(), pos.get().getZ() + 0.5, rand.nextFloat() * 360F, 0);
@@ -636,8 +723,8 @@ public class RaidControllerEntity extends LivingEntity {
                     }
                 }
 
-                level.addFreshEntity(mob);
-                spawnedMobs.add(mob);
+                sl.addFreshEntity(mob);
+                addSpawnedMob(mob);
                 spawned++;
             }
         }
@@ -678,12 +765,26 @@ public class RaidControllerEntity extends LivingEntity {
                     }
                 }
             } else {
-                return Optional.of(candidate);
-
+                // Open-area placement: drop to ground and require a collision-free
+                // box so mobs never spawn inside terrain (suffocation = free win).
+                int gx = candidate.getX();
+                int gz = candidate.getZ();
+                int gy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, gx, gz);
+                AABB checkBox = spawnSpace.move(
+                        gx - spawnSpace.minX,
+                        gy - spawnSpace.minY,
+                        gz - spawnSpace.minZ
+                );
+                if (level.noCollision(checkBox)) {
+                    return Optional.of(new BlockPos(gx, gy, gz));
+                }
             }
         }
 
-        return Optional.of(origin);
+        // Fallback: a guaranteed collision-free column at the origin (near the cube)
+        // rather than a random unchecked candidate that could suffocate the mob.
+        int oy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, origin.getX(), origin.getZ());
+        return Optional.of(new BlockPos(origin.getX(), oy, origin.getZ()));
     }
 
     /** スポーンしたエンティティにレイドタイプ別の設定を適用 */
@@ -745,6 +846,10 @@ public class RaidControllerEntity extends LivingEntity {
             runCommandAsServer(finalizeCommand, serverPlayer, serverLevel);
         }
 
+        // Reset the ACTIVATE boss in code + sweep all remaining raid mobs by tag,
+        // independent of any player being online. Covers success/fail/timeout.
+        terminalCleanup();
+
         resetRaid();
         this.discard();
     }
@@ -771,15 +876,58 @@ public class RaidControllerEntity extends LivingEntity {
     }
 
     private void killAllMobs() {
-        if (this.raidDefinition != null && this.raidDefinition.type.equals(RaidType.ACTIVATE.getId())) {
-            // NOP(Killしない)
-        } else {
-            for (Entity ent : spawnedMobs) {
-                if (ent != null && ent.isAlive()) ent.kill();
+        // Discard every fresh raid mob by tag across the dimension. The pre-existing
+        // ACTIVATE boss is preserved here (it is reset, not killed, on cleanup).
+        if (this.level() instanceof ServerLevel sl) {
+            String tag = raidTag();
+            List<? extends Entity> tagged = sl.getEntities(
+                    EntityTypeTest.forClass(Entity.class),
+                    e -> e.getTags().contains(tag));
+            for (Entity e : tagged) {
+                if (e == this) continue;
+                if (activateBossUUID != null && e.getUUID().equals(activateBossUUID)) {
+                    continue; // preserve the activate boss
+                }
+                e.removeTag(tag);
+                e.discard();
+            }
+        }
+        spawnedMobUuids.clear();
+        lastKnownMobPos.clear();
+    }
+
+    /** Terminal cleanup for any raid end/removal path. Resets the ACTIVATE boss in
+     *  place and discards every remaining tagged raid mob. Idempotent. */
+    private void terminalCleanup() {
+        if (!(this.level() instanceof ServerLevel sl)) return;
+
+        UUID     bossId   = activateBossUUID;
+        BlockPos bossHome = activateBossOriginPos;
+        String   tag      = raidTag();
+
+        List<? extends Entity> tagged = sl.getEntities(
+                EntityTypeTest.forClass(Entity.class),
+                e -> e.getTags().contains(tag));
+        for (Entity e : tagged) {
+            if (e == this) continue;
+            e.removeTag(tag);
+            if (bossId != null && e.getUUID().equals(bossId)) {
+                if (e instanceof BaseBossEntity boss && boss.isAlive()) {
+                    if (bossHome != null) {
+                        boss.moveTo(bossHome.getX() + 0.5, bossHome.getY(), bossHome.getZ() + 0.5,
+                                boss.getYRot(), boss.getXRot());
+                    }
+                    boss.deactivate();
+                }
+            } else {
+                e.discard();
             }
         }
 
-        spawnedMobs.clear();
+        activateBossUUID      = null;
+        activateBossOriginPos = null;
+        spawnedMobUuids.clear();
+        lastKnownMobPos.clear();
     }
 
     @Override
@@ -790,7 +938,7 @@ public class RaidControllerEntity extends LivingEntity {
             if (raidTargetEntity instanceof RaidObjectiveEntity && raidTargetEntity.isAlive()) {
                 raidTargetEntity.discard();
             }
-            killAllMobs();
+            terminalCleanup();
         }
         super.remove(reason);
     }
@@ -799,15 +947,104 @@ public class RaidControllerEntity extends LivingEntity {
     // ユーティリティ
     // -------------------------------------------------------------------------
 
-    private void loadSpawnedMobs() {
-        if (spawnedMobsTag == null) return;
+    private String raidTag() {
+        return RAID_TAG_PREFIX + this.getStringUUID();
+    }
 
-        spawnedMobs.clear();
-        for (Tag t : spawnedMobsTag) {
-            UUID uuid = NbtUtils.loadUUID(t);
-            Entity ent = ((ServerLevel) this.level()).getEntity(uuid);
-            if (ent != null) spawnedMobs.add(ent);
+    /** Register a freshly spawned raid mob: track its UUID and stamp the raid tag. */
+    private void addSpawnedMob(Entity e) {
+        if (e == null) return;
+        spawnedMobUuids.add(e.getUUID());
+        lastKnownMobPos.put(e.getUUID(), e.blockPosition());
+        e.addTag(raidTag());
+    }
+
+    /**
+     * Reconcile the tracked UUID set with the world. A UUID only leaves the set
+     * when its death is CONFIRMED: the resolved entity is dead, OR it is
+     * unresolvable while its last-known chunk is entity-ticking. Unresolvable in an
+     * unticked chunk counts as still-alive (victory pauses, never auto-passes).
+     */
+    private void updateSpawnedMobs(ServerLevel level) {
+        Iterator<UUID> it = spawnedMobUuids.iterator();
+        while (it.hasNext()) {
+            UUID id = it.next();
+            Entity e = level.getEntity(id);
+            if (e != null) {
+                if (e.isAlive()) {
+                    lastKnownMobPos.put(id, e.blockPosition());
+                } else {
+                    it.remove();
+                    lastKnownMobPos.remove(id);
+                }
+            } else {
+                BlockPos last = lastKnownMobPos.get(id);
+                if (last != null && level.isPositionEntityTicking(last)) {
+                    // Chunk is actively ticking but the entity is gone -> confirmed dead.
+                    it.remove();
+                    lastKnownMobPos.remove(id);
+                }
+                // else: unloaded / never-resolved chunk -> keep (fail closed).
+            }
         }
+    }
+
+    /** Fail the raid closed (mobs never count toward victory) and refund the key. */
+    private void failRaidClosed(String reason) {
+        PomkotsMechs.LOGGER.error("Raid failing closed: {}", reason);
+        dropRefundKey();
+        endRaid(false, "");
+    }
+
+    /** Drop the escrowed key back to the world when the raid fails for an infra
+     *  reason (unknown/invalid mob). No-op for free (keyless) raids. */
+    private void dropRefundKey() {
+        if (refundKeyItemId == null) return;
+        if (!(this.level() instanceof ServerLevel sl)) return;
+        ResourceLocation rl = ResourceLocation.tryParse(refundKeyItemId);
+        refundKeyItemId = null;
+        if (rl == null) return;
+        Item item = BuiltInRegistries.ITEM.getOptional(rl).orElse(null);
+        if (item == null) return;
+        ItemEntity drop = new ItemEntity(sl, this.getX(), this.getY(), this.getZ(), new ItemStack(item));
+        sl.addFreshEntity(drop);
+    }
+
+    /** Server-start sweep: discard/stand-down any raid-tagged entity whose owning
+     *  controller no longer exists (crash cleanup). Best-effort over loaded chunks. */
+    public static void sweepOrphanedRaidMobs(MinecraftServer server) {
+        for (ServerLevel level : server.getAllLevels()) {
+            Set<UUID> liveControllers = new HashSet<>();
+            for (RaidControllerEntity rce : level.getEntities(
+                    EntityTypeTest.forClass(RaidControllerEntity.class), e -> e.isAlive())) {
+                liveControllers.add(rce.getUUID());
+            }
+            List<? extends Entity> tagged = level.getEntities(
+                    EntityTypeTest.forClass(Entity.class),
+                    e -> e.getTags().stream().anyMatch(t -> t.startsWith(RAID_TAG_PREFIX)));
+            for (Entity e : tagged) {
+                boolean orphaned = false;
+                for (String t : new ArrayList<>(e.getTags())) {
+                    if (!t.startsWith(RAID_TAG_PREFIX)) continue;
+                    UUID cu = tryParseUUID(t.substring(RAID_TAG_PREFIX.length()));
+                    if (cu == null || !liveControllers.contains(cu)) {
+                        e.removeTag(t);
+                        orphaned = true;
+                    }
+                }
+                if (orphaned) {
+                    if (e instanceof BaseBossEntity boss) {
+                        boss.deactivate(); // orphaned activated world boss -> stand down
+                    } else {
+                        e.discard();
+                    }
+                }
+            }
+        }
+    }
+
+    private static UUID tryParseUUID(String s) {
+        try { return UUID.fromString(s); } catch (Exception e) { return null; }
     }
 
     private LivingEntity getTargetCandidate() {
@@ -943,7 +1180,7 @@ public class RaidControllerEntity extends LivingEntity {
     // Getter / Setter
     // -------------------------------------------------------------------------
 
-    public void addSpawnedEntity(Entity ent)            { spawnedMobs.add(ent); }
+    public void addSpawnedEntity(Entity ent)            { addSpawnedMob(ent); }
     public int  getTickCounter()                         { return tickCounter; }
     public void setTickCounter(int v)                    { tickCounter = v; }
     public int  getCurrentWaveIndex()                    { return currentWaveIndex; }

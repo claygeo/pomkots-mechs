@@ -57,9 +57,9 @@
             "trigger_tick": 20,
             "message": "なんかいっぱいわいた！",
             "amount": 5,
-            "range_x": 100,
-            "range_y": 20,
-            "range_z": 100,
+            "range_x": 48,
+            "range_y": 2,
+            "range_z": 48,
             "spawn_targets": [
               {"mob_type": "pomkotsmechs:pms02"},
               {"mob_type": "pomkotsmechs:pms04"},
@@ -90,14 +90,14 @@
             "force_end_wave_when_killed_all": true,
             "message": "COM: Mech dropships inbound from all directions. Good luck.",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,200"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,200"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,-200"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,-200"}
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,48"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,48"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,-48"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,-48"}
             ]
           }
         ]
@@ -164,7 +164,7 @@
             "force_end_wave_when_killed_all": true,
             "message": "北の方向からボスが接近している！急行してくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb03", "position": "0,100,-100"}
+              {"mob_type": "pomkotsmechs:pmb03", "position": "0,0,-48"}
             ]
           }
         ]
@@ -187,14 +187,14 @@
             "trigger_tick": 20,
             "message": "東と西の方向から敵のMob輸送機が接近している！！急行してくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms01", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms01", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms03", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms04", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"}
+              {"mob_type": "pomkotsmechs:pms01", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms01", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms03", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms04", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"}
             ]
           },
           {
@@ -205,7 +205,7 @@
             "message": "東の方向から敵の大型Mech輸送機が接近している！！急行してくれ！",
             "force_end_wave_when_killed_all": true,
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb03", "position": "200,100,0"}
+              {"mob_type": "pomkotsmechs:pmb03", "position": "48,0,0"}
             ]
           }
         ]
@@ -228,7 +228,7 @@
             "trigger_tick": 20,
             "message": "北の方向から敵の大型Mech輸送機が接近している！！急行してくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb04", "position": "0,100,-200"}
+              {"mob_type": "pomkotsmechs:pmb04", "position": "0,0,-48"}
             ]
           },
           {
@@ -238,7 +238,7 @@
             "trigger_tick": 2400,
             "message": "南の方向から敵の大型Mech輸送機が接近している！！急行してくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb05", "position": "0,100,-200"}
+              {"mob_type": "pomkotsmechs:pmb05", "position": "0,0,-48"}
             ]
           },
           {
@@ -249,7 +249,7 @@
             "message": "東の方向から敵の大型Mech輸送機が接近している！！急行してくれ！",
             "force_end_wave_when_killed_all": true,
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb01mk2", "position": "200,100,0"}
+              {"mob_type": "pomkotsmechs:pmb01mk2", "position": "48,0,0"}
             ]
           }
         ]
@@ -274,9 +274,9 @@
             "force_end_wave_when_killed_all": true,
             "message": "3方向からの同時襲撃だ！！気合で乗り切ってくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb04", "position": "0,100,-200"},
-              {"mob_type": "pomkotsmechs:pmb05", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pmb01mk2", "position": "0,100,200"}
+              {"mob_type": "pomkotsmechs:pmb04", "position": "0,0,-48"},
+              {"mob_type": "pomkotsmechs:pmb05", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pmb01mk2", "position": "0,0,48"}
             ]
           }
         ]
@@ -299,10 +299,10 @@
             "trigger_tick": 20,
             "message": "西の方向から敵のMob輸送機が接近している！！急行してくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms01", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms01", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms03", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms04", "position": "-200,100,0"}
+              {"mob_type": "pomkotsmechs:pms01", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms01", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms03", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms04", "position": "-48,0,0"}
             ]
           },
           {
@@ -313,10 +313,10 @@
             "message": "東の方向から敵の大型Mech輸送機が接近している！！急行してくれ！",
             "force_end_wave_when_killed_all": true,
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms02", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms01", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms05", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms05", "position": "200,100,0"}
+              {"mob_type": "pomkotsmechs:pms02", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms01", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms05", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms05", "position": "48,0,0"}
             ]
           }
         ]
@@ -333,14 +333,14 @@
             "trigger_tick": 20,
             "message": "全方位から敵の輸送機が接近している！気合で乗り切ってくれ！！！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms03", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms04", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms04", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms03", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms05", "position": "0,100,200"},
-              {"mob_type": "pomkotsmechs:pms05", "position": "0,100,200"},
-              {"mob_type": "pomkotsmechs:pms02", "position": "0,100,-200"},
-              {"mob_type": "pomkotsmechs:pms01", "position": "0,100,-200"}
+              {"mob_type": "pomkotsmechs:pms03", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms04", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms04", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms03", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms05", "position": "0,0,48"},
+              {"mob_type": "pomkotsmechs:pms05", "position": "0,0,48"},
+              {"mob_type": "pomkotsmechs:pms02", "position": "0,0,-48"},
+              {"mob_type": "pomkotsmechs:pms01", "position": "0,0,-48"}
             ]
           }
         ]
@@ -359,7 +359,7 @@
             "force_end_wave_when_killed_all": true,
             "message": "北の方向からボスが接近している！急行してくれ！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pmb03", "position": "0,100,-200"}
+              {"mob_type": "pomkotsmechs:pmb03", "position": "0,0,-48"}
             ]
           }
         ]
@@ -383,7 +383,7 @@
             "force_end_wave_when_killed_all": true,
             "message": "西の方向から敵のMob輸送機が接近しているぞ！！気をつけろ！！",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms03", "position": "-200,100,0"}
+              {"mob_type": "pomkotsmechs:pms03", "position": "-48,0,0"}
             ]
           }
         ]
@@ -406,10 +406,10 @@
             "trigger_tick": 20,
             "message": "COM: A mech dropship is approaching from the west. Stay alert.",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"}
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"}
             ]
           },
           {
@@ -420,14 +420,14 @@
             "force_end_wave_when_killed_all": true,
             "message": "COM: Mech dropships inbound from all directions. Good luck.",
             "spawn_targets": [
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "-200,100,0"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,200"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,200"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,-200"},
-              {"mob_type": "pomkotsmechs:pms08", "position": "0,100,-200"}
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "-48,0,0"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,48"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,48"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,-48"},
+              {"mob_type": "pomkotsmechs:pms08", "position": "0,0,-48"}
             ]
           }
         ]

@@ -181,6 +181,21 @@ public abstract class BaseBossEntity extends GenericPomkotsMonster implements Ge
         this.bootTicks = 100;
     }
 
+    /**
+     * Force this boss back to the inactive/standby state. Used by the raid
+     * controller to reset an ACTIVATE-raid boss on any failure/removal path
+     * directly in code, without relying on a datapack command or on any player
+     * being online.
+     */
+    public void deactivate() {
+        this.bootTicks = -1;
+        this.isActivated = false;
+        this.setNoAi(true);
+        this.clearAllHate();
+        this.setTarget(null);
+        this.setAiMode(AI_MODE_INACTIVE);
+    }
+
     @Override
     public boolean hurt(DamageSource source, float amount) {
         if (Utils.isSystemicDamage(source)) {

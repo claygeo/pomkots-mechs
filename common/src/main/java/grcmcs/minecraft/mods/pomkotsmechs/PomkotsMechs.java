@@ -791,6 +791,11 @@ public class PomkotsMechs {
 		PlayerEvent.PLAYER_JOIN.register(PomkotsMechs::sendDataPack2Player);
 
 		grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaManager.init();
+
+		// On a fresh boot, sweep any raid mobs whose owning controller no longer
+		// exists (e.g. a crash mid-raid left persistent mechs / an activated boss).
+		dev.architectury.event.events.common.LifecycleEvent.SERVER_STARTED.register(
+				grcmcs.minecraft.mods.pomkotsmechs.entity.event.RaidControllerEntity::sweepOrphanedRaidMobs);
 	}
 
 	public static void sendDataPack2Player(ServerPlayer player) {
