@@ -81,6 +81,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.ByteArrayOutputStream;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -882,33 +884,65 @@ public class PomkotsMechs {
 	// same lock methods as before, so normal play is unchanged.
 	// ---------------------------------------------------------------------
 
-	/** Slightly above the client's 150-block lock cone so legit locks never fail on range. */
-	private static final double LOCK_MAX_RANGE = 160.0;
-	/** Max lock requests honoured per player per game-second; excess dropped silently. */
-	private static final int LOCK_MAX_PER_SECOND = 10;
-	// Per-player rate window: [gameSecond, countThisSecond]. All access happens on
-	// the server thread (inside context.queue), so a plain HashMap is safe here.
-	private static final Map<UUID, long[]> LOCK_RATE_WINDOWS = new HashMap<>();
+	/**
+	 * Covers the client's whole lock search volume so every client-legal lock passes
+	 * server-side. TargetLocker collects candidates inside a cubic AABB of half-extent
+	 * 150 centred on the player, so the farthest legal target sits at a cube corner —
+	 * 150·√3 ≈ 260 blocks away. A spherical 260 cap is the tight superset of that cube.
+	 */
+	private static final double LOCK_MAX_RANGE = 260.0;
+	/** Rolling-window lock budget: at most this many honoured requests per player... */
+	private static final int LOCK_MAX_PER_WINDOW = 10;
+	/** ...within this many recent ticks. Excess requests are dropped silently. */
+	private static final int LOCK_WINDOW_TICKS = 20;
+	/** DoS guard: never process more than this many ids from one MULTI/MULTI_CUSTOM packet. */
+	private static final int MULTI_MAX_IDS_PER_PACKET = 16;
+	// Per-player rolling window of the game-tick timestamps of recent honoured lock
+	// requests. All access happens on the server thread (inside context.queue), so a
+	// plain HashMap of single-threaded ArrayDeques is safe here. Entries are pruned
+	// on PLAYER_QUIT (see pruneLockRate, called from ArenaManager.onPlayerQuit).
+	private static final Map<UUID, Deque<Long>> LOCK_RATE_WINDOWS = new HashMap<>();
 
-	/** Counts this lock request and returns false once the player exceeds the per-second cap. */
+	/**
+	 * Rolling-window rate limit: drops timestamps older than {@link #LOCK_WINDOW_TICKS},
+	 * then honours this request only if fewer than {@link #LOCK_MAX_PER_WINDOW} remain in
+	 * the window. Unlike a fixed-window counter this cannot be gamed by aligning a burst
+	 * to the window boundary. Records the tick and returns true when the request is allowed.
+	 */
 	private static boolean allowLockRequest(Player player) {
-		long second = player.level().getGameTime() / 20L;
-		long[] window = LOCK_RATE_WINDOWS.computeIfAbsent(player.getUUID(), k -> new long[]{second, 0L});
-		if (window[0] != second) {
-			window[0] = second;
-			window[1] = 0L;
+		long now = player.level().getGameTime();
+		Deque<Long> window = LOCK_RATE_WINDOWS.computeIfAbsent(player.getUUID(), k -> new ArrayDeque<>());
+		while (!window.isEmpty() && now - window.peekFirst() >= LOCK_WINDOW_TICKS) {
+			window.pollFirst();
 		}
-		window[1]++;
-		return window[1] <= LOCK_MAX_PER_SECOND;
+		if (window.size() >= LOCK_MAX_PER_WINDOW) {
+			return false;
+		}
+		window.addLast(now);
+		return true;
+	}
+
+	/** Drops a disconnecting player's rate-window entry so the map cannot leak UUIDs. */
+	public static void pruneLockRate(UUID uuid) {
+		LOCK_RATE_WINDOWS.remove(uuid);
 	}
 
 	/**
-	 * Server-side validity check for a lock target. The player must be piloting
-	 * {@code vehicle}; the target must be a live LivingEntity that is neither the
-	 * player, the mech itself, nor a co-passenger of it, within range, with a
-	 * clear (block-free) line of sight from the vehicle's eye to the target centre.
+	 * Server-side validity check for a lock target. The requesting player must be the
+	 * DRIVING (first) passenger of {@code vehicle} — a co-passenger such as the pmv03p
+	 * gunner cannot lock. The target must be a live LivingEntity that is neither the
+	 * player, the mech itself, nor a co-passenger of it, within {@link #LOCK_MAX_RANGE},
+	 * and in an eye-to-eye, blocks-only line of sight — the EXACT geometry the client's
+	 * {@code TargetFinder} uses, so every client-legal lock passes server-side.
 	 */
 	private static boolean isValidLockTarget(Player player, Entity vehicle, Entity target) {
+		// Only the driver aims. The mod's driver is the first passenger (see
+		// PomkotsVehicleBase.getDrivingPassenger); the pmv03p seats two, and the
+		// gunner in seat 2 must not be able to drive the lock-on.
+		var passengers = vehicle.getPassengers();
+		if (passengers.isEmpty() || passengers.get(0) != player) {
+			return false;
+		}
 		if (target == null || !target.isAlive() || !(target instanceof LivingEntity)) {
 			return false;
 		}
@@ -917,16 +951,19 @@ public class PomkotsMechs {
 				|| vehicle.hasPassenger(target) || target.getVehicle() == vehicle) {
 			return false;
 		}
-		Vec3 eye = vehicle.getEyePosition();
-		Vec3 center = target.getBoundingBox().getCenter();
-		if (eye.distanceToSqr(center) > LOCK_MAX_RANGE * LOCK_MAX_RANGE) {
+		// Range + line of sight, measured EYE-TO-EYE with a blocks-only COLLIDER raycast:
+		// a faithful replica of the client's TargetFinder gate (which caps at 150 and uses
+		// this same clip), so any lock the client could offer passes here. Deliberately NOT
+		// LivingEntity.hasLineOfSight — in 1.20.1 that method hard-caps at 128 blocks and
+		// would silently reject legitimate 128..150-block client locks (see NOTE below).
+		Vec3 eye = new Vec3(player.getX(), player.getEyeY(), player.getZ());
+		Vec3 targetEye = new Vec3(target.getX(), target.getEyeY(), target.getZ());
+		if (eye.distanceToSqr(targetEye) > LOCK_MAX_RANGE * LOCK_MAX_RANGE) {
 			return false;
 		}
-		// Line of sight: a solid block between the mech's eye and the target blocks
-		// the lock (same context vanilla mobs use for sight checks).
-		ClipContext clip = new ClipContext(eye, center,
-				ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, vehicle);
-		return vehicle.level().clip(clip).getType() != HitResult.Type.BLOCK;
+		ClipContext clip = new ClipContext(eye, targetEye,
+				ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player);
+		return player.level().clip(clip).getType() == HitResult.Type.MISS;
 	}
 
 	public static void registerServerTargetLock() {
@@ -988,18 +1025,28 @@ public class PomkotsMechs {
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_MULTI), (buf, context) -> {
 			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
-			int targetEntityId = buf.readInt();
+			// DoS guard: honour at most MULTI_MAX_IDS_PER_PACKET ids and drop the rest.
+			// The stock client sends exactly one id per packet, so the cap only bites a
+			// hand-crafted flood; each id is still validated and rate-limited below.
+			int available = buf.readableBytes() / Integer.BYTES;
+			int count = Math.min(available, MULTI_MAX_IDS_PER_PACKET);
+			int[] ids = new int[count];
+			for (int i = 0; i < count; i++) {
+				ids[i] = buf.readInt();
+			}
 
 			context.queue(() -> {
 				Player player = context.getPlayer();
 
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof PomkotsVehicle bot) {
-					// Each multi-lock packet carries a single id; validate it and
-					// drop it if invalid (keeping any previously-added valid locks).
-					Entity target = player.level().getEntity(targetEntityId);
-					if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
-						bot.getLockTargets().lockTargetMulti(target);
+					// Validate each id and drop the invalid ones (keeping any
+					// previously-added valid locks).
+					for (int targetEntityId : ids) {
+						Entity target = player.level().getEntity(targetEntityId);
+						if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
+							bot.getLockTargets().lockTargetMulti(target);
+						}
 					}
 				}
 			});
@@ -1018,17 +1065,27 @@ public class PomkotsMechs {
 
 		NetworkManager.registerReceiver(NetworkManager.Side.C2S, PomkotsMechs.id(PACKET_LOCK_MULTI_CUSTOM), (buf, context) -> {
 			// Read all buffer values on the network thread; the buffer is invalid once this handler returns.
-			int targetEntityId = buf.readInt();
-			int slot = buf.readInt();
+			// DoS guard: honour at most MULTI_MAX_IDS_PER_PACKET (id, slot) pairs and drop
+			// the rest. The stock client sends exactly one pair per packet.
+			int available = buf.readableBytes() / (Integer.BYTES * 2);
+			int count = Math.min(available, MULTI_MAX_IDS_PER_PACKET);
+			int[] ids = new int[count];
+			int[] slots = new int[count];
+			for (int i = 0; i < count; i++) {
+				ids[i] = buf.readInt();
+				slots[i] = buf.readInt();
+			}
 
 			context.queue(() -> {
 				Player player = context.getPlayer();
 
 				Entity vehicle = player.getVehicle();
 				if (vehicle instanceof Pmvc01Entity bot) {
-					Entity target = player.level().getEntity(targetEntityId);
-					if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
-						bot.getLockTargets().lockTargetMulti(target, slot, bot);
+					for (int i = 0; i < ids.length; i++) {
+						Entity target = player.level().getEntity(ids[i]);
+						if (allowLockRequest(player) && isValidLockTarget(player, vehicle, target)) {
+							bot.getLockTargets().lockTargetMulti(target, slots[i], bot);
+						}
 					}
 				}
 			});

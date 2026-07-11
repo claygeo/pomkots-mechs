@@ -30,11 +30,22 @@ public class LivingEntityMixin {
             }
         }
 
-        // ROYALE GRACE: block ALL non-bypass damage to protected fighters (on foot
-        // during the drop-in scramble) and their loot mechs — player, mob, and fall
-        // damage alike — so nobody can be eliminated until the fight starts. A pure
-        // no-op outside a live royale grace, so DUEL and normal play are unchanged.
-        if (ArenaManager.isGraceProtected(livingEntity)) {
+        // The royale protection windows read server-only static match state; never
+        // touch them from the integrated server's client thread (client-side hurt
+        // calls would otherwise race the server statics). A pure client no-op.
+        if (livingEntity.level().isClientSide) {
+            return;
+        }
+
+        // ROYALE protection (cage HOLD + GRACE + ENDING): block ALL non-bypass
+        // damage when EITHER the victim is protected (a fighter on foot during the
+        // drop-in scramble, or a current-match loot mech) OR the attacker is — a
+        // protected fighter/mech must not deal damage either. Covers player, mob,
+        // and fall damage alike so nobody is eliminated until the fight starts and
+        // the winner survives the wind-down. A pure no-op outside a live royale
+        // protection window, so DUEL and normal play are unchanged.
+        if (ArenaManager.isGraceProtected(livingEntity)
+                || ArenaManager.isAttackerGraceProtected(source)) {
             cir.setReturnValue(false);
         }
     }

@@ -31,6 +31,13 @@ public class Fighter {
     /** Consecutive ticks spent outside the arena bounds (reset when back inside). */
     public int outsideTicks = 0;
     /**
+     * ROYALE only: set the first tick this fighter touches the ground after the sky
+     * cages drop. Until then the landing-safety pass zeroes their fall distance every
+     * tick — INDEPENDENT of the grace window — so a laggy faller still in the air when
+     * grace lapses never dies to the drop. Reset between matches.
+     */
+    public boolean landed = false;
+    /**
      * ROYALE only: this fighter's slot on the sky-cage ring, assigned at deploy.
      * The cage build reuses it so each fighter's floating cage sits exactly where
      * the fighter was teleported. Unused in DUEL.
