@@ -56,6 +56,11 @@ public final class ArenaCommands {
                 .then(Commands.literal("stop")
                         .requires(src -> src.hasPermission(2))
                         .executes(ctx -> ArenaManager.commandStop(ctx.getSource())))
+                .then(Commands.literal("garage")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.argument("build", IntegerArgumentType.integer(0))
+                                .executes(ctx -> ArenaManager.commandGarage(ctx.getSource(),
+                                        IntegerArgumentType.getInteger(ctx, "build")))))
                 .then(Commands.literal("mode")
                         .requires(src -> src.hasPermission(2))
                         .then(Commands.literal("duel")

@@ -2041,6 +2041,29 @@ public final class ArenaManager {
         return 1;
     }
 
+    /**
+     * Admin/test utility: spawn one garage-fleet preset at the source position,
+     * UNTAGGED (it is a freebie, not match loot — the arena sweeps must leave it
+     * alone). Doubles as the live verification surface for the fleet builds.
+     */
+    public static int commandGarage(CommandSourceStack src, int index) {
+        ServerLevel level = src.getLevel();
+        LivingEntity mech = GarageFleet.build(level, index);
+        if (mech == null) {
+            src.sendFailure(Component.literal(PREFIX + "Garage build failed (see log)."));
+            return 0;
+        }
+        Vec3 pos = src.getPosition();
+        mech.setPos(pos.x, pos.y, pos.z);
+        if (!level.addFreshEntity(mech)) {
+            src.sendFailure(Component.literal(PREFIX + "Could not place the mech here."));
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal(PREFIX + "Deployed garage build #"
+                + (index % GarageFleet.size()) + " (" + GarageFleet.name(index) + ")."), false);
+        return 1;
+    }
+
     // ---------------------------------------------------------------------
     // Royale command handlers
     // ---------------------------------------------------------------------
