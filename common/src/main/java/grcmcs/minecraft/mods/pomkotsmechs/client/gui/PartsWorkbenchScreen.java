@@ -153,6 +153,12 @@ public class PartsWorkbenchScreen  extends AbstractContainerScreen<PartsWorkbenc
         var partsData = dataPack.getPartsData(partsSupplier.getId().getPath());
 
         if (partsData == null) return;
+        // Only list parts that actually have a craft recipe — entries without
+        // one are selectable but always fail with "no recipes defined" (our
+        // parts.json ports recipes for a subset of the catalog so far).
+        if (partsData.recipes == null || partsData.recipes.isEmpty() || partsData.recipes.get(0).isEmpty()) {
+            return;
+        }
 
         Minecraft mc = Minecraft.getInstance();
         boolean isCreative = mc.player.isCreative();
@@ -248,7 +254,7 @@ public class PartsWorkbenchScreen  extends AbstractContainerScreen<PartsWorkbenc
             } else if (parts.getMaxLevel() <= curLevel) {
                 displayMessage("{text.pomkotsmechs.messages.partsworkbench.06}");
                 return;
-            } else if (partsData.recipes.isEmpty() || partsData.recipes.size() < curLevel || partsData.recipes.get(curLevel).isEmpty()) {
+            } else if (partsData.recipes.isEmpty() || partsData.recipes.size() <= curLevel || partsData.recipes.get(curLevel).isEmpty()) {
                 displayMessage("{text.pomkotsmechs.messages.partsworkbench.02}");
                 return;
             }

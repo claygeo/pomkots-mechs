@@ -66,9 +66,11 @@ public class PartsWorkbenchMenu extends AbstractContainerMenu {
     }
 
     public void craftItem(Item target, ServerPlayer player) {
-        if (target instanceof BasePartsItem parts && getSlot(0).getItem().isEmpty()) {
+        if (target instanceof BasePartsItem parts) {
             if (!getSlot(0).getItem().isEmpty()) {
-                sendMessage(player,"{text.pomkotsmechs.messages.partsworkbench.01}");
+                // Refuse to craft into an occupied output slot (no overwrite
+                // dupe) and actually tell the player why.
+                sendMessage(player, "{text.pomkotsmechs.messages.partsworkbench.01}");
                 return;
             }
 
@@ -124,7 +126,10 @@ public class PartsWorkbenchMenu extends AbstractContainerMenu {
             } else if (parts.getMaxLevel() <= curLevel) {
                 sendMessage(player, "{text.pomkotsmechs.messages.partsworkbench.06}");
                 return;
-            } else if (partsData.recipes.isEmpty() || partsData.recipes.size() < curLevel || partsData.recipes.get(curLevel).isEmpty()) {
+            } else if (partsData.recipes.isEmpty() || partsData.recipes.size() <= curLevel || partsData.recipes.get(curLevel).isEmpty()) {
+                // <= not <: recipes.size() == curLevel would pass a < guard and
+                // then recipes.get(curLevel) crashes the server thread — armable
+                // by any datapack that ships fewer recipes than levels.
                 sendMessage(player, "{text.pomkotsmechs.messages.partsworkbench.02}");
                 return;
             }
@@ -132,6 +137,10 @@ public class PartsWorkbenchMenu extends AbstractContainerMenu {
             var recipe = partsData.recipes.get(curLevel);
             if (PartsWorkbenchMenu.isCraftable(player.getInventory(), recipe)) {
                 var newItemStack = inputItemStack.copy();
+                // Exactly ONE item upgrades per recipe payment; parts are
+                // stacksTo(1) today, but a future stackable part must not turn
+                // one payment into a whole-stack upgrade.
+                newItemStack.setCount(1);
                 parts.setLevel(newItemStack, curLevel + 1);
 
                 consumeMaterials(player.getInventory(), recipe);
@@ -154,7 +163,11 @@ public class PartsWorkbenchMenu extends AbstractContainerMenu {
 
     @Override
     public boolean stillValid(Player player) {
-        return true;
+        // Delegate to the container: the block entity enforces the vanilla
+        // 64-block rule (closes the remote-crafting hole and the item-loss
+        // window when the bench's chunk unloads); the client-side dummy
+        // container returns true, matching vanilla chest wiring.
+        return this.container.stillValid(player);
     }
 
     public enum Tab {

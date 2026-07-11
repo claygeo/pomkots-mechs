@@ -24,6 +24,8 @@ import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
+import net.minecraft.world.Containers;
+
 import java.util.List;
 
 public class PartsWorkbenchBlock extends HorizontalDirectionalBlock implements EntityBlock {
@@ -48,6 +50,17 @@ public class PartsWorkbenchBlock extends HorizontalDirectionalBlock implements E
     @Override
     public  BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new PartsWorkbenchBlockEntity(pos, state);
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean moved) {
+        // Survival players can't break the bench, but a creative/admin break
+        // must not void whatever sits in the craft/upgrade slots.
+        if (!state.is(newState.getBlock())
+                && level.getBlockEntity(pos) instanceof PartsWorkbenchBlockEntity bench) {
+            Containers.dropContents(level, pos, bench);
+        }
+        super.onRemove(state, level, pos, newState, moved);
     }
 
     @Override

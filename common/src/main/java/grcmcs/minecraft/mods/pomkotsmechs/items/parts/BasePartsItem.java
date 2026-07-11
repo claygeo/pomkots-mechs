@@ -109,11 +109,26 @@ public abstract class BasePartsItem extends Item implements GeoItem {
     }
 
     public int getLevel(ItemStack stack) {
-        if (!stack.hasTag() || !stack.getTag().contains("Level")) {
-            setLevel(stack, getMaxLevel());
-            return getMaxLevel();
+        // Ported from upstream origin/1.20.1: the legacy path read the literal
+        // "Level" key while setLevel wrote the namespaced one, so every part
+        // silently reported max level and the upgrade ladder was dead. With
+        // compatibility OFF (our server config) both sides use the namespaced
+        // key; a missing tag still defaults to max so creative-given parts stay
+        // an admin convenience.
+        if (PomkotsMechs.CONFIG.enablePartsLevelCompatibility) {
+            if (!stack.hasTag() || !stack.getTag().contains("Level")) {
+                setLevel(stack, getMaxLevel());
+                return getMaxLevel();
+            } else {
+                return stack.getTag().getInt("Level");
+            }
         } else {
-            return stack.getTag().getInt("Level");
+            if (!stack.hasTag() || !stack.getTag().contains(PomkotsMechs.nbtName("Level"))) {
+                setLevel(stack, getMaxLevel());
+                return getMaxLevel();
+            } else {
+                return stack.getTag().getInt(PomkotsMechs.nbtName("Level"));
+            }
         }
     }
 
