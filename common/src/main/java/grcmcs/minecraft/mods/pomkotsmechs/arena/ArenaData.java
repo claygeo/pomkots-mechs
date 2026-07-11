@@ -43,6 +43,10 @@ public class ArenaData extends SavedData {
     // crash cannot leave a glass box in the city; emptied when the cage is
     // removed (cage break, cleanup, or the SERVER_STARTED boot sweep).
     private final List<CageBlock> cageBlocks = new ArrayList<>();
+    // Monotonic royale match sequence. Persisted (and force-flushed before any
+    // scatter spawns) so a restart can never reuse a match id that crash-leftover
+    // mechs in unloaded chunks still carry.
+    private int nextMatchId = 1;
 
     public ArenaData() {
     }
@@ -83,6 +87,9 @@ public class ArenaData extends SavedData {
         for (int i = 0; i < cageList.size(); i++) {
             data.cageBlocks.add(CageBlock.load(cageList.getCompound(i)));
         }
+        if (tag.contains("nextMatchId")) {
+            data.nextMatchId = tag.getInt("nextMatchId");
+        }
         return data;
     }
 
@@ -114,6 +121,7 @@ public class ArenaData extends SavedData {
             cageList.add(cb.save());
         }
         tag.put("cageBlocks", cageList);
+        tag.putInt("nextMatchId", nextMatchId);
         return tag;
     }
 
@@ -233,5 +241,12 @@ public class ArenaData extends SavedData {
         cageBlocks.clear();
         cageBlocks.addAll(blocks);
         setDirty();
+    }
+
+    /** Claims the next royale match id, durably advancing the sequence. */
+    public int claimMatchId() {
+        int id = nextMatchId++;
+        setDirty();
+        return id;
     }
 }

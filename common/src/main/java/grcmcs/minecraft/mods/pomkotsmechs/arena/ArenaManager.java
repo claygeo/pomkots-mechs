@@ -68,6 +68,10 @@ public final class ArenaManager {
     private static final int CAGE_WALL_HEIGHT = 5;     // wall blocks; roof sits one above
     private static final int SCATTER_MIN_DIST = 30;    // nearest a scattered mech may spawn
     private static final double ROYALE_BOUNDS_FACTOR = 1.25; // bounds = royale radius * this
+    private static final int PREP_CHUNKS_PER_TICK = 2; // scatter chunk-gen budget during countdown
+    private static final double ZONE_SHRINK_PER_TICK = 0.05; // ~1 block/s once the endgame zone closes
+    private static final double ZONE_MIN_RADIUS = 15.0;      // the zone never shrinks below this
+    private static final int ROYALE_HARD_CAP = MATCH_TIMEOUT + 6000; // absolute draw backstop (+5 min)
 
     private static final String TAG_ARENA = "mecharena";
     private static final String TAG_OWNER_PREFIX = "mecharena_owner_";
@@ -97,10 +101,21 @@ public final class ArenaManager {
     // the whole COUNTDOWN + ACTIVE window that the seam checks read it in.
     private static Mode matchMode = Mode.DUEL;
     private static double matchBoundsRadius = BOUNDS_RADIUS;
-    // Monotonic per-royale-match id. Scattered mechs are tagged with it; the
-    // stray sweeps treat only the CURRENT id as legitimate, so a crash-leftover
-    // scatter from an older match is culled like any other stray.
+    // Per-royale-match id, claimed from the PERSISTED sequence in ArenaData (and
+    // force-flushed before any scatter spawns), so a restart can never hand out
+    // an id that crash-leftover mechs in unloaded chunks still carry. Scattered
+    // mechs are tagged with it; the stray sweeps treat only the CURRENT id as
+    // legitimate.
     private static int matchId = 0;
+    // Scatter plan computed at countdown start: spawn points plus the deduped
+    // set of chunks they need. Chunks are generated a few per tick DURING the
+    // countdown so startMatch never forces dozens of Lost Cities chunks in one
+    // tick (watchdog risk). Cleared by resetToIdle.
+    private static final List<int[]> scatterPoints = new ArrayList<>();
+    private static final List<long[]> scatterChunksToPrep = new ArrayList<>();
+    // Live current-match loot mech count, tracked at spawn/death instead of
+    // scanning loaded entities (unloaded outer chunks would undercount).
+    private static int royaleMechsAlive = 0;
 
     /** Wired from the mod's common init. Registers all server-side event hooks. */
     public static void init() {
@@ -278,10 +293,12 @@ public final class ArenaManager {
                 if (entity.getTags().contains(TAG_ARENA)) {
                     if (matchMode == Mode.ROYALE) {
                         // Mechs are GEAR, not lives: a downed mech eliminates no
-                        // one. Just report how many scattered mechs are left
-                        // (excluding the one dying this tick, still un-removed).
-                        int remain = countRoyaleMechs(server, entity);
-                        broadcast(server, "A mech went down — " + remain + " mechs remain.");
+                        // one. The count is tracked at spawn/death rather than
+                        // scanned, so mechs idling in unloaded chunks still count.
+                        if (entity.getTags().contains(TAG_MATCH_PREFIX + matchId)) {
+                            royaleMechsAlive = Math.max(0, royaleMechsAlive - 1);
+                            broadcast(server, "A mech went down — " + royaleMechsAlive + " mechs remain.");
+                        }
                     } else {
                         // DUEL: an arena mech died -> eliminate its owner.
                         Fighter f = findFighterByMech(entity);
@@ -386,16 +403,64 @@ public final class ArenaManager {
         idleTimer = 0;
         // Lock in the mode for the whole match now (mode changes are IDLE-only),
         // so every seam that reads matchMode is correct across COUNTDOWN + ACTIVE.
-        // A fresh royale match gets a fresh id so its scatter can be told apart
-        // from any crash-leftover mechs of an earlier match.
-        matchMode = ArenaData.get(server).getMode();
+        ArenaData data = ArenaData.get(server);
+        matchMode = data.getMode();
         if (matchMode == Mode.ROYALE) {
-            matchId++;
+            // Claim a fresh id from the persisted sequence and flush it to disk
+            // BEFORE anything is tagged with it: after any crash, leftover mechs
+            // always carry an id strictly below the next one handed out.
+            matchId = data.claimMatchId();
+            server.overworld().getDataStorage().save();
+            planScatter(server, data);
         }
         broadcast(server, "Match starting in 10 seconds! (" + queue.size() + " queued)");
     }
 
+    /**
+     * Precomputes the royale scatter: fixed spawn points for this match plus the
+     * DEDUPED set of chunks they touch, which tickCountdown then generates a few
+     * per tick across the 10s countdown (200 ticks x budget >> worst-case 64
+     * chunks, so the set is always exhausted before startMatch).
+     */
+    private static void planScatter(MinecraftServer server, ArenaData data) {
+        scatterPoints.clear();
+        scatterChunksToPrep.clear();
+        ArenaPoint rc = data.getRoyaleCenter();
+        if (rc == null) {
+            return; // startMatch re-validates and cancels cleanly
+        }
+        ServerLevel level = server.getLevel(rc.dimensionKey());
+        if (level == null) {
+            return;
+        }
+        RandomSource rand = level.getRandom();
+        double cx = Mth.floor(rc.x) + 0.5;
+        double cz = Mth.floor(rc.z) + 0.5;
+        double span = Math.max(0.0, data.getRoyaleRadius() - SCATTER_MIN_DIST);
+        java.util.LinkedHashSet<Long> chunks = new java.util.LinkedHashSet<>();
+        for (int i = 0; i < data.getMechCount(); i++) {
+            double angle = rand.nextDouble() * 2.0 * Math.PI;
+            double dist = SCATTER_MIN_DIST + rand.nextDouble() * span;
+            int x = Mth.floor(cx + dist * Math.cos(angle));
+            int z = Mth.floor(cz + dist * Math.sin(angle));
+            scatterPoints.add(new int[]{x, z});
+            chunks.add(((long) (x >> 4) << 32) | ((z >> 4) & 0xFFFFFFFFL));
+        }
+        for (long c : chunks) {
+            scatterChunksToPrep.add(new long[]{c >> 32, (int) c});
+        }
+    }
+
     private static void tickCountdown(MinecraftServer server) {
+        // Royale scatter prep: generate a few of the planned scatter chunks per
+        // tick so startMatch never pays the whole chunk-gen bill in one tick.
+        if (matchMode == Mode.ROYALE && !scatterChunksToPrep.isEmpty() && arenaLevelForPrep(server) != null) {
+            ServerLevel level = arenaLevelForPrep(server);
+            for (int i = 0; i < PREP_CHUNKS_PER_TICK && !scatterChunksToPrep.isEmpty(); i++) {
+                long[] c = scatterChunksToPrep.remove(scatterChunksToPrep.size() - 1);
+                level.getChunk((int) c[0], (int) c[1]);
+            }
+        }
         if (countViableQueued(server) < MIN_FIGHTERS) {
             // Someone left/quit during the countdown. Cancel WITHOUT wiping the
             // queue; auto-start re-arms once enough players are queued again.
@@ -439,7 +504,10 @@ public final class ArenaManager {
                 abortMatch(server);
                 return;
             }
-            center = new double[]{rc.x, rc.y, rc.z};
+            // Snap X/Z to the block center so the spawn ring and the cage grid
+            // share one canonical origin — an off-center admin position could
+            // otherwise place a cage wall through a fighter's bounding box.
+            center = new double[]{Mth.floor(rc.x) + 0.5, rc.y, Mth.floor(rc.z) + 0.5};
             matchBoundsRadius = data.getRoyaleRadius() * ROYALE_BOUNDS_FACTOR;
         } else {
             pads = data.getPads();
@@ -548,7 +616,7 @@ public final class ArenaManager {
             // while state is still COUNTDOWN, so the ADD guard admits the scatter
             // under the current match tag.
             buildCage(server, arenaLevel, center);
-            scatterMechs(server, arenaLevel, center, data.getRoyaleRadius(), data.getMechCount());
+            scatterMechs(arenaLevel);
             cageTicks = CAGE_LENGTH;
         } else {
             cageTicks = 0;
@@ -646,34 +714,45 @@ public final class ArenaManager {
     private static void buildCage(MinecraftServer server, ServerLevel level, double[] center) {
         ArenaData data = ArenaData.get(server);
         ResourceLocation dim = level.dimension().location();
-        BlockState glass = Blocks.GLASS.defaultBlockState();
         int bx = Mth.floor(center[0]);
         int by = Mth.floor(center[1]);
         int bz = Mth.floor(center[2]);
+        // Pass 1: compute every position we would fill (currently AIR) into the
+        // ledger — a WRITE-AHEAD log. Nothing is placed yet.
+        List<CageBlock> plan = new ArrayList<>();
         for (int dx = -CAGE_HALF; dx <= CAGE_HALF; dx++) {
             for (int dz = -CAGE_HALF; dz <= CAGE_HALF; dz++) {
                 // Floor one below the fighters' feet, roof above the walls.
-                placeCageBlock(level, data, dim, glass, bx + dx, by - 1, bz + dz);
-                placeCageBlock(level, data, dim, glass, bx + dx, by + CAGE_WALL_HEIGHT, bz + dz);
+                planCageBlock(level, dim, plan, bx + dx, by - 1, bz + dz);
+                planCageBlock(level, dim, plan, bx + dx, by + CAGE_WALL_HEIGHT, bz + dz);
                 // Walls: perimeter of the footprint only.
                 boolean perimeter = dx == -CAGE_HALF || dx == CAGE_HALF
                         || dz == -CAGE_HALF || dz == CAGE_HALF;
                 if (perimeter) {
                     for (int dy = 0; dy < CAGE_WALL_HEIGHT; dy++) {
-                        placeCageBlock(level, data, dim, glass, bx + dx, by + dy, bz + dz);
+                        planCageBlock(level, dim, plan, bx + dx, by + dy, bz + dz);
                     }
                 }
             }
         }
+        // Ledger to disk BEFORE any glass exists in the world: after a crash the
+        // ledger can only ever list MORE positions than were placed (removal
+        // tolerates never-placed entries — it only clears glass), never fewer.
+        data.setCageBlocks(plan);
+        server.overworld().getDataStorage().save();
+        // Pass 2: place the glass.
+        BlockState glass = Blocks.GLASS.defaultBlockState();
+        for (CageBlock cb : plan) {
+            level.setBlockAndUpdate(cb.pos, glass);
+        }
     }
 
-    /** Places one glass block iff the target is AIR, recording what it placed. */
-    private static void placeCageBlock(ServerLevel level, ArenaData data, ResourceLocation dim,
-                                       BlockState glass, int x, int y, int z) {
+    /** Adds the position to the cage plan iff it is currently AIR. */
+    private static void planCageBlock(ServerLevel level, ResourceLocation dim,
+                                      List<CageBlock> plan, int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
         if (level.getBlockState(pos).isAir()) {
-            level.setBlockAndUpdate(pos, glass);
-            data.addCageBlock(new CageBlock(dim, pos));
+            plan.add(new CageBlock(dim, pos));
         }
     }
 
@@ -684,22 +763,21 @@ public final class ArenaManager {
      * meaningful on ungenerated terrain. Each mech is tagged with the current match
      * id (and no owner tag) so the stray sweeps treat it as legitimate loot.
      */
-    private static void scatterMechs(MinecraftServer server, ServerLevel level, double[] center,
-                                     int radius, int mechCount) {
+    private static void scatterMechs(ServerLevel level) {
         RandomSource rand = level.getRandom();
-        double span = Math.max(0.0, radius - SCATTER_MIN_DIST);
-        for (int i = 0; i < mechCount; i++) {
+        royaleMechsAlive = 0;
+        for (int i = 0; i < scatterPoints.size(); i++) {
+            int[] pt = scatterPoints.get(i);
             String mechId = ROSTER.get(i % ROSTER.size());
             ResourceLocation id = new ResourceLocation(PomkotsMechs.MODID, mechId);
             if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)) {
                 continue;
             }
-            double angle = rand.nextDouble() * 2.0 * Math.PI;
-            double dist = SCATTER_MIN_DIST + rand.nextDouble() * span;
-            int x = Mth.floor(center[0] + dist * Math.cos(angle));
-            int z = Mth.floor(center[2] + dist * Math.sin(angle));
-            // Force full chunk generation BEFORE reading the heightmap, or an
-            // ungenerated column would report a bogus surface height.
+            int x = pt[0];
+            int z = pt[1];
+            // Chunks were prepped across the countdown (planScatter/tickCountdown);
+            // getChunk here is a cheap cache hit that also covers the rare case of
+            // a countdown too short to exhaust the prep list.
             level.getChunk(x >> 4, z >> 4);
             int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING, x, z);
 
@@ -717,8 +795,11 @@ public final class ArenaManager {
             mech.addTag(TAG_MATCH_PREFIX + matchId);
             if (!level.addFreshEntity(mech)) {
                 mech.discard();
+            } else {
+                royaleMechsAlive++;
             }
         }
+        broadcast(level.getServer(), royaleMechsAlive + " mechs deployed across the city.");
     }
 
     /**
@@ -745,22 +826,15 @@ public final class ArenaManager {
             }
         }
         data.setCageBlocks(retained);
+        // Flush the cleared ledger so a crash right after removal cannot replay
+        // stale entries onto player-built glass later.
+        server.overworld().getDataStorage().save();
     }
 
-    /** Live, current-match loot mechs remaining in the royale dimension. */
-    private static int countRoyaleMechs(MinecraftServer server, Entity exclude) {
-        ServerLevel level = arenaDimension != null ? server.getLevel(arenaDimension) : null;
-        if (level == null) {
-            return 0;
-        }
-        int n = 0;
-        for (Entity e : level.getEntities(EntityTypeTest.forClass(Entity.class),
-                e -> e.getTags().contains(TAG_MATCH_PREFIX + matchId))) {
-            if (e != exclude && e.isAlive()) {
-                n++;
-            }
-        }
-        return n;
+    /** Resolves the royale prep level during COUNTDOWN (null when unset). */
+    private static ServerLevel arenaLevelForPrep(MinecraftServer server) {
+        ArenaPoint rc = ArenaData.get(server).getRoyaleCenter();
+        return rc != null ? server.getLevel(rc.dimensionKey()) : null;
     }
 
     private static void tickActive(MinecraftServer server) {
@@ -798,8 +872,26 @@ public final class ArenaManager {
         }
 
         if (matchTicks >= MATCH_TIMEOUT) {
-            broadcast(server, "Time limit reached — the match is a draw.");
-            beginEnding(server);
+            if (matchMode == Mode.ROYALE) {
+                // Royale endgame: no draw — the zone closes on the center at
+                // ~1 block/s and the EXISTING bounds check eliminates whoever
+                // stays outside, forcing a winner. Absolute backstop draw only
+                // if the shrink somehow cannot resolve it.
+                if (matchTicks == MATCH_TIMEOUT) {
+                    broadcast(server, "THE ZONE IS CLOSING — get to the center!");
+                }
+                matchBoundsRadius = Math.max(ZONE_MIN_RADIUS, matchBoundsRadius - ZONE_SHRINK_PER_TICK);
+                if ((matchTicks - MATCH_TIMEOUT) % 600 == 0 && matchTicks > MATCH_TIMEOUT) {
+                    broadcast(server, "Zone radius: " + (int) matchBoundsRadius + " blocks.");
+                }
+                if (matchTicks >= ROYALE_HARD_CAP) {
+                    broadcast(server, "Time limit reached — the match is a draw.");
+                    beginEnding(server);
+                }
+            } else {
+                broadcast(server, "Time limit reached — the match is a draw.");
+                beginEnding(server);
+            }
         }
     }
 
@@ -1045,6 +1137,9 @@ public final class ArenaManager {
         endingTicks = 0;
         cageTicks = 0;
         arenaDimension = null;
+        scatterPoints.clear();
+        scatterChunksToPrep.clear();
+        royaleMechsAlive = 0;
     }
 
     /**
