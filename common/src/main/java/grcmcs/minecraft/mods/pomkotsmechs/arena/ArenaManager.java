@@ -69,7 +69,7 @@ public final class ArenaManager {
     private static final int SCATTER_MIN_DIST = 30;    // nearest a scattered mech may spawn
     private static final double ROYALE_BOUNDS_FACTOR = 1.25; // bounds = royale radius * this
     private static final int PREP_CHUNKS_PER_TICK = 2; // scatter chunk-gen budget during countdown
-    private static final double ZONE_SHRINK_PER_TICK = 0.05; // ~1 block/s once the endgame zone closes
+    private static final double ZONE_SHRINK_PER_TICK = 0.05; // minimum shrink rate; real rate computed per match
     private static final double ZONE_MIN_RADIUS = 15.0;      // the zone never shrinks below this
     private static final int ROYALE_HARD_CAP = MATCH_TIMEOUT + 6000; // absolute draw backstop (+5 min)
 
@@ -116,6 +116,9 @@ public final class ArenaManager {
     // Live current-match loot mech count, tracked at spawn/death instead of
     // scanning loaded entities (unloaded outer chunks would undercount).
     private static int royaleMechsAlive = 0;
+    // Endgame zone shrink rate, computed per match from the starting radius so
+    // every legal radius closes to ZONE_MIN_RADIUS before the hard cap.
+    private static double zoneShrinkPerTick = ZONE_SHRINK_PER_TICK;
 
     /** Wired from the mod's common init. Registers all server-side event hooks. */
     public static void init() {
@@ -754,7 +757,11 @@ public final class ArenaManager {
     private static void planCageBlock(ServerLevel level, ResourceLocation dim,
                                       List<CageBlock> plan, int x, int y, int z) {
         BlockPos pos = new BlockPos(x, y, z);
-        if (level.getBlockState(pos).isAir()) {
+        BlockState s = level.getBlockState(pos);
+        // Vegetation, snow layers and other replaceables must not leave passable
+        // gaps in the cage walls — they are throwaway blocks, so overwriting them
+        // is as safe as overwriting air (removal still only clears GLASS).
+        if (s.isAir() || s.canBeReplaced()) {
             plan.add(new CageBlock(dim, pos));
         }
     }
@@ -899,14 +906,18 @@ public final class ArenaManager {
 
         if (matchTicks >= MATCH_TIMEOUT) {
             if (matchMode == Mode.ROYALE) {
-                // Royale endgame: no draw — the zone closes on the center at
-                // ~1 block/s and the EXISTING bounds check eliminates whoever
-                // stays outside, forcing a winner. Absolute backstop draw only
-                // if the shrink somehow cannot resolve it.
+                // Royale endgame: no draw — the zone closes on the center and the
+                // EXISTING bounds check eliminates whoever stays outside, forcing
+                // a winner. The shrink rate is computed PER MATCH so any legal
+                // radius (50..1000) reaches the minimum ring with time to spare
+                // before the hard-cap backstop.
                 if (matchTicks == MATCH_TIMEOUT) {
                     broadcast(server, "THE ZONE IS CLOSING — get to the center!");
+                    int shrinkWindow = (ROYALE_HARD_CAP - MATCH_TIMEOUT) - 2 * BOUNDS_GRACE;
+                    zoneShrinkPerTick = Math.max(ZONE_SHRINK_PER_TICK,
+                            (matchBoundsRadius - ZONE_MIN_RADIUS) / shrinkWindow);
                 }
-                matchBoundsRadius = Math.max(ZONE_MIN_RADIUS, matchBoundsRadius - ZONE_SHRINK_PER_TICK);
+                matchBoundsRadius = Math.max(ZONE_MIN_RADIUS, matchBoundsRadius - zoneShrinkPerTick);
                 if ((matchTicks - MATCH_TIMEOUT) % 600 == 0 && matchTicks > MATCH_TIMEOUT) {
                     broadcast(server, "Zone radius: " + (int) matchBoundsRadius + " blocks.");
                 }
@@ -1166,6 +1177,7 @@ public final class ArenaManager {
         scatterPoints.clear();
         scatterChunksToPrep.clear();
         royaleMechsAlive = 0;
+        zoneShrinkPerTick = ZONE_SHRINK_PER_TICK;
     }
 
     /**
@@ -1447,7 +1459,24 @@ public final class ArenaManager {
         return 1;
     }
 
+    /**
+     * Royale venue config is IDLE-only: beginCountdown freezes the scatter plan
+     * around the center/radius it read, so a mid-countdown change would desync
+     * the plan from the venue startMatch re-reads (and could force cold chunk
+     * generation in a brand-new dimension in a single tick).
+     */
+    private static boolean denyUnlessIdle(CommandSourceStack src) {
+        if (state != ArenaState.IDLE) {
+            src.sendFailure(Component.literal(PREFIX + "Royale settings can only change while the arena is idle."));
+            return true;
+        }
+        return false;
+    }
+
     public static int commandRoyaleSetCenter(CommandSourceStack src) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
         ArenaData data = ArenaData.get(src.getLevel().getServer());
         // Read the source position + dimension exactly like setlobby, so admins
         // can drive it via `execute in <dim> positioned X Y Z run arena royale setcenter`.
@@ -1460,6 +1489,9 @@ public final class ArenaManager {
     }
 
     public static int commandRoyaleRadius(CommandSourceStack src, int radius) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
         if (radius < 50 || radius > 1000) {
             src.sendFailure(Component.literal(PREFIX + "Radius must be between 50 and 1000."));
             return 0;
@@ -1470,6 +1502,9 @@ public final class ArenaManager {
     }
 
     public static int commandRoyaleMechs(CommandSourceStack src, int count) {
+        if (denyUnlessIdle(src)) {
+            return 0;
+        }
         if (count < 2 || count > 64) {
             src.sendFailure(Component.literal(PREFIX + "Mech count must be between 2 and 64."));
             return 0;
