@@ -1,5 +1,6 @@
 package grcmcs.minecraft.mods.pomkotsmechs.arena;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
@@ -49,6 +50,24 @@ public final class ArenaCommands {
                         .executes(ctx -> ArenaManager.commandStart(ctx.getSource())))
                 .then(Commands.literal("stop")
                         .requires(src -> src.hasPermission(2))
-                        .executes(ctx -> ArenaManager.commandStop(ctx.getSource())));
+                        .executes(ctx -> ArenaManager.commandStop(ctx.getSource())))
+                .then(Commands.literal("mode")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.literal("duel")
+                                .executes(ctx -> ArenaManager.commandMode(ctx.getSource(), Mode.DUEL)))
+                        .then(Commands.literal("royale")
+                                .executes(ctx -> ArenaManager.commandMode(ctx.getSource(), Mode.ROYALE))))
+                .then(Commands.literal("royale")
+                        .requires(src -> src.hasPermission(2))
+                        .then(Commands.literal("setcenter")
+                                .executes(ctx -> ArenaManager.commandRoyaleSetCenter(ctx.getSource())))
+                        .then(Commands.literal("radius")
+                                .then(Commands.argument("radius", IntegerArgumentType.integer(50, 1000))
+                                        .executes(ctx -> ArenaManager.commandRoyaleRadius(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "radius")))))
+                        .then(Commands.literal("mechs")
+                                .then(Commands.argument("count", IntegerArgumentType.integer(2, 64))
+                                        .executes(ctx -> ArenaManager.commandRoyaleMechs(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "count"))))));
     }
 }
