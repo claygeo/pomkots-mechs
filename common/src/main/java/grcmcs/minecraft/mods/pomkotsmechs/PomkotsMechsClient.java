@@ -221,10 +221,26 @@ public class PomkotsMechsClient {
 			return new BossHitBoxEntityRenderer(context);
 		});
 
+		EntityRendererRegistry.register(PomkotsMechs.RAID_CONTROLLER, (context)->{
+			return new RaidControllerEntityRenderer(context);
+		});
+		EntityRendererRegistry.register(PomkotsMechs.RAID_OBJECTIVE, (context)->{
+			return new RaidObjectiveEntityRenderer(context);
+		});
+
 
 		if (Platform.isFabric()) {
 			BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY.get(), (context)->{
 				return new PomkotsCubeRenderer(context);
+			});
+			BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY_YELLOW.get(), (context)->{
+				return new PomkotsCubeYellowRenderer(context);
+			});
+			BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY_RED.get(), (context)->{
+				return new PomkotsCubeRedRenderer(context);
+			});
+			BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY_PURPLE.get(), (context)->{
+				return new PomkotsCubePurpleRenderer(context);
 			});
 			MenuRegistry.registerScreenFactory(PomkotsMechs.MECH_WORKBENCH_GUI.get(), MechWorkbenchScreen::new);
 			MenuRegistry.registerScreenFactory(PomkotsMechs.PARTS_WORKBENCH_GUI.get(), PartsWorkbenchScreen::new);

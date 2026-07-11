@@ -1,5 +1,7 @@
 package grcmcs.minecraft.mods.pomkotsmechs.config.datapack;
 
+import grcmcs.minecraft.mods.pomkotsmechs.config.datapack.raid.RaidDefinition;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -10,6 +12,8 @@ public class PomkotsDataPack implements Serializable {
 
     private final Map<String, PartsData> partsData = new HashMap<>();
     private final Map<String, EnemyData> enemyData = new HashMap<>();
+    private final Map<String, RaidDefinition> raidData = new HashMap<>();
+    private final Map<String, ChestData> chestData = new HashMap<>();
 
     public PartsData getPartsData(String partsName) {
         return partsData.get(partsName);
@@ -22,6 +26,8 @@ public class PomkotsDataPack implements Serializable {
     public void reset() {
         partsData.clear();
         enemyData.clear();
+        raidData.clear();
+        chestData.clear();
     }
 
     public boolean isEmpty() {
@@ -30,7 +36,30 @@ public class PomkotsDataPack implements Serializable {
 
     @Override
     public String toString() {
-        return "{" + partsData.toString() + "," + enemyData.toString() + "}";
+        return "{" + partsData.toString() + "," + enemyData.toString() + "," + raidData.toString() + "}";
+    }
+
+    public RaidDefinition getRaidData(String raidName) {
+        return raidData.get(raidName);
+    }
+
+    public void addRaidData(String raidName, RaidDefinition data) {
+        raidData.put(raidName, data);
+    }
+
+    public ChestData getChestData(String chestLootTable) {
+        return chestData.get(chestLootTable);
+    }
+
+    public void addChestData(String chestLootTable, ChestData data) {
+        chestData.put(chestLootTable, data);
+    }
+
+    public static class ChestData implements Serializable {
+        // 共通
+        public String key = "";
+        public String type = "";
+        public String raid_id;
     }
 
     public static class PartsData implements Serializable {

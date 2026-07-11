@@ -1,18 +1,27 @@
 package grcmcs.minecraft.mods.pomkotsmechs.config.datapack;
 
+import com.google.common.reflect.TypeToken;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import dev.architectury.platform.Platform;
 import dev.architectury.utils.Env;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
+import grcmcs.minecraft.mods.pomkotsmechs.config.datapack.raid.EventDefinition;
+import grcmcs.minecraft.mods.pomkotsmechs.config.datapack.raid.RaidDefinition;
+import grcmcs.minecraft.mods.pomkotsmechs.config.datapack.raid.WaveDefinition;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
+import static net.minecraft.util.datafix.fixes.BlockEntitySignTextStrictJsonFix.GSON;
 
 public class PomkotsDataPackManager {
     private static final PomkotsDataPackManager singleton = new PomkotsDataPackManager();
@@ -36,6 +45,8 @@ public class PomkotsDataPackManager {
 
         loadAllPartsData(manager);
         loadAllEnemyData(manager);
+        loadAllRaidData(manager);
+        loadAllChestData(manager);
 
         if (Platform.getEnvironment() == Env.CLIENT && !dataPackServer.isEmpty()) {
             dataPackClient = dataPackServer;
@@ -262,6 +273,77 @@ public class PomkotsDataPackManager {
                 return "";
             }
             return el.getAsString();
+        }
+    }
+
+    private void loadAllRaidData(ResourceManager manager) {
+        ResourceLocation path = new ResourceLocation(PomkotsMechs.MODID, "raid.json");
+        List<Resource> resources;
+
+        try {
+            resources = manager.getResourceStack(path);
+        } catch (Exception e) {
+            PomkotsMechs.LOGGER.error("Failed to load resource stack:" + path, e);
+            return;
+        }
+
+        for (Resource resource : resources) {
+            try (InputStream stream = resource.open()) {
+                Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
+                Map<String, RaidDefinition> allRd = GSON.fromJson(reader, new TypeToken<Map<String, RaidDefinition>>(){}.getType());
+
+                for (var entry: allRd.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        RaidDefinition rd = entry.getValue();
+
+                        if (rd.waves != null) {
+                            for (WaveDefinition wd: rd.waves) {
+                                if (wd.events != null) {
+                                    for (EventDefinition ed: wd.events) {
+                                        if ("time".equals(ed.trigger_type)) {
+                                            if (wd.timeline == null) {
+                                                wd.timeline = new HashMap<Integer, EventDefinition>();
+                                            }
+                                            wd.timeline.put(ed.trigger_tick, ed);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        dataPackServer.addRaidData(entry.getKey(), rd);
+                    }
+                }
+            } catch (IOException e) {
+                PomkotsMechs.LOGGER.error("Failed to load a raid pack:" + resource, e);
+            }
+        }
+    }
+
+    private void loadAllChestData(ResourceManager manager) {
+        ResourceLocation path = new ResourceLocation(PomkotsMechs.MODID, "chest.json");
+        List<Resource> resources;
+
+        try {
+            resources = manager.getResourceStack(path);
+        } catch (Exception e) {
+            PomkotsMechs.LOGGER.error("Failed to load resource stack:" + path, e);
+            return;
+        }
+
+        for (Resource resource : resources) {
+            try (InputStream stream = resource.open()) {
+                Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8);
+                Map<String, PomkotsDataPack.ChestData> allRd = GSON.fromJson(reader, new TypeToken<Map<String, PomkotsDataPack.ChestData>>(){}.getType());
+
+                for (var entry: allRd.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        dataPackServer.addChestData(entry.getKey(), entry.getValue());
+                    }
+                }
+            } catch (IOException e) {
+                PomkotsMechs.LOGGER.error("Failed to load a chest pack:" + resource, e);
+            }
         }
     }
 

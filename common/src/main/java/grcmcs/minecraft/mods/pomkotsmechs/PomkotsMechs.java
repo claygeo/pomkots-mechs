@@ -22,6 +22,7 @@ import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.turret.Pmt02Entity;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.turret.Pmt03Entity;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.turret.Pmt04Entity;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.projectile.custom.*;
+import grcmcs.minecraft.mods.pomkotsmechs.entity.event.*;
 import grcmcs.minecraft.mods.pomkotsmechs.config.PomkotsConfig;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.PomkotsControllable;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.mob.*;
@@ -181,6 +182,19 @@ public class PomkotsMechs {
 	public static final RegistrySupplier<EntityType<AlertRedEntity>> ALERTRED = registerEntityType("alertred", AlertRedEntity::new, MobCategory.MISC, 1F, 1F);
 	public static final RegistrySupplier<EntityType<BossBoxEntity>> BOSSBOX = registerEntityType("bossbox", BossBoxEntity::new, MobCategory.MISC, 1F, 1F);
 
+	// Treasure Cube raid system --------------------------------------------------------------------------
+	public static final RegistrySupplier<EntityType<RaidControllerEntity>> RAID_CONTROLLER =
+			ENTITIES.register("raid_controller", () ->
+					EntityType.Builder.<RaidControllerEntity>of(
+									RaidControllerEntity::new,
+									MobCategory.MISC
+							)
+							.sized(1f, 1f)
+							.clientTrackingRange(100)
+							.build(id("raid_controller").toString())
+			);
+	public static final RegistrySupplier<EntityType<RaidObjectiveEntity>> RAID_OBJECTIVE = registerEntityType("raid_objective", RaidObjectiveEntity::new, MobCategory.MISC, 12F, 16F);
+
 	private static <T extends Entity> RegistrySupplier<EntityType<T>> registerEntityType(String name, EntityType.EntityFactory<T> factory, MobCategory category, float width, float height) {
 		return ENTITIES.register(name, () ->
 				EntityType.Builder.of(factory, category)
@@ -193,6 +207,9 @@ public class PomkotsMechs {
 	public static final DeferredRegister<Block> BLOCKS =  DeferredRegister.create(MODID, Registries.BLOCK);
 	public static final RegistrySupplier<Block> MECH_WORKBENCH_BLOCK = BLOCKS.register("mechworkbench", ()-> new MechWorkbenchBlock());
 	public static final RegistrySupplier<Block> POMKOTS_CUBE_BLOCK = BLOCKS.register("pomkotscube", ()-> new PomkotsCubeBlock());
+	public static final RegistrySupplier<Block> POMKOTS_CUBE_BLOCK_YELLOW = BLOCKS.register("pomkotscube_yellow", ()-> new PomkotsCubeBlockYellow());
+	public static final RegistrySupplier<Block> POMKOTS_CUBE_BLOCK_RED = BLOCKS.register("pomkotscube_red", ()-> new PomkotsCubeBlockRed());
+	public static final RegistrySupplier<Block> POMKOTS_CUBE_BLOCK_PURPLE = BLOCKS.register("pomkotscube_purple", ()-> new PomkotsCubeBlockPurple());
 	public static final RegistrySupplier<Block> EXCHANGE_BLOCK = BLOCKS.register("exchange", ()-> new ExchangeBlock());
 	public static final RegistrySupplier<Block> CASK_BLOCK = BLOCKS.register("cask", ()-> new CaskBlock());
 	public static final RegistrySupplier<Block> PARTS_WORKBENCH_BLOCK = BLOCKS.register("partsworkbench", ()-> new PartsWorkbenchBlock());
@@ -200,6 +217,9 @@ public class PomkotsMechs {
 	public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =  DeferredRegister.create(MODID, Registries.BLOCK_ENTITY_TYPE);
 	public static final RegistrySupplier<BlockEntityType<MechWorkbenchBlockEntity>> MECH_WORKBENCH_BLOCK_ENTITY = BLOCK_ENTITIES.register("mechworkbenchentity", () -> BlockEntityType.Builder.of(MechWorkbenchBlockEntity::new, MECH_WORKBENCH_BLOCK.get()).build(null));
 	public static final RegistrySupplier<BlockEntityType<PomkotsCubeBlockEntity>> POMKOTS_CUBE_BLOCK_ENTITY = BLOCK_ENTITIES.register("pomkotscubeentity", () -> BlockEntityType.Builder.of(PomkotsCubeBlockEntity::new, POMKOTS_CUBE_BLOCK.get()).build(null));
+	public static final RegistrySupplier<BlockEntityType<PomkotsCubeBlockYellowEntity>> POMKOTS_CUBE_BLOCK_ENTITY_YELLOW = BLOCK_ENTITIES.register("pomkotscubeentity_yellow", () -> BlockEntityType.Builder.of(PomkotsCubeBlockYellowEntity::new, POMKOTS_CUBE_BLOCK_YELLOW.get()).build(null));
+	public static final RegistrySupplier<BlockEntityType<PomkotsCubeBlockRedEntity>> POMKOTS_CUBE_BLOCK_ENTITY_RED = BLOCK_ENTITIES.register("pomkotscubeentity_red", () -> BlockEntityType.Builder.of(PomkotsCubeBlockRedEntity::new, POMKOTS_CUBE_BLOCK_RED.get()).build(null));
+	public static final RegistrySupplier<BlockEntityType<PomkotsCubeBlockPurpleEntity>> POMKOTS_CUBE_BLOCK_ENTITY_PURPLE = BLOCK_ENTITIES.register("pomkotscubeentity_purple", () -> BlockEntityType.Builder.of(PomkotsCubeBlockPurpleEntity::new, POMKOTS_CUBE_BLOCK_PURPLE.get()).build(null));
 	public static final RegistrySupplier<BlockEntityType<PartsWorkbenchBlockEntity>> PARTS_WORKBENCH_BLOCK_ENTITY = BLOCK_ENTITIES.register("partsworkbenchentity", () -> BlockEntityType.Builder.of(PartsWorkbenchBlockEntity::new, PARTS_WORKBENCH_BLOCK.get()).build(null));
 
 	// PARTICLES -------------------------------------------------------------------------------------------
@@ -251,6 +271,9 @@ public class PomkotsMechs {
 
 	public static final RegistrySupplier<Item> MECH_WORKBENCH_BLOCK_ITEM = ITEMS.register("mechworkbench_block_item", () -> new BlockItem(MECH_WORKBENCH_BLOCK.get(), new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> POMKOTS_CUBE_BLOCK_ITEM = ITEMS.register("pomkotscube", () -> new BlockItem(POMKOTS_CUBE_BLOCK.get(), new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> POMKOTS_CUBE_BLOCK_ITEM_YELLOW = ITEMS.register("pomkotscube_yellow", () -> new BlockItem(POMKOTS_CUBE_BLOCK_YELLOW.get(), new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> POMKOTS_CUBE_BLOCK_ITEM_RED = ITEMS.register("pomkotscube_red", () -> new BlockItem(POMKOTS_CUBE_BLOCK_RED.get(), new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> POMKOTS_CUBE_BLOCK_ITEM_PURPLE = ITEMS.register("pomkotscube_purple", () -> new BlockItem(POMKOTS_CUBE_BLOCK_PURPLE.get(), new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> EXCHANGE_BLOCK_ITEM = ITEMS.register("exchange", () -> new BlockItem(EXCHANGE_BLOCK.get(), new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> CASK_BLOCK_ITEM = ITEMS.register("cask", () -> new BlockItem(CASK_BLOCK.get(), new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> PARTS_WORKBENCH_BLOCK_ITEM = ITEMS.register("partsworkbench_block_item", () -> new BlockItem(PARTS_WORKBENCH_BLOCK.get(), new Item.Properties().stacksTo(64)));
@@ -261,6 +284,27 @@ public class PomkotsMechs {
 	public static final RegistrySupplier<Item> P_TITANIUM_NUGGET = ITEMS.register("p_titanium_nugget", () -> new PTitaniumItem(new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> LARGE_STEEL_PLATE = ITEMS.register("large_steel_plate", () -> new PTitaniumItem(new Item.Properties().stacksTo(64)));
 	public static final RegistrySupplier<Item> POM_COIN = ITEMS.register("pom_coin", () -> new PTitaniumItem(new Item.Properties().stacksTo(64)));
+
+	// Treasure Cube keys + repair kit
+	public static final RegistrySupplier<Item> CUBEKEY_ITEM = ITEMS.register("cubekey", () -> new Item(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> CUBEKEYFRAGMENT_ITEM = ITEMS.register("cubekeyfragment", () -> new Item(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> CUBEKEY_ITEM_PURPLE = ITEMS.register("cubekey_purple", () -> new Item(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> REPAIRKIT_ITEM = ITEMS.register("repairkit", () -> new RepairKitItem(new Item.Properties().stacksTo(8)));
+
+	// Treasure Cube salvage materials
+	public static final RegistrySupplier<Item> HM_ARMOR_SHARD = ITEMS.register("materials/heavy_mech_armor_shard", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_BLADE_FRAGMENT = ITEMS.register("materials/heavy_mech_blade_fragment", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_CIRCUIT_BOARD = ITEMS.register("materials/heavy_mech_circuit_board", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_MGUN_FRAGMENT = ITEMS.register("materials/heavy_mech_mgun_fragment", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_POWER_CELL = ITEMS.register("materials/heavy_mech_power_cell_debris", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_CARBIDE_ALLOY = ITEMS.register("materials/heavy_mech_carbide_alloy", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_CONSTRUCTION_UNIT_DEBRIS = ITEMS.register("materials/heavy_mech_construction_unit_debris", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_HIGH_TORQUE_ACTUATOR = ITEMS.register("materials/heavy_mech_high_torque_actuator", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_BOOSTER_DEBRIS = ITEMS.register("materials/heavy_mech_booster_debris", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_HOVER_DEBRIS = ITEMS.register("materials/heavy_mech_hover_debris", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_PMB01_CORE_STONE_FRAGMENT = ITEMS.register("materials/pmb01_core_stone_fragment", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_PMB04_CORE_STONE_FRAGMENT = ITEMS.register("materials/pmb04_core_stone_fragment", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
+	public static final RegistrySupplier<Item> HM_PMB07_CORE_STONE_FRAGMENT = ITEMS.register("materials/pmb07_core_stone_fragment", () -> new MaterialItem(new Item.Properties().stacksTo(64)));
 
 	// PARTS
 
@@ -355,6 +399,9 @@ public class PomkotsMechs {
 				output.accept(new ItemStack(MECH_WORKBENCH_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(PARTS_WORKBENCH_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(POMKOTS_CUBE_BLOCK_ITEM.get()));
+				output.accept(new ItemStack(POMKOTS_CUBE_BLOCK_ITEM_YELLOW.get()));
+				output.accept(new ItemStack(POMKOTS_CUBE_BLOCK_ITEM_RED.get()));
+				output.accept(new ItemStack(POMKOTS_CUBE_BLOCK_ITEM_PURPLE.get()));
 				output.accept(new ItemStack(EXCHANGE_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(CASK_BLOCK_ITEM.get()));
 				output.accept(new ItemStack(WRENCH_ITEM.get()));
@@ -362,6 +409,23 @@ public class PomkotsMechs {
 				output.accept(new ItemStack(P_TITANIUM_NUGGET.get()));
 				output.accept(new ItemStack(LARGE_STEEL_PLATE.get()));
 				output.accept(new ItemStack(POM_COIN.get()));
+				output.accept(new ItemStack(CUBEKEY_ITEM.get()));
+				output.accept(new ItemStack(CUBEKEYFRAGMENT_ITEM.get()));
+				output.accept(new ItemStack(CUBEKEY_ITEM_PURPLE.get()));
+				output.accept(new ItemStack(REPAIRKIT_ITEM.get()));
+				output.accept(new ItemStack(HM_ARMOR_SHARD.get()));
+				output.accept(new ItemStack(HM_BLADE_FRAGMENT.get()));
+				output.accept(new ItemStack(HM_CIRCUIT_BOARD.get()));
+				output.accept(new ItemStack(HM_MGUN_FRAGMENT.get()));
+				output.accept(new ItemStack(HM_POWER_CELL.get()));
+				output.accept(new ItemStack(HM_CARBIDE_ALLOY.get()));
+				output.accept(new ItemStack(HM_CONSTRUCTION_UNIT_DEBRIS.get()));
+				output.accept(new ItemStack(HM_HIGH_TORQUE_ACTUATOR.get()));
+				output.accept(new ItemStack(HM_BOOSTER_DEBRIS.get()));
+				output.accept(new ItemStack(HM_HOVER_DEBRIS.get()));
+				output.accept(new ItemStack(HM_PMB01_CORE_STONE_FRAGMENT.get()));
+				output.accept(new ItemStack(HM_PMB04_CORE_STONE_FRAGMENT.get()));
+				output.accept(new ItemStack(HM_PMB07_CORE_STONE_FRAGMENT.get()));
 
 				output.accept(new ItemStack(CORESTONE_PMV01.get()));
 				output.accept(new ItemStack(CORESTONE_PMV01B.get()));
@@ -701,6 +765,9 @@ public class PomkotsMechs {
 		EntityAttributeRegistry.register(HITBOX_PMB03::get, BossHitBoxEntity::createMobAttributes);
 		EntityAttributeRegistry.register(BLOCK_MASS::get, BlockMassEntity::createMobAttributes);
 		EntityAttributeRegistry.register(PRESENT_BOX::get, PresentBoxEntity::createMobAttributes);
+
+		EntityAttributeRegistry.register(RAID_CONTROLLER::get, RaidControllerEntity::createMobAttributes);
+		EntityAttributeRegistry.register(RAID_OBJECTIVE::get, RaidObjectiveEntity::createMobAttributes);
 
 		BLOCKS.register();
 		BLOCK_ENTITIES.register();

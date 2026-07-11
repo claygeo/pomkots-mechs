@@ -8,6 +8,11 @@ import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.PomkotsVehicle;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.PomkotsVehicleBase;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.Pmvc01Entity;
 import grcmcs.minecraft.mods.pomkotsmechs.items.parts.BasePartsItem;
+import dev.architectury.registry.registries.RegistrySupplier;
+import net.minecraft.advancements.Advancement;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -329,5 +334,31 @@ public class Utils {
         }
 
         return Component.literal(input);
+    }
+
+    public static RegistrySupplier<EntityType<?>> getEntityType(String typeId) {
+        ResourceLocation rl = new ResourceLocation(typeId);
+
+        RegistrySupplier<EntityType<?>> et = null;
+        for (RegistrySupplier<EntityType<?>> entityType : PomkotsMechs.ENTITIES) {
+            if (entityType.getId().equals(rl)) {
+                et = entityType;
+            }
+        }
+
+        return et;
+    }
+
+    public static boolean completeAdvancement(ResourceLocation advancementId, Player player) {
+        if (player instanceof ServerPlayer serverPlayer) {
+            Advancement adv = player.getServer().getAdvancements().getAdvancement(advancementId);
+            if (adv == null) {
+                return false;
+            }
+            serverPlayer.getAdvancements().award(adv, "complete");
+            return true;
+        }
+
+        return false;
     }
 }

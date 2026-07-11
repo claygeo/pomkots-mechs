@@ -6,6 +6,9 @@ import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import grcmcs.minecraft.mods.pomkotsmechs.client.gui.MechWorkbenchScreen;
 import grcmcs.minecraft.mods.pomkotsmechs.client.gui.PartsWorkbenchScreen;
 import grcmcs.minecraft.mods.pomkotsmechs.client.renderer.PomkotsCubeRenderer;
+import grcmcs.minecraft.mods.pomkotsmechs.client.renderer.PomkotsCubeYellowRenderer;
+import grcmcs.minecraft.mods.pomkotsmechs.client.renderer.PomkotsCubeRedRenderer;
+import grcmcs.minecraft.mods.pomkotsmechs.client.renderer.PomkotsCubePurpleRenderer;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.PomkotsVehicle;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.Pmvc01Entity;
 import net.minecraft.client.Minecraft;
@@ -33,6 +36,15 @@ public class ClientModEvents {
 
             BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY.get(), (context)->{
                 return new PomkotsCubeRenderer(context);
+            });
+            BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY_YELLOW.get(), (context)->{
+                return new PomkotsCubeYellowRenderer(context);
+            });
+            BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY_RED.get(), (context)->{
+                return new PomkotsCubeRedRenderer(context);
+            });
+            BlockEntityRendererRegistry.register(PomkotsMechs.POMKOTS_CUBE_BLOCK_ENTITY_PURPLE.get(), (context)->{
+                return new PomkotsCubePurpleRenderer(context);
             });
         });
     }

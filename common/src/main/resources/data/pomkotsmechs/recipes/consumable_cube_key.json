@@ -1,0 +1,19 @@
+{
+    "type": "minecraft:crafting_shaped",
+    "category": "misc",
+    "key": {
+        "A": {
+            "item": "pomkotsmechs:cubekeyfragment"
+        }
+    },
+    "pattern": [
+        "AA ",
+        "AA ",
+        "   "
+    ],
+    "result": {
+        "item": "pomkotsmechs:cubekey",
+        "count": 1
+    },
+    "show_notification": true
+}
