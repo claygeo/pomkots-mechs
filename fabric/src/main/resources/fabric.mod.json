@@ -11,7 +11,7 @@
     "homepage": "https://github.com/grc-mcs/pomkots-mechs/wiki/Home",
     "sources": "https://github.com/grc-mcs/pomkots-mechs/"
   },
-  "license": "ARR",
+  "license": "MIT",
   "icon": "assets/pomkotsmechs/icon.png",
   "environment": "*",
   "entrypoints": {
