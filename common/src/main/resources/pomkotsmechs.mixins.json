@@ -8,6 +8,7 @@
     "CameraAccessor"
   ],
   "client": [
+    "GameRendererAccessor",
     "GuiMixin",
     "CameraMixin",
     "BotDriverRenderer",

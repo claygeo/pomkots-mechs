@@ -6,11 +6,19 @@ import net.minecraft.client.Minecraft;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
 import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 public class ClientRenderEvents {
     public static void init() {
         MinecraftForge.EVENT_BUS.register(ClientRenderEvents.class);
+    }
+
+    @SubscribeEvent
+    public static void onClientTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.END) {
+            ArenaGradeController.reconcile(Minecraft.getInstance());
+        }
     }
 
     @SubscribeEvent

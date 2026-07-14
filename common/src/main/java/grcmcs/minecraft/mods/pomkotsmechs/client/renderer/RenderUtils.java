@@ -14,12 +14,14 @@ import org.joml.Quaternionf;
 
 public class RenderUtils {
 
+    private static final double MAX_HEALTH_BAR_DISTANCE_SQUARED = 64.0 * 64.0;
+
     public static void renderAdditionalHud(PoseStack matrixStack, LivingEntity entity, Quaternionf rotation, MultiBufferSource buffer) {
         Minecraft client = Minecraft.getInstance();
 
         if (!client.options.hideGui) {
-            double distance = client.gameRenderer.getMainCamera().getPosition().distanceTo(entity.position());
-            if (distance > 64 * 64) {
+            double distanceSquared = client.gameRenderer.getMainCamera().getPosition().distanceToSqr(entity.position());
+            if (distanceSquared > MAX_HEALTH_BAR_DISTANCE_SQUARED) {
                 return;
             }
 
@@ -66,16 +68,21 @@ public class RenderUtils {
 
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
 
-        RenderSystem.setShader(GameRenderer::getPositionTexShader);
-        RenderSystem.setShaderTexture(0, reticleTexture);
-        RenderSystem.enableBlend();
-        RenderSystem.enableDepthTest();
+        try {
+            RenderSystem.setShader(GameRenderer::getPositionTexShader);
+            RenderSystem.setShaderTexture(0, reticleTexture);
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.enableDepthTest();
 
-        float size = 32;
-        addQuadTex(bufferBuilder, matrixStack, -size/2,-size/2,size/2,size/2,40);
+            float size = 32;
+            addQuadTex(bufferBuilder, matrixStack, -size/2,-size/2,size/2,size/2,40);
 
-        tesselator.end();
-        matrixStack.popPose();
+            tesselator.end();
+        } finally {
+            RenderSystem.disableBlend();
+            matrixStack.popPose();
+        }
     }
 
     // 四角形を描画するヘルパー関数
@@ -96,9 +103,9 @@ public class RenderUtils {
         // ヘルスバーの幅や高さ
         int barWidth = 40;
         int barHeight = 3;
-        int maxHealth = (int) entity.getMaxHealth();
-        int currentHealth = (int) entity.getHealth();
-        int healthBarWidth = (int) ((currentHealth / (float) maxHealth) * barWidth);
+        float maxHealth = Math.max(entity.getMaxHealth(), 1.0F);
+        float currentHealth = Math.max(0.0F, Math.min(entity.getHealth(), maxHealth));
+        int healthBarWidth = (int) ((currentHealth / maxHealth) * barWidth);
 
         // テッセレーターを使って描画する
         Tesselator tesselator = Tesselator.getInstance();
@@ -107,23 +114,29 @@ public class RenderUtils {
         // 描画開始
         bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 
-        RenderSystem.setShader(GameRenderer::getPositionColorShader); // 位置と色を使うシェーダーを設定
-        RenderSystem.enableBlend();              // ブレンディングを有効にする
-        RenderSystem.disableDepthTest();
+        try {
+            RenderSystem.setShader(GameRenderer::getPositionColorShader); // 位置と色を使うシェーダーを設定
+            RenderSystem.enableBlend();              // ブレンディングを有効にする
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.disableDepthTest();
 
-        // 背景の描画（グレー）
-        addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, barWidth / 2, barHeight, 0x55555555);
+            // 背景の描画（グレー）
+            addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, barWidth / 2, barHeight, 0x55555555);
 
-        // ヘルスバーの描画（緑）
-//        addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, -barWidth / 2 + healthBarWidth, barHeight, 0x990086C9);
-        if (entity instanceof PomkotsVehicle) {
-            addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, -barWidth / 2 + healthBarWidth, barHeight, 0x990000AA);
-        } else {
-            addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, -barWidth / 2 + healthBarWidth, barHeight, 0x99DE0000);
+            // ヘルスバーの描画（緑）
+//            addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, -barWidth / 2 + healthBarWidth, barHeight, 0x990086C9);
+            if (entity instanceof PomkotsVehicle) {
+                addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, -barWidth / 2 + healthBarWidth, barHeight, 0x990000AA);
+            } else {
+                addQuad(bufferBuilder, matrixStack, -barWidth / 2, 0, -barWidth / 2 + healthBarWidth, barHeight, 0x99DE0000);
+            }
+
+            tesselator.end(); // 描画を終了してバッファを送り込む
+        } finally {
+            RenderSystem.enableDepthTest();
+            RenderSystem.disableBlend();
+            matrixStack.popPose(); // 状態を元に戻す
         }
-
-        tesselator.end(); // 描画を終了してバッファを送り込む
-        matrixStack.popPose(); // 状態を元に戻す
     }
 
     // 四角形を描画するヘルパー関数
