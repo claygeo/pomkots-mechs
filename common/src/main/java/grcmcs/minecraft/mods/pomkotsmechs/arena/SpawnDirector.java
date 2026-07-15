@@ -338,6 +338,11 @@ final class SpawnDirector {
             return TickResult.FAILED;
         }
         if (victory) {
+            if (!confirmedBossVictory(phaseIndex, catalog.waves().size(), bossDefeated)) {
+                victory = false;
+                failRuntime("victory state is not backed by a confirmed boss defeat");
+                return TickResult.FAILED;
+            }
             return TickResult.VICTORY;
         }
         if (!player.getUUID().equals(fighterId)) {
@@ -352,9 +357,6 @@ final class SpawnDirector {
         if (forceNextRequested) {
             applyForceNext(level);
             forceNextRequested = false;
-        }
-        if (victory) {
-            return TickResult.VICTORY;
         }
 
         confirmDeathCandidates();
@@ -371,8 +373,9 @@ final class SpawnDirector {
         }
 
         if (phaseStarted && pending.isEmpty() && owned.isEmpty()) {
-            if (phaseIndex == catalog.waves().size()) {
-                if (bossClearResult(bossDefeated) != TickResult.VICTORY) {
+            int waveCount = catalog.waves().size();
+            if (isBossPhase(phaseIndex, waveCount)) {
+                if (!confirmedBossVictory(phaseIndex, waveCount, bossDefeated)) {
                     failRuntime("boss disappeared without a confirmed defeat");
                     return TickResult.FAILED;
                 }
@@ -380,8 +383,12 @@ final class SpawnDirector {
                 messages.add("BOSS DESTROYED.");
                 return TickResult.VICTORY;
             }
+            if (!isWavePhase(phaseIndex, waveCount)) {
+                failRuntime("encounter cleared in invalid phase " + phaseIndex);
+                return TickResult.FAILED;
+            }
             phaseStarted = false;
-            if (phaseIndex == catalog.waves().size() - 1) {
+            if (phaseIndex == waveCount - 1) {
                 warningRemaining = catalog.boss().warningTicks();
                 messages.add("ALL WAVES CLEAR — BOSS IN " + seconds(warningRemaining) + "s.");
             } else {
@@ -496,9 +503,14 @@ final class SpawnDirector {
     }
 
     private boolean beginNextPhase(LivingEntity target) {
+        int waveCount = catalog.waves().size();
+        if (!canAdvancePhase(phaseIndex, waveCount)) {
+            failRuntime("encounter phase advanced past the boss boundary");
+            return false;
+        }
         phaseIndex++;
         nextSpawnOrdinal = 0L;
-        if (phaseIndex < catalog.waves().size()) {
+        if (isWavePhase(phaseIndex, waveCount)) {
             WaveSpec wave = catalog.waves().get(phaseIndex);
             double healthRatio = target.getMaxHealth() > 0.0F
                     ? target.getHealth() / target.getMaxHealth()
@@ -516,16 +528,16 @@ final class SpawnDirector {
                 pending.addLast(newRequest(unit, catalog.minSpawnDistance(), catalog.maxSpawnDistance()));
             }
             String reduced = budget < wave.budget() ? " — low health budget " + budget : "";
-            messages.add("WAVE " + (phaseIndex + 1) + "/" + catalog.waves().size()
+            messages.add("WAVE " + (phaseIndex + 1) + "/" + waveCount
                     + " — " + wave.id().replace('_', ' ') + reduced + ".");
-        } else if (phaseIndex == catalog.waves().size()) {
+        } else if (isBossPhase(phaseIndex, waveCount)) {
             bossDefeated = false;
             BossSpec boss = catalog.boss();
             pending.addLast(newRequest(boss.unit(), boss.minSpawnDistance(), boss.maxSpawnDistance()));
             messages.add("BOSS CONTACT — " + boss.id().replace('_', ' ') + ".");
         } else {
-            victory = true;
-            return true;
+            failRuntime("encounter entered invalid phase " + phaseIndex);
+            return false;
         }
         if (pending.isEmpty()) {
             failRuntime("phase " + (phaseIndex + 1) + " produced an empty roster");
@@ -543,9 +555,16 @@ final class SpawnDirector {
     }
 
     private boolean mayCommit(SpawnRequest next) {
-        int phaseCap = phaseIndex < catalog.waves().size()
-                ? catalog.waves().get(phaseIndex).unitCap()
-                : 1;
+        int waveCount = catalog.waves().size();
+        int phaseCap;
+        if (isWavePhase(phaseIndex, waveCount)) {
+            phaseCap = catalog.waves().get(phaseIndex).unitCap();
+        } else if (isBossPhase(phaseIndex, waveCount)) {
+            phaseCap = 1;
+        } else {
+            failRuntime("spawn commit requested in invalid phase " + phaseIndex);
+            return false;
+        }
         return withinActiveCaps(owned.size(), currentThreat(), next.spec.cost(),
                 catalog.unitCap(), phaseCap, catalog.threatCap());
     }
@@ -860,9 +879,7 @@ final class SpawnDirector {
             if (deathWasConfirmed(candidate.isAlive(), candidate.getRemovalReason())) {
                 tracked.deathCandidate = null;
                 iterator.remove();
-                if (tracked.spec.boss()) {
-                    bossDefeated = true;
-                }
+                bossDefeated = mergeBossDefeat(bossDefeated, tracked.spec, true);
                 continue;
             }
             if (candidate.isAlive() || candidate.isRemoved()) {
@@ -875,8 +892,21 @@ final class SpawnDirector {
 
     private void applyForceNext(ServerLevel level) {
         if (!phaseStarted) {
+            if (!canAdvancePhase(phaseIndex, catalog.waves().size())) {
+                failRuntime("debug advance requested past the boss boundary");
+                return;
+            }
             warningRemaining = 0;
             messages.add("DEBUG NEXT — warning skipped.");
+            return;
+        }
+        int waveCount = catalog.waves().size();
+        if (isBossPhase(phaseIndex, waveCount)) {
+            messages.add("DEBUG NEXT — boss cannot be skipped; destroy it to complete the run.");
+            return;
+        }
+        if (!isWavePhase(phaseIndex, waveCount)) {
+            failRuntime("debug advance requested in invalid phase " + phaseIndex);
             return;
         }
         for (UUID uuid : List.copyOf(owned.keySet())) {
@@ -887,11 +917,6 @@ final class SpawnDirector {
         }
         owned.clear();
         pending.clear();
-        if (phaseIndex == catalog.waves().size()) {
-            victory = true;
-            messages.add("DEBUG NEXT — boss cleared.");
-            return;
-        }
         phaseStarted = false;
         warningRemaining = 0;
         messages.add("DEBUG NEXT — advancing encounter.");
@@ -943,6 +968,27 @@ final class SpawnDirector {
 
     static TickResult bossClearResult(boolean confirmedDefeat) {
         return confirmedDefeat ? TickResult.VICTORY : TickResult.FAILED;
+    }
+
+    static boolean canAdvancePhase(int currentPhase, int waveCount) {
+        return waveCount > 0 && currentPhase >= -1 && currentPhase < waveCount;
+    }
+
+    static boolean isWavePhase(int phase, int waveCount) {
+        return waveCount > 0 && phase >= 0 && phase < waveCount;
+    }
+
+    static boolean isBossPhase(int phase, int waveCount) {
+        return waveCount > 0 && phase == waveCount;
+    }
+
+    static boolean confirmedBossVictory(int phase, int waveCount, boolean bossDefeated) {
+        return bossDefeated && isBossPhase(phase, waveCount);
+    }
+
+    static boolean mergeBossDefeat(boolean alreadyDefeated, UnitSpec spec,
+                                   boolean confirmedDeath) {
+        return alreadyDefeated || confirmedDeath && spec != null && spec.boss();
     }
 
     static boolean deathWasConfirmed(boolean alive, Entity.RemovalReason removalReason) {

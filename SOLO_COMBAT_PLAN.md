@@ -225,7 +225,7 @@ command validation
                                          clean retry/second run
 ```
 
-Automated pure-logic coverage now passing (21 tests):
+Automated pure-logic coverage now passing (25 tests):
 
 - identical seed/config yields identical roster and candidate order;
 - weighted selection never exceeds wave/threat caps;
@@ -240,13 +240,17 @@ Automated pure-logic coverage now passing (21 tests):
   then retirement instead of an infinite terrain-recovery loop;
 - boss retirement/disappearance cannot become victory, and a cancellable
   living-death event must reach confirmed `KILLED` removal first.
+- phase advancement fails closed at the exact boss boundary, and even stale
+  victory state is rejected unless it belongs to that boss phase and follows a
+  confirmed defeat;
+- duplicate confirmed boss-death facts are idempotent, debug-next cannot skip the
+  boss, and reset leaves a second run with pristine run-scoped state.
 
-Still required before final RC promotion (live QA is allowed before these seams):
+Still required before final RC promotion:
 
-- pure phase-transition coverage proving no duplicate phase/spawn advance;
-- duplicate death and second-run reset coverage;
 - world-backed stuck/unloaded threshold and retirement coverage;
-- explicit defeat-over-director-victory arbitration coverage.
+- live defeat-over-director-victory arbitration coverage (the production order
+  checks fighter/mech loss before ticking the director).
 
 Build/integration verification:
 
@@ -292,14 +296,15 @@ No current critical gap is accepted silently without both handling and a planned
   leash, stuck recovery, and concise telemetry.
 - [x] **T4 (P1)** — Integrate `pmb01mk2`, explicit hate, victory/defeat precedence,
   retry, and cleanup.
-- [x] **T5 (P1)** — Add unit tests and run full Gradle build (21/21 tests; all 27
-  common/Fabric/Forge tasks passed on the mp.23 recovery-hardened build).
+- [x] **T5 (P1)** — Add unit tests and run full Gradle build (25/25 tests; all 27
+  common/Fabric/Forge tasks passed on the mp.24 fail-closed build).
 - [x] **T6 (P1)** — Run fallback diff review and native systematic investigation;
   fix findings. Formal interactive gstack workflows remain blocked because this
   session exposes no `AskUserQuestion` tool.
 - [ ] **T7 (P2)** — mp.22 live QA passed defeat, retry, wave, boss, stop, cleanup,
-  and 30-FPS gates but exposed repeated stuck recovery; deploy mp.23 and rerun the
-  bounded-recovery/boss regression.
+  and 30-FPS gates but exposed repeated stuck recovery; package mp.24 and rerun the
+  bounded-recovery, boss-provenance, and lifecycle regression only at the final live
+  gate.
 - [ ] **T8 (P2)** — Promote/package only after fresh-install, soak, and 30-FPS gates.
 
 Sequential implementation is preferred because lifecycle, tags, and director behavior

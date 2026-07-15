@@ -8,15 +8,18 @@ import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -162,6 +165,100 @@ class SpawnDirectorTest {
     }
 
     @Test
+    void phaseProgressionStopsExactlyAtTheBossBoundary() {
+        int waveCount = 3;
+
+        assertTrue(SpawnDirector.canAdvancePhase(-1, waveCount),
+                "warmup may advance to wave one");
+        assertTrue(SpawnDirector.canAdvancePhase(0, waveCount));
+        assertTrue(SpawnDirector.canAdvancePhase(waveCount - 1, waveCount),
+                "the final wave may advance to the boss");
+        assertFalse(SpawnDirector.canAdvancePhase(waveCount, waveCount),
+                "the boss phase must not advance past itself");
+        assertFalse(SpawnDirector.canAdvancePhase(waveCount + 1, waveCount));
+        assertFalse(SpawnDirector.canAdvancePhase(-2, waveCount));
+        assertFalse(SpawnDirector.canAdvancePhase(-1, 0));
+
+        assertTrue(SpawnDirector.isWavePhase(waveCount - 1, waveCount));
+        assertTrue(SpawnDirector.isBossPhase(waveCount, waveCount));
+        assertFalse(SpawnDirector.isWavePhase(waveCount, waveCount));
+        assertFalse(SpawnDirector.isBossPhase(waveCount + 1, waveCount));
+    }
+
+    @Test
+    void victoryRequiresAConfirmedBossDeathAtTheExactBossPhase() {
+        int waveCount = 3;
+
+        assertFalse(SpawnDirector.confirmedBossVictory(waveCount, waveCount, false));
+        assertTrue(SpawnDirector.confirmedBossVictory(waveCount, waveCount, true));
+        assertFalse(SpawnDirector.confirmedBossVictory(waveCount - 1, waveCount, true));
+        assertFalse(SpawnDirector.confirmedBossVictory(waveCount + 1, waveCount, true),
+                "phase overshoot must fail closed even with stale defeat state");
+    }
+
+    @Test
+    void duplicateConfirmedBossDeathsAreIdempotent() throws IOException {
+        SpawnDirector.Catalog catalog = bundledCatalog();
+        SpawnDirector.UnitSpec boss = catalog.boss().unit();
+        SpawnDirector.UnitSpec normal = catalog.waves().get(0).roster().get(0);
+
+        assertFalse(SpawnDirector.mergeBossDefeat(false, boss, false));
+        assertFalse(SpawnDirector.mergeBossDefeat(false, normal, true));
+
+        boolean defeated = SpawnDirector.mergeBossDefeat(false, boss, true);
+        assertTrue(defeated);
+        assertTrue(SpawnDirector.mergeBossDefeat(defeated, boss, true),
+                "a duplicate callback must leave the terminal fact unchanged");
+        assertTrue(SpawnDirector.mergeBossDefeat(defeated, normal, false));
+    }
+
+    @Test
+    void resetLeavesTheSecondRunWithPristineLifecycleState() throws Exception {
+        SpawnDirector director = new SpawnDirector();
+        UUID firstFighter = UUID.randomUUID();
+
+        assertFalse(director.prepare(null, 17, 91L, firstFighter,
+                4.0, 5.0, 6.0, 160.0));
+        assertTrue(director.status().startsWith("FAILED"));
+
+        setField(director, "prepared", true);
+        setField(director, "phaseStarted", true);
+        setField(director, "forceNextRequested", true);
+        setField(director, "replacementQueuedThisTick", true);
+        setField(director, "bossDefeated", true);
+        setField(director, "victory", true);
+        setField(director, "phaseIndex", 9);
+        setField(director, "nextSpawnOrdinal", 23L);
+
+        director.reset();
+
+        assertEquals("IDLE", director.status());
+        assertEquals("", director.failureReason());
+        assertTrue(director.drainMessages().isEmpty());
+        assertNull(field(director, "catalog"));
+        assertNull(field(director, "fighterId"));
+        assertEquals(0L, field(director, "seed"));
+        assertEquals(0, field(director, "matchId"));
+        assertEquals(0, field(director, "tickCount"));
+        assertEquals(-1, field(director, "phaseIndex"));
+        assertEquals(0L, field(director, "nextSpawnOrdinal"));
+        assertEquals(0, field(director, "warningRemaining"));
+        assertEquals(false, field(director, "prepared"));
+        assertEquals(false, field(director, "phaseStarted"));
+        assertEquals(false, field(director, "forceNextRequested"));
+        assertEquals(false, field(director, "replacementQueuedThisTick"));
+        assertEquals(false, field(director, "bossDefeated"));
+        assertEquals(false, field(director, "victory"));
+
+        assertFalse(director.prepare(null, 18, 92L, UUID.randomUUID(),
+                7.0, 8.0, 9.0, 160.0));
+        List<String> secondRunMessages = director.drainMessages();
+        assertEquals(1, secondRunMessages.size(),
+                "the second prepare must not inherit first-run messages");
+        assertTrue(secondRunMessages.get(0).contains("server level is unavailable"));
+    }
+
+    @Test
     void candidateSequenceIsDeterministicAndInsideDistanceBand() {
         Random first = new Random(77L);
         Random replay = new Random(77L);
@@ -294,5 +391,18 @@ class SpawnDirectorTest {
             }
             return new String(input.readAllBytes(), StandardCharsets.UTF_8);
         }
+    }
+
+    private static Object field(Object target, String name) throws ReflectiveOperationException {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        return field.get(target);
+    }
+
+    private static void setField(Object target, String name, Object value)
+            throws ReflectiveOperationException {
+        Field field = target.getClass().getDeclaredField(name);
+        field.setAccessible(true);
+        field.set(target, value);
     }
 }
