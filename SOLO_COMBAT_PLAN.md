@@ -225,7 +225,7 @@ command validation
                                          clean retry/second run
 ```
 
-Automated pure-logic coverage now passing (15 tests):
+Automated pure-logic coverage now passing (21 tests):
 
 - identical seed/config yields identical roster and candidate order;
 - weighted selection never exceeds wave/threat caps;
@@ -235,13 +235,17 @@ Automated pure-logic coverage now passing (15 tests):
 - legal player bounds remain inside the enemy pursuit leash;
 - Fabric projectile sweeps require a current tracked UUID;
 - death-screen quit/rejoin retains the restore journal for respawn;
-- a removed/dead boss cannot retain an orphan damage hitbox.
+- a removed/dead boss cannot retain an orphan damage hitbox;
+- each roster slot is bounded to one relocation, one same-slot replacement,
+  then retirement instead of an infinite terrain-recovery loop;
+- boss retirement/disappearance cannot become victory, and a cancellable
+  living-death event must reach confirmed `KILLED` removal first.
 
 Still required before final RC promotion (live QA is allowed before these seams):
 
 - pure phase-transition coverage proving no duplicate phase/spawn advance;
 - duplicate death and second-run reset coverage;
-- pure stuck/unloaded recovery threshold coverage;
+- world-backed stuck/unloaded threshold and retirement coverage;
 - explicit defeat-over-director-victory arbitration coverage.
 
 Build/integration verification:
@@ -269,7 +273,7 @@ Live gates after the slice:
 | No hidden collision-free point | deterministic retry test | bounded wait then clean abort | yes |
 | Bad datapack entity ID | catalog validation test | reject snapshot/start | yes |
 | Enemy unloads beyond player | integration travel test | tracked/leash replacement; stale ADD cull | telemetry/status |
-| Enemy cannot path out of geometry | stuck recovery test | relocate, then replace | telemetry/status |
+| Enemy cannot path out of geometry | lineage + live recovery test | relocate once, replace once, then retire; boss aborts | telemetry/status |
 | Boss never acquires target | boss integration test | seed explicit hate toward fighter | boss warning then error |
 | Boss hit box orphaned | cleanup/server-stop test | parent self-kill plus tagged boss cleanup | silent but bounded |
 | Same-tick boss and mech death | transition unit test | defeat precedence | yes |
@@ -288,12 +292,14 @@ No current critical gap is accepted silently without both handling and a planned
   leash, stuck recovery, and concise telemetry.
 - [x] **T4 (P1)** — Integrate `pmb01mk2`, explicit hate, victory/defeat precedence,
   retry, and cleanup.
-- [x] **T5 (P1)** — Add unit tests and run full Gradle build (15/15 tests; all 27
-  common/Fabric/Forge tasks passed on the sealed mp.22 build).
+- [x] **T5 (P1)** — Add unit tests and run full Gradle build (21/21 tests; all 27
+  common/Fabric/Forge tasks passed on the mp.23 recovery-hardened build).
 - [x] **T6 (P1)** — Run fallback diff review and native systematic investigation;
   fix findings. Formal interactive gstack workflows remain blocked because this
   session exposes no `AskUserQuestion` tool.
-- [ ] **T7 (P2)** — Deploy matching mp.22 test JARs and run live functional/FPS QA.
+- [ ] **T7 (P2)** — mp.22 live QA passed defeat, retry, wave, boss, stop, cleanup,
+  and 30-FPS gates but exposed repeated stuck recovery; deploy mp.23 and rerun the
+  bounded-recovery/boss regression.
 - [ ] **T8 (P2)** — Promote/package only after fresh-install, soak, and 30-FPS gates.
 
 Sequential implementation is preferred because lifecycle, tags, and director behavior

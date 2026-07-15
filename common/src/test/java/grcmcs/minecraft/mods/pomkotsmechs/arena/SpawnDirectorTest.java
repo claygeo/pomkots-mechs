@@ -3,6 +3,7 @@ package grcmcs.minecraft.mods.pomkotsmechs.arena;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import net.minecraft.world.entity.Entity;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -78,6 +79,86 @@ class SpawnDirectorTest {
         assertFalse(SpawnDirector.withinActiveCaps(4, 5, 2, 5, 5, 6));
         assertFalse(SpawnDirector.withinActiveCaps(3, 3, 1, 5, 3, 6));
         assertFalse(SpawnDirector.withinActiveCaps(-1, 0, 1, 5, 5, 6));
+    }
+
+    @Test
+    void recoveryPolicyIsRelocateThenReplaceThenRetire() {
+        SpawnDirector.RecoveryLineage initial = SpawnDirector.RecoveryLineage.initial(7L);
+        assertEquals(SpawnDirector.RecoveryAction.RELOCATE, initial.nextAction());
+
+        SpawnDirector.RecoveryLineage relocated = initial.afterRelocation();
+        assertEquals(7L, relocated.slotOrdinal());
+        assertEquals(1, relocated.relocationsUsed());
+        assertEquals(SpawnDirector.RecoveryAction.REPLACE, relocated.nextAction());
+
+        SpawnDirector.RecoveryLineage replacement = relocated.afterReplacement();
+        assertEquals(7L, replacement.slotOrdinal());
+        assertEquals(1, replacement.relocationsUsed());
+        assertEquals(1, replacement.replacementsUsed());
+        assertEquals(SpawnDirector.RecoveryAction.RETIRE, replacement.nextAction());
+    }
+
+    @Test
+    void earlyReplacementRetainsTheSlotsRemainingRelocationBudget() {
+        SpawnDirector.RecoveryLineage replacement =
+                SpawnDirector.RecoveryLineage.initial(3L).afterReplacement();
+
+        assertEquals(3L, replacement.slotOrdinal());
+        assertEquals(0, replacement.relocationsUsed());
+        assertEquals(1, replacement.replacementsUsed());
+        assertEquals(SpawnDirector.RecoveryAction.RELOCATE, replacement.nextAction());
+        assertEquals(SpawnDirector.RecoveryAction.RETIRE,
+                replacement.afterRelocation().nextAction());
+    }
+
+    @Test
+    void recoveryBudgetsAreIndependentAndFreshLineagesReset() {
+        SpawnDirector.RecoveryLineage first = SpawnDirector.RecoveryLineage.initial(0L);
+        SpawnDirector.RecoveryLineage second = SpawnDirector.RecoveryLineage.initial(1L);
+        SpawnDirector.RecoveryLineage spent = first.afterRelocation().afterReplacement();
+
+        assertEquals(SpawnDirector.RecoveryAction.RETIRE, spent.nextAction());
+        assertEquals(SpawnDirector.RecoveryAction.RELOCATE, second.nextAction());
+        assertEquals(first, SpawnDirector.RecoveryLineage.initial(0L));
+    }
+
+    @Test
+    void recoveryLineageRejectsImpossibleOrOverspentStates() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new SpawnDirector.RecoveryLineage(-1L, 0, 0));
+        assertThrows(IllegalArgumentException.class,
+                () -> new SpawnDirector.RecoveryLineage(0L, 2, 0));
+        assertThrows(IllegalStateException.class,
+                () -> SpawnDirector.RecoveryLineage.initial(0L)
+                        .afterRelocation().afterRelocation());
+        assertThrows(IllegalStateException.class,
+                () -> SpawnDirector.RecoveryLineage.initial(0L)
+                        .afterReplacement().afterReplacement());
+    }
+
+    @Test
+    void exhaustedNormalSlotsMayRetireButBossesMustFailTheRun() throws IOException {
+        SpawnDirector.Catalog catalog = bundledCatalog();
+        SpawnDirector.UnitSpec normal = catalog.waves().get(0).roster().get(0);
+        SpawnDirector.UnitSpec boss = catalog.boss().unit();
+
+        assertFalse(SpawnDirector.retirementFailsRun(normal));
+        assertTrue(SpawnDirector.retirementFailsRun(boss));
+        assertEquals(SpawnDirector.TickResult.FAILED, SpawnDirector.bossClearResult(false));
+        assertEquals(SpawnDirector.TickResult.VICTORY, SpawnDirector.bossClearResult(true));
+    }
+
+    @Test
+    void cancellableDeathMustBeConfirmedOnTheFollowingTick() {
+        assertFalse(SpawnDirector.deathWasConfirmed(true, null),
+                "a later listener kept the entity alive");
+        assertFalse(SpawnDirector.deathWasConfirmed(false, null),
+                "the death animation is not final removal");
+        assertFalse(SpawnDirector.deathWasConfirmed(false, Entity.RemovalReason.DISCARDED));
+        assertTrue(SpawnDirector.deathWasConfirmed(false, Entity.RemovalReason.KILLED));
+        assertEquals(SpawnDirector.TickResult.FAILED,
+                SpawnDirector.bossClearResult(
+                        SpawnDirector.deathWasConfirmed(true, null)));
     }
 
     @Test

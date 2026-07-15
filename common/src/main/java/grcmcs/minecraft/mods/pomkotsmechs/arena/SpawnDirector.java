@@ -119,27 +119,75 @@ final class SpawnDirector {
     record SpawnOffset(double x, double z) {
     }
 
+    enum RecoveryAction {
+        RELOCATE,
+        REPLACE,
+        RETIRE
+    }
+
+    /**
+     * Immutable recovery budget for one planned roster slot. Replacements keep
+     * the same slot ordinal, so bad terrain can never create an unbounded chain
+     * of fresh enemies.
+     */
+    record RecoveryLineage(long slotOrdinal, int relocationsUsed, int replacementsUsed) {
+        RecoveryLineage {
+            if (slotOrdinal < 0L || relocationsUsed < 0 || relocationsUsed > 1
+                    || replacementsUsed < 0 || replacementsUsed > 1) {
+                throw new IllegalArgumentException("invalid recovery lineage");
+            }
+        }
+
+        static RecoveryLineage initial(long slotOrdinal) {
+            return new RecoveryLineage(slotOrdinal, 0, 0);
+        }
+
+        RecoveryAction nextAction() {
+            if (relocationsUsed == 0) {
+                return RecoveryAction.RELOCATE;
+            }
+            if (replacementsUsed == 0) {
+                return RecoveryAction.REPLACE;
+            }
+            return RecoveryAction.RETIRE;
+        }
+
+        RecoveryLineage afterRelocation() {
+            if (relocationsUsed != 0) {
+                throw new IllegalStateException("slot relocation budget is exhausted");
+            }
+            return new RecoveryLineage(slotOrdinal, 1, replacementsUsed);
+        }
+
+        RecoveryLineage afterReplacement() {
+            if (replacementsUsed != 0) {
+                throw new IllegalStateException("slot replacement budget is exhausted");
+            }
+            return new RecoveryLineage(slotOrdinal, relocationsUsed, 1);
+        }
+    }
+
     private record SpawnPoint(double x, double y, double z) {
     }
 
     private static final class SpawnRequest {
         final UnitSpec spec;
         final int phaseIndex;
-        final long ordinal;
+        final RecoveryLineage lineage;
         final double minDistance;
         final double maxDistance;
         final Random candidates;
         int candidateAttempts;
         int commitFailures;
 
-        SpawnRequest(UnitSpec spec, int phaseIndex, long ordinal,
+        SpawnRequest(UnitSpec spec, int phaseIndex, RecoveryLineage lineage,
                      double minDistance, double maxDistance, long runSeed, long salt) {
             this.spec = spec;
             this.phaseIndex = phaseIndex;
-            this.ordinal = ordinal;
+            this.lineage = lineage;
             this.minDistance = minDistance;
             this.maxDistance = maxDistance;
-            long identity = runSeed ^ ((long) phaseIndex << 32) ^ ordinal;
+            long identity = runSeed ^ ((long) phaseIndex << 32) ^ lineage.slotOrdinal();
             this.candidates = new Random(mixSeed(identity, salt));
         }
     }
@@ -147,22 +195,23 @@ final class SpawnDirector {
     private static final class TrackedEnemy {
         final UnitSpec spec;
         final int phaseIndex;
-        final long ordinal;
         final double minDistance;
         final double maxDistance;
+        RecoveryLineage lineage;
         BlockPos lastBlock;
         double auditX;
         double auditZ;
         int stationaryTicks;
         int unresolvedTicks;
         SpawnRequest recovery;
+        Entity deathCandidate;
 
         TrackedEnemy(SpawnRequest request, Entity entity) {
             spec = request.spec;
             phaseIndex = request.phaseIndex;
-            ordinal = request.ordinal;
             minDistance = request.minDistance;
             maxDistance = request.maxDistance;
+            lineage = request.lineage;
             observe(entity);
         }
 
@@ -191,6 +240,7 @@ final class SpawnDirector {
     private static final long ROSTER_SALT = 0x6A09E667F3BCC909L;
     private static final long CANDIDATE_SALT = 0xBB67AE8584CAA73BL;
     private static final long RECOVERY_SALT = 0x3C6EF372FE94F82BL;
+    private static final long REPLACEMENT_SALT = 0xA54FF53A5F1D36F1L;
 
     private final Deque<SpawnRequest> pending = new ArrayDeque<>();
     private final LinkedHashMap<UUID, TrackedEnemy> owned = new LinkedHashMap<>();
@@ -213,6 +263,7 @@ final class SpawnDirector {
     private boolean phaseStarted;
     private boolean forceNextRequested;
     private boolean replacementQueuedThisTick;
+    private boolean bossDefeated;
     private boolean victory;
     private String failureReason = "";
 
@@ -306,6 +357,8 @@ final class SpawnDirector {
             return TickResult.VICTORY;
         }
 
+        confirmDeathCandidates();
+
         if (tickCount % catalog.reconcileTicks() == 0) {
             reconcile(level, target);
         }
@@ -319,6 +372,10 @@ final class SpawnDirector {
 
         if (phaseStarted && pending.isEmpty() && owned.isEmpty()) {
             if (phaseIndex == catalog.waves().size()) {
+                if (bossClearResult(bossDefeated) != TickResult.VICTORY) {
+                    failRuntime("boss disappeared without a confirmed defeat");
+                    return TickResult.FAILED;
+                }
                 victory = true;
                 messages.add("BOSS DESTROYED.");
                 return TickResult.VICTORY;
@@ -354,7 +411,13 @@ final class SpawnDirector {
 
     void onDeath(Entity entity) {
         if (entity != null) {
-            owned.remove(entity.getUUID());
+            TrackedEnemy tracked = owned.get(entity.getUUID());
+            if (tracked != null) {
+                // Architectury's living-death event is cancellable. Do not
+                // release ownership until the next server tick proves that a
+                // later listener did not keep the entity alive.
+                tracked.deathCandidate = entity;
+            }
         }
     }
 
@@ -389,6 +452,7 @@ final class SpawnDirector {
         phaseStarted = false;
         forceNextRequested = false;
         replacementQueuedThisTick = false;
+        bossDefeated = false;
         victory = false;
         failureReason = "";
     }
@@ -455,6 +519,7 @@ final class SpawnDirector {
             messages.add("WAVE " + (phaseIndex + 1) + "/" + catalog.waves().size()
                     + " — " + wave.id().replace('_', ' ') + reduced + ".");
         } else if (phaseIndex == catalog.waves().size()) {
+            bossDefeated = false;
             BossSpec boss = catalog.boss();
             pending.addLast(newRequest(boss.unit(), boss.minSpawnDistance(), boss.maxSpawnDistance()));
             messages.add("BOSS CONTACT — " + boss.id().replace('_', ' ') + ".");
@@ -472,7 +537,8 @@ final class SpawnDirector {
     }
 
     private SpawnRequest newRequest(UnitSpec unit, double minDistance, double maxDistance) {
-        return new SpawnRequest(unit, phaseIndex, nextSpawnOrdinal++, minDistance, maxDistance,
+        RecoveryLineage lineage = RecoveryLineage.initial(nextSpawnOrdinal++);
+        return new SpawnRequest(unit, phaseIndex, lineage, minDistance, maxDistance,
                 seed, CANDIDATE_SALT);
     }
 
@@ -504,8 +570,12 @@ final class SpawnDirector {
         if (point == null) {
             enemy.discard();
             if (request.candidateAttempts >= catalog.maxCandidateAttempts()) {
-                failRuntime("no safe loaded spawn among " + request.candidateAttempts
-                        + " candidates for " + request.spec.entityId());
+                if (request.lineage.replacementsUsed() >= 1) {
+                    retirePendingReplacement(request, "unspawnable");
+                } else {
+                    failRuntime("no safe loaded spawn among " + request.candidateAttempts
+                            + " candidates for " + request.spec.entityId());
+                }
             }
             return;
         }
@@ -536,8 +606,12 @@ final class SpawnDirector {
             enemy.discard();
             request.commitFailures++;
             if (request.commitFailures >= catalog.maxCommitRetries()) {
-                failRuntime("world rejected " + request.spec.entityId() + " after "
-                        + request.commitFailures + " commits");
+                if (request.lineage.replacementsUsed() >= 1) {
+                    retirePendingReplacement(request, "world-rejected");
+                } else {
+                    failRuntime("world rejected " + request.spec.entityId() + " after "
+                            + request.commitFailures + " commits");
+                }
             }
             return;
         }
@@ -651,8 +725,7 @@ final class SpawnDirector {
                 }
                 entity.discard();
                 iterator.remove();
-                queueReplacement(tracked);
-                messages.add("Replaced leashed " + tracked.spec.role() + ".");
+                replaceOrRetire(tracked, "leashed");
                 return;
             }
 
@@ -666,14 +739,34 @@ final class SpawnDirector {
             }
             tracked.observe(living);
             if (tracked.stationaryTicks >= catalog.stuckWindowTicks() && tracked.recovery == null) {
-                tracked.recovery = new SpawnRequest(tracked.spec, tracked.phaseIndex, tracked.ordinal,
-                        tracked.minDistance, tracked.maxDistance, seed, RECOVERY_SALT);
+                switch (tracked.lineage.nextAction()) {
+                    case RELOCATE -> tracked.recovery = new SpawnRequest(
+                            tracked.spec, tracked.phaseIndex, tracked.lineage,
+                            tracked.minDistance, tracked.maxDistance, seed, RECOVERY_SALT);
+                    case REPLACE -> {
+                        if (replacementQueuedThisTick) {
+                            return;
+                        }
+                        living.discard();
+                        iterator.remove();
+                        replaceOrRetire(tracked, "stuck");
+                        return;
+                    }
+                    case RETIRE -> {
+                        living.discard();
+                        iterator.remove();
+                        retireTracked(tracked, "unreachable");
+                        return;
+                    }
+                }
             }
         }
     }
 
     private void recoverOneIfNeeded(ServerLevel level, ServerPlayer player, LivingEntity target) {
-        for (Map.Entry<UUID, TrackedEnemy> entry : owned.entrySet()) {
+        Iterator<Map.Entry<UUID, TrackedEnemy>> iterator = owned.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<UUID, TrackedEnemy> entry = iterator.next();
             TrackedEnemy tracked = entry.getValue();
             if (tracked.recovery == null) {
                 continue;
@@ -690,21 +783,22 @@ final class SpawnDirector {
                     mob.getNavigation().stop();
                     mob.setTarget(target);
                 }
+                tracked.lineage = tracked.lineage.afterRelocation();
                 tracked.stationaryTicks = 0;
                 tracked.recovery = null;
                 tracked.observe(living);
                 rememberSpawn(point);
-                messages.add("Recovered stuck " + tracked.spec.role() + ".");
+                messages.add("Recovered stuck " + slotLabel(tracked) + " (relocate 1/1).");
                 return;
             }
             if (tracked.recovery.candidateAttempts >= catalog.maxCandidateAttempts()) {
                 if (replacementQueuedThisTick) {
                     return;
                 }
+                tracked.lineage = tracked.lineage.afterRelocation();
                 living.discard();
-                owned.remove(entry.getKey());
-                queueReplacement(tracked);
-                messages.add("Replaced unrecoverable " + tracked.spec.role() + ".");
+                iterator.remove();
+                replaceOrRetire(tracked, "unreachable");
             }
             return;
         }
@@ -722,6 +816,11 @@ final class SpawnDirector {
                     if (entity instanceof Mob mob && mob.getTarget() != target) {
                         mob.setTarget(target);
                     }
+                } else if (entry.getValue().deathCandidate != null) {
+                    // Pomkots enemies remain present for their death animation.
+                    // Ownership is released only after KILLED removal confirms
+                    // that no later listener canceled the living-death event.
+                    continue;
                 } else {
                     iterator.remove();
                 }
@@ -744,9 +843,32 @@ final class SpawnDirector {
                 // the original chunk later loads, ArenaManager's ADD guard culls
                 // that UUID because owns(oldUuid) is now false.
                 iterator.remove();
-                queueReplacement(tracked);
-                messages.add("Replaced unloaded " + tracked.spec.role() + ".");
+                replaceOrRetire(tracked, "unloaded");
                 return; // one replacement at most per reconciliation audit
+            }
+        }
+    }
+
+    private void confirmDeathCandidates() {
+        Iterator<Map.Entry<UUID, TrackedEnemy>> iterator = owned.entrySet().iterator();
+        while (iterator.hasNext()) {
+            TrackedEnemy tracked = iterator.next().getValue();
+            Entity candidate = tracked.deathCandidate;
+            if (candidate == null) {
+                continue;
+            }
+            if (deathWasConfirmed(candidate.isAlive(), candidate.getRemovalReason())) {
+                tracked.deathCandidate = null;
+                iterator.remove();
+                if (tracked.spec.boss()) {
+                    bossDefeated = true;
+                }
+                continue;
+            }
+            if (candidate.isAlive() || candidate.isRemoved()) {
+                // Alive means death was canceled. A non-KILLED removal is not
+                // combat victory and is left for normal disappearance recovery.
+                tracked.deathCandidate = null;
             }
         }
     }
@@ -775,9 +897,64 @@ final class SpawnDirector {
         messages.add("DEBUG NEXT — advancing encounter.");
     }
 
-    private void queueReplacement(TrackedEnemy tracked) {
-        pending.addFirst(newRequest(tracked.spec, tracked.minDistance, tracked.maxDistance));
+    private boolean queueReplacement(TrackedEnemy tracked) {
+        if (tracked.lineage.replacementsUsed() >= 1) {
+            return false;
+        }
+        tracked.lineage = tracked.lineage.afterReplacement();
+        pending.addFirst(new SpawnRequest(tracked.spec, tracked.phaseIndex, tracked.lineage,
+                tracked.minDistance, tracked.maxDistance, seed, REPLACEMENT_SALT));
         replacementQueuedThisTick = true;
+        return true;
+    }
+
+    private void replaceOrRetire(TrackedEnemy tracked, String condition) {
+        if (queueReplacement(tracked)) {
+            messages.add("Replaced " + condition + " " + slotLabel(tracked) + " (replace 1/1).");
+        } else {
+            retireTracked(tracked, condition);
+        }
+    }
+
+    private void retireTracked(TrackedEnemy tracked, String condition) {
+        if (retirementFailsRun(tracked.spec)) {
+            failRuntime("boss " + slotLabel(tracked) + " became " + condition
+                    + " after exhausting its recovery budget");
+            return;
+        }
+        messages.add("Retired " + condition + " " + slotLabel(tracked)
+                + " after recovery budget.");
+    }
+
+    private void retirePendingReplacement(SpawnRequest request, String condition) {
+        pending.removeFirst();
+        String label = slotLabel(request.spec, request.phaseIndex, request.lineage);
+        if (retirementFailsRun(request.spec)) {
+            failRuntime("boss " + label + " became " + condition
+                    + " after exhausting its recovery budget");
+            return;
+        }
+        messages.add("Retired " + condition + " " + label + " after recovery budget.");
+    }
+
+    static boolean retirementFailsRun(UnitSpec spec) {
+        return spec != null && spec.boss();
+    }
+
+    static TickResult bossClearResult(boolean confirmedDefeat) {
+        return confirmedDefeat ? TickResult.VICTORY : TickResult.FAILED;
+    }
+
+    static boolean deathWasConfirmed(boolean alive, Entity.RemovalReason removalReason) {
+        return !alive && removalReason == Entity.RemovalReason.KILLED;
+    }
+
+    private static String slotLabel(TrackedEnemy tracked) {
+        return slotLabel(tracked.spec, tracked.phaseIndex, tracked.lineage);
+    }
+
+    private static String slotLabel(UnitSpec spec, int phaseIndex, RecoveryLineage lineage) {
+        return spec.role() + " slot " + (phaseIndex + 1) + ":" + (lineage.slotOrdinal() + 1);
     }
 
     private boolean tooCloseToRecentSpawn(double x, double y, double z) {
