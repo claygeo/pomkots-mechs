@@ -146,6 +146,7 @@ public class Pmb01mk2Entity extends BaseBossEntity {
 
             for (int i = 0; i < 12; i++) {
                 SlashEntity be = new SlashEntity(PomkotsMechs.EXPLOADSLASH.get(), this.level());
+                be.setOwner(this);
 
                 be.setPos(offset);
                 be.shootFromRotation(be, 0, -180 + i * 30, this.getFallFlyingTicks(), 1.5F, 0F);

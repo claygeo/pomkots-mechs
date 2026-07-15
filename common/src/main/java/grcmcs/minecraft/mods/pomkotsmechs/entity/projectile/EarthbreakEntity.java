@@ -39,6 +39,9 @@ public class EarthbreakEntity extends ThrowableProjectile implements GeoEntity, 
         super(entityType, world);
         this.setNoGravity(true);
         this.shooter = shooter;
+        if (shooter != null) {
+            this.setOwner(shooter);
+        }
     }
 
     @Override

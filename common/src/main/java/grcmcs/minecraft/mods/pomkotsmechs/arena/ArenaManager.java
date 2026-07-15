@@ -8,6 +8,7 @@ import dev.architectury.event.events.common.TickEvent;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -23,12 +24,14 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.entity.EntityTypeTest;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
@@ -62,8 +65,11 @@ public final class ArenaManager {
     private static final int ROYALE_AUTO_START_DELAY = 600; // ROYALE: sustained-min-players auto-start delay (30s)
     private static final int COUNTDOWN_LENGTH = 200;   // 10s
     private static final int ENDING_LENGTH = 100;      // 5s wind-down
-    private static final int MATCH_TIMEOUT = 8 * 60 * 20; // 8 minutes of ACTIVE
+    private static final int MATCH_TIMEOUT = 8 * 60 * 20; // 8 minutes of multiplayer ACTIVE
+    private static final int SOLO_MATCH_TIMEOUT = 20 * 60 * 20; // hard safety cap; normal runs finish much sooner
     private static final double BOUNDS_RADIUS = 150.0; // horizontal blocks from center
+    private static final double SOLO_BOUNDS_RADIUS = 160.0;
+    private static final int SOLO_PROJECTILE_CAP = 48;
     private static final int BOUNDS_GRACE = 200;       // ticks allowed outside before elimination
     private static final int SPECTATE_HEIGHT = 30;
 
@@ -83,13 +89,15 @@ public final class ArenaManager {
     private static final double ZONE_MIN_RADIUS = 15.0;      // the zone never shrinks below this
     private static final int ROYALE_HARD_CAP = MATCH_TIMEOUT + 6000; // absolute draw backstop (+5 min)
 
-    private static final String TAG_ARENA = "mecharena";
-    private static final String TAG_OWNER_PREFIX = "mecharena_owner_";
-    private static final String TAG_MATCH_PREFIX = "mecharena_match_";
+    static final String TAG_ARENA = "mecharena";
+    static final String TAG_OWNER_PREFIX = "mecharena_owner_";
+    static final String TAG_MATCH_PREFIX = "mecharena_match_";
     // PvE hostiles carry TAG_ARENA (so all existing cleanup/sweep paths reap them)
     // plus the current match tag (so the guards treat them as legitimate) plus this
     // marker, which keeps their deaths OUT of the loot-mech accounting.
-    private static final String TAG_PVE = "mecharena_pve";
+    static final String TAG_PVE = "mecharena_pve";
+    static final String TAG_SOLO = "mecharena_solo";
+    static final String TAG_SOLO_PROJECTILE = "mecharena_solo_projectile";
     // Hostile roster for the PvE hook: charging, gun, and spider mobs. All are
     // Monsters that autonomously target the nearest player (hostile to everyone).
     private static final List<String> PVE_ROSTER = List.of("pms01", "pms03", "pms05");
@@ -98,6 +106,17 @@ public final class ArenaManager {
     private static ArenaState state = ArenaState.IDLE;
     private static final LinkedHashMap<UUID, String> queue = new LinkedHashMap<>();
     private static final List<Fighter> fighters = new ArrayList<>();
+    private static final SpawnDirector spawnDirector = new SpawnDirector();
+    private static final Set<UUID> soloProjectileIds = new HashSet<>();
+    private static int soloProjectileDrops = 0;
+
+    // Retry remembers the last successful solo recipe but never persists it. A server
+    // restart intentionally starts from a clean command rather than resurrecting a
+    // partial encounter against a possibly changed datapack or world.
+    private static UUID soloOwner;
+    private static int lastSoloBuild = 0;
+    private static long lastSoloSeed = 0L;
+    private static boolean hasLastSoloRun = false;
 
     private static int idleTimer = 0;
     private static int countdownTicks = 0;
@@ -180,6 +199,9 @@ public final class ArenaManager {
         // Fresh boot: drop any in-memory state and sweep leftover arena mechs
         // that a crash may have left behind.
         resetToIdle();
+        hasLastSoloRun = false;
+        lastSoloBuild = 0;
+        lastSoloSeed = 0L;
         queue.clear();
         fighters.clear();
         mountHinted.clear();
@@ -211,8 +233,9 @@ public final class ArenaManager {
             return;
         }
         // A pending record means this player still owes a restore. Whatever the
-        // state (ACTIVE/ENDING/even IDLE after a partial cleanup), heal them on
-        // the way out so they never relog stranded in ADVENTURE/SPECTATOR.
+        // state (ACTIVE/ENDING/even IDLE after a partial cleanup), heal a living
+        // player on the way out. A death-screen player keeps the journal for the
+        // respawn hook, because teleporting the obsolete dead entity can lose it.
         RestoreRecord rec = ArenaData.get(server).getPendingRestore(uuid);
         if (rec == null) {
             return;
@@ -225,7 +248,9 @@ public final class ArenaManager {
                 eliminate(server, f, false);
             }
         }
-        restorePlayer(server, player, rec);
+        if (canRestorePlayerImmediately(player.isAlive())) {
+            restorePlayer(server, player, rec);
+        }
     }
 
     private static void onPlayerJoin(ServerPlayer player) {
@@ -234,9 +259,10 @@ public final class ArenaManager {
             return;
         }
         // Heals crash-mid-match relogs (even days later): the record outlived the
-        // match in ArenaData, so apply it the instant the player is back.
+        // match in ArenaData, so apply it once the rejoined player is alive. A
+        // death-screen reconnect remains journaled until PLAYER_RESPAWN.
         RestoreRecord rec = ArenaData.get(server).getPendingRestore(player.getUUID());
-        if (rec != null) {
+        if (rec != null && canRestorePlayerImmediately(player.isAlive())) {
             restorePlayer(server, player, rec);
         }
     }
@@ -300,7 +326,43 @@ public final class ArenaManager {
      * legitimate in-match mechs pass through untouched.
      */
     private static EventResult onEntityAdd(Entity entity, Level level) {
-        if (!(level instanceof ServerLevel)) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return EventResult.pass();
+        }
+        // A tagged projectile is being re-added from saved/chunk state, never
+        // freshly fired. Reject it before owner classification so an old shot
+        // from the same pilot cannot be relabelled into a later run.
+        if (entity.getTags().contains(TAG_SOLO_PROJECTILE)) {
+            soloProjectileIds.remove(entity.getUUID());
+            return EventResult.interruptFalse();
+        }
+        // Projectiles are short-lived, but some missiles outlive the entire ENDING
+        // window. Attach them to the solo match at creation so outcome/stop/retry
+        // teardown cannot leave a hostile shot behind. Ownership is exact: either
+        // the solo pilot (player-mech weapons) or a current tagged enemy. Unrelated
+        // arrows/projectiles in the same dimension remain untouched.
+        if (entity instanceof Projectile projectile
+                && matchMode == Mode.SOLO
+                && isSoloCombatProjectileOwner(projectile.getOwner())) {
+            // Once an outcome is decided, the still-mounted pilot gets a visual
+            // wind-down but cannot create shots that outlive the match. Wrong-
+            // dimension combat shots are rejected for the same reason.
+            if (state != ArenaState.ACTIVE || arenaDimension == null
+                    || !serverLevel.dimension().equals(arenaDimension)) {
+                return EventResult.interruptFalse();
+            }
+            if (soloProjectileIds.size() >= SOLO_PROJECTILE_CAP) {
+                pruneSoloProjectiles(serverLevel);
+                if (soloProjectileIds.size() >= SOLO_PROJECTILE_CAP) {
+                    soloProjectileDrops++;
+                    return EventResult.interruptFalse();
+                }
+            }
+            entity.addTag(TAG_ARENA);
+            entity.addTag(TAG_MATCH_PREFIX + matchId);
+            entity.addTag(TAG_SOLO);
+            entity.addTag(TAG_SOLO_PROJECTILE);
+            soloProjectileIds.add(entity.getUUID());
             return EventResult.pass();
         }
         if (!entity.getTags().contains(TAG_ARENA)) {
@@ -317,6 +379,21 @@ public final class ArenaManager {
             }
             return EventResult.interruptFalse();
         }
+        // SOLO enemies are stricter than royale loot: a current match tag alone is
+        // insufficient. The UUID must still be owned by the live director so an
+        // unloaded unit that was replaced by leash/stuck recovery cannot return later
+        // and grow the encounter without bound.
+        if (matchMode == Mode.SOLO
+                && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN)
+                && entity.getTags().contains(TAG_PVE)) {
+            boolean current = entity.getTags().contains(TAG_MATCH_PREFIX + matchId);
+            return current
+                    && arenaDimension != null
+                    && serverLevel.dimension().equals(arenaDimension)
+                    && spawnDirector.owns(entity.getUUID())
+                    ? EventResult.pass()
+                    : EventResult.interruptFalse();
+        }
         // A tagged arena mech is being added. In ANY state, only a live fighter's
         // current mech may enter the world. Ownership requires IDENTITY, not just
         // the owner tag: deployFighter sets f.mech before addFreshEntity, and
@@ -332,10 +409,63 @@ public final class ArenaManager {
         return EventResult.interruptFalse();
     }
 
+    private static boolean isSoloCombatProjectileOwner(Entity owner) {
+        if (owner == null) {
+            return false;
+        }
+        if (soloOwner != null && soloOwner.equals(owner.getUUID())) {
+            return true;
+        }
+        boolean current = owner.getTags().contains(TAG_SOLO)
+                && owner.getTags().contains(TAG_MATCH_PREFIX + matchId);
+        if (!current) {
+            return false;
+        }
+        if (owner.getTags().contains(TAG_PVE)) {
+            return spawnDirector.owns(owner.getUUID());
+        }
+        Fighter fighter = findFighterByMech(owner);
+        return fighter != null && !fighter.eliminated && fighter.mech == owner;
+    }
+
+    static boolean isTrackedSoloProjectile(boolean inArenaDimension,
+                                           boolean currentMatch,
+                                           boolean trackedUuid) {
+        return inArenaDimension && currentMatch && trackedUuid;
+    }
+
+    static boolean canRestorePlayerImmediately(boolean alive) {
+        return alive;
+    }
+
+    private static void pruneSoloProjectiles(ServerLevel level) {
+        String matchTag = TAG_MATCH_PREFIX + matchId;
+        Iterator<UUID> iterator = soloProjectileIds.iterator();
+        while (iterator.hasNext()) {
+            Entity entity = level.getEntity(iterator.next());
+            if (entity == null || entity.isRemoved()
+                    || !entity.getTags().contains(TAG_SOLO_PROJECTILE)
+                    || !entity.getTags().contains(matchTag)) {
+                iterator.remove();
+            }
+        }
+    }
+
+    private static String soloProjectileStatus() {
+        return "shots " + soloProjectileIds.size() + "/" + SOLO_PROJECTILE_CAP
+                + (soloProjectileDrops > 0 ? ", capped " + soloProjectileDrops : "");
+    }
+
     private static EventResult onLivingDeath(LivingEntity entity, DamageSource source) {
         if (state == ArenaState.ACTIVE) {
             MinecraftServer server = entity.getServer();
             if (server != null) {
+                if (matchMode == Mode.SOLO
+                        && entity.getTags().contains(TAG_PVE)
+                        && entity.getTags().contains(TAG_MATCH_PREFIX + matchId)) {
+                    spawnDirector.onDeath(entity);
+                    return EventResult.pass();
+                }
                 if (entity.getTags().contains(TAG_ARENA)) {
                     if (matchMode == Mode.ROYALE) {
                         // Mechs are GEAR, not lives: a downed mech eliminates no
@@ -403,11 +533,20 @@ public final class ArenaManager {
         // Periodic stray-mech sweep. The EntityEvent.ADD guard covers Forge chunk
         // loads, but on Fabric that event only fires for fresh spawns — this
         // loader-agnostic sweep is what actually reaps crash leftovers there.
-        if (++sweepTimer >= 600) {
+        // Use the same 5s bound as ACTIVE so a cleanup leftover cannot roam for
+        // the old 30s window after its chunk returns.
+        if (++sweepTimer >= 100) {
             sweepTimer = 0;
             sweepStrayMechs(server);
         }
         ArenaData data = ArenaData.get(server);
+        // SOLO is started explicitly by its owner and never waits on the multiplayer
+        // queue. If a future datapack/admin persists SOLO as the ambient mode, leave
+        // the idle queue disarmed rather than applying DUEL's two-player assumptions.
+        if (data.getMode() == Mode.SOLO) {
+            idleTimer = 0;
+            return;
+        }
         // ROYALE needs a center, not pads; DUEL needs pads. Anything else keeps the
         // auto-start timer disarmed.
         Mode mode = data.getMode();
@@ -471,6 +610,8 @@ public final class ArenaManager {
     private static void sweepStrayMechs(MinecraftServer server) {
         boolean royaleLive = matchMode == Mode.ROYALE
                 && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
+        boolean soloLive = matchMode == Mode.SOLO
+                && (state == ArenaState.ACTIVE || state == ArenaState.COUNTDOWN);
         for (ServerLevel level : server.getAllLevels()) {
             List<? extends Entity> tagged = level.getEntities(
                     EntityTypeTest.forClass(Entity.class),
@@ -481,6 +622,19 @@ public final class ArenaManager {
                     // ROYALE: scattered mechs are unowned; the current match tag
                     // is what keeps them from being reaped by our own sweep.
                     legit = e.getTags().contains(TAG_MATCH_PREFIX + matchId);
+                } else if (soloLive && e.getTags().contains(TAG_SOLO_PROJECTILE)) {
+                    legit = isTrackedSoloProjectile(
+                            arenaDimension != null && level.dimension().equals(arenaDimension),
+                            e.getTags().contains(TAG_MATCH_PREFIX + matchId),
+                            soloProjectileIds.contains(e.getUUID()));
+                } else if (soloLive && e.getTags().contains(TAG_PVE)) {
+                    // A same-match SOLO tag is not enough: only director-owned UUIDs
+                    // may survive. This catches replaced enemies on loaders where the
+                    // ADD event does not fire for a chunk reload.
+                    legit = arenaDimension != null
+                            && level.dimension().equals(arenaDimension)
+                            && e.getTags().contains(TAG_MATCH_PREFIX + matchId)
+                            && spawnDirector.owns(e.getUUID());
                 } else {
                     Fighter f = findFighterByMech(e);
                     legit = f != null && !f.eliminated && f.mech == e
@@ -1224,6 +1378,11 @@ public final class ArenaManager {
             sweepStrayMechs(server);
         }
 
+        if (matchMode == Mode.SOLO) {
+            tickSolo(server);
+            return;
+        }
+
         // ROYALE cage phase: fighters are held in the floating glass boxes. No
         // mount policy, no out-of-bounds, no win check while the cages still stand
         // — just count them down and drop them. (DUEL keeps cageTicks == 0.)
@@ -1290,6 +1449,143 @@ public final class ArenaManager {
                 beginEnding(server);
             }
         }
+    }
+
+    /**
+     * SOLO's ACTIVE path. The arena still owns fighter loss, bounds, outcome and
+     * teardown; the director owns only encounter pacing and enemy lifecycle.
+     * Fighter loss is checked before the director so a same-tick boss/mech double KO
+     * resolves as defeat instead of granting a victory to a destroyed player mech.
+     */
+    private static void tickSolo(MinecraftServer server) {
+        Fighter fighter = fighters.size() == 1 ? fighters.get(0) : null;
+        if (fighter == null || fighter.eliminated) {
+            broadcast(server, "SOLO DEFEAT — your combat frame was lost.");
+            beginEnding(server);
+            return;
+        }
+
+        ServerPlayer player = server.getPlayerList().getPlayer(fighter.uuid);
+        if (player == null || player.hasDisconnected() || !player.isAlive()) {
+            eliminate(server, fighter, false);
+            broadcast(server, "SOLO DEFEAT — pilot unavailable.");
+            beginEnding(server);
+            return;
+        }
+        if (fighter.mech == null || !fighter.mech.isAlive()) {
+            eliminate(server, fighter, true);
+            broadcast(server, "SOLO DEFEAT — your combat frame was destroyed.");
+            beginEnding(server);
+            return;
+        }
+        if (matchTicks >= SOLO_MATCH_TIMEOUT) {
+            broadcast(server, "SOLO DEFEAT — 20-minute safety limit reached.");
+            beginEnding(server);
+            return;
+        }
+        if (arenaDimension == null) {
+            broadcast(server, "SOLO RUN ABORTED — arena dimension became unavailable.");
+            beginEnding(server);
+            return;
+        }
+        if (!fighter.mech.level().dimension().equals(arenaDimension)) {
+            eliminate(server, fighter, true);
+            broadcast(server, "SOLO DEFEAT — your combat frame left the arena dimension.");
+            beginEnding(server);
+            return;
+        }
+
+        // Observer policy is enforced even while the owner is receiving bounds
+        // or portal grace. Otherwise a helper could enter, clear live enemies,
+        // and leave while the director itself is intentionally paused.
+        ServerPlayer intruder = findSoloIntruder(server, fighter.uuid, arenaDimension,
+                centerX, centerZ, matchBoundsRadius + 24.0);
+        if (intruder != null) {
+            broadcast(server, "SOLO RUN ABORTED — " + intruder.getName().getString()
+                    + " entered the combat zone. Observers must use spectator mode.");
+            beginEnding(server);
+            return;
+        }
+
+        checkOutOfBounds(server, true);
+        if (fighter.eliminated) {
+            broadcast(server, "SOLO DEFEAT — you left the combat zone.");
+            beginEnding(server);
+            return;
+        }
+        // Bounds grace is real grace: existing enemies may keep moving, but the
+        // finite spawn/recovery candidate budgets are frozen until the pilot is
+        // back. This prevents a boosting overshoot or portal trip from consuming
+        // all candidates against impossible geometry.
+        if (fighter.outsideTicks > 0) {
+            return;
+        }
+
+        if (!player.level().dimension().equals(arenaDimension)) {
+            return;
+        }
+
+        // SOLO is mech combat. Eject a stolen passenger, then repair an accidental
+        // nearby dismount immediately. A pilot who abandons the frame cannot fight
+        // waves on foot or wedge the director around a distant target.
+        for (Entity passenger : new ArrayList<>(fighter.mech.getPassengers())) {
+            if (passenger != player) {
+                passenger.stopRiding();
+            }
+        }
+        if (player.getVehicle() != fighter.mech
+                && (player.distanceToSqr(fighter.mech) > 64.0
+                || !player.startRiding(fighter.mech, true))) {
+            eliminate(server, fighter, true);
+            broadcast(server, "SOLO DEFEAT — pilot separated from the combat frame.");
+            beginEnding(server);
+            return;
+        }
+
+        ServerLevel arenaLevel = server.getLevel(arenaDimension);
+        if (arenaLevel == null) {
+            broadcast(server, "SOLO RUN ABORTED — arena dimension became unavailable.");
+            beginEnding(server);
+            return;
+        }
+        if (matchTicks % 20 == 0) {
+            pruneSoloProjectiles(arenaLevel);
+        }
+
+        SpawnDirector.TickResult result = spawnDirector.tick(arenaLevel, player, fighter.mech);
+        for (String message : spawnDirector.drainMessages()) {
+            broadcast(server, message);
+        }
+        if (result == SpawnDirector.TickResult.VICTORY) {
+            broadcast(server, "SOLO VICTORY — boss destroyed. Run seed: " + lastSoloSeed + ".");
+            beginEnding(server);
+            return;
+        }
+        if (result == SpawnDirector.TickResult.FAILED) {
+            broadcast(server, "SOLO RUN ABORTED — " + spawnDirector.failureReason());
+            beginEnding(server);
+            return;
+        }
+
+    }
+
+    private static ServerPlayer findSoloIntruder(MinecraftServer server, UUID owner,
+                                                  net.minecraft.resources.ResourceKey<Level> dimension,
+                                                  double x, double z, double radius) {
+        double radiusSqr = radius * radius;
+        for (ServerPlayer candidate : server.getPlayerList().getPlayers()) {
+            if (candidate.getUUID().equals(owner) || candidate.hasDisconnected()
+                    || !candidate.isAlive() || candidate.isSpectator()
+                    || !candidate.level().dimension().equals(dimension)) {
+                continue;
+            }
+            double dx = candidate.getX() - x;
+            double dz = candidate.getZ() - z;
+            if (dx * dx + dz * dz <= radiusSqr) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     /**
@@ -1497,23 +1793,28 @@ public final class ArenaManager {
     private static void beginEnding(MinecraftServer server) {
         state = ArenaState.ENDING;
         endingTicks = ENDING_LENGTH;
-        // Clear the PvE pressure the instant the outcome is decided so it cannot harass
-        // the winner during the 5s wind-down (workstream D). Targeted discard: ONLY the
-        // current match's PvE hostiles (TAG_PVE + match tag), never the loot mechs —
-        // those stay until cleanup so a spectating winner still sees the battlefield.
+        // Clear PvE pressure the instant the outcome is decided so it cannot harass
+        // the winner during the 5s wind-down (workstream D). Targeted discard: ONLY
+        // current-match PvE bodies and their tracked projectiles, never royale loot
+        // mechs — those stay until cleanup so a spectator still sees the battlefield.
         discardMatchPveMobs(server);
     }
 
-    /** Discards only the CURRENT match's PvE hostiles (TAG_PVE + the current match tag). */
+    /** Discards current-match PvE bodies and solo combat projectiles. */
     private static void discardMatchPveMobs(MinecraftServer server) {
         String matchTag = TAG_MATCH_PREFIX + matchId;
         for (ServerLevel level : server.getAllLevels()) {
             List<? extends Entity> mobs = level.getEntities(
                     EntityTypeTest.forClass(Entity.class),
-                    e -> e.getTags().contains(TAG_PVE) && e.getTags().contains(matchTag));
+                    e -> e.getTags().contains(matchTag)
+                            && (e.getTags().contains(TAG_PVE)
+                            || e.getTags().contains(TAG_SOLO_PROJECTILE)));
             for (Entity e : mobs) {
                 e.discard();
             }
+        }
+        if (matchMode == Mode.SOLO) {
+            soloProjectileIds.clear();
         }
     }
 
@@ -1685,6 +1986,10 @@ public final class ArenaManager {
     }
 
     private static void resetToIdle() {
+        spawnDirector.reset();
+        soloProjectileIds.clear();
+        soloProjectileDrops = 0;
+        soloOwner = null;
         state = ArenaState.IDLE;
         idleTimer = 0;
         countdownTicks = 0;
@@ -1850,6 +2155,313 @@ public final class ArenaManager {
     // Command handlers (wired from ArenaCommands). Return Brigadier result ints.
     // ---------------------------------------------------------------------
 
+    /** Starts a one-player run immediately at a safe nearby surface. */
+    public static int commandSoloStart(CommandSourceStack src, int build, Long requestedSeed) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal(PREFIX + "Only a player can start solo combat."));
+            return 0;
+        }
+        if (state != ArenaState.IDLE) {
+            src.sendFailure(Component.literal(PREFIX + "Another arena run is already starting or active."));
+            return 0;
+        }
+        if (build < 0 || build >= GarageFleet.size()) {
+            src.sendFailure(Component.literal(PREFIX + "Build must be 0-" + (GarageFleet.size() - 1) + "."));
+            return 0;
+        }
+        if (player.isPassenger()) {
+            src.sendFailure(Component.literal(PREFIX + "Dismount your current vehicle before starting a solo run."));
+            return 0;
+        }
+
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            src.sendFailure(Component.literal(PREFIX + "Server unavailable."));
+            return 0;
+        }
+        ArenaData data = ArenaData.get(server);
+        RestoreRecord staleRestore = data.getPendingRestore(player.getUUID());
+        if (staleRestore != null) {
+            // Normally the JOIN healer already applied this. Heal once more here so
+            // a recovered player cannot overwrite their true pre-crash location.
+            restorePlayer(server, player, staleRestore);
+            if (data.getPendingRestore(player.getUUID()) != null) {
+                src.sendFailure(Component.literal(PREFIX
+                        + "A prior arena restore is still pending; move to a safe loaded area and retry."));
+                return 0;
+            }
+        }
+        return startSoloRun(src, player, build, requestedSeed);
+    }
+
+    private static int startSoloRun(CommandSourceStack src, ServerPlayer player, int build, Long requestedSeed) {
+        MinecraftServer server = player.getServer();
+        if (server == null) {
+            return 0;
+        }
+        ArenaData data = ArenaData.get(server);
+        ArenaPoint venue = data.getRoyaleCenter();
+        if (venue == null && !server.isSingleplayer() && !src.hasPermission(2)) {
+            src.sendFailure(Component.literal(PREFIX
+                    + "This server has no approved solo venue. An operator must set the arena center first."));
+            return 0;
+        }
+        ServerLevel level = venue != null ? server.getLevel(venue.dimensionKey()) : player.serverLevel();
+        if (level == null) {
+            src.sendFailure(Component.literal(PREFIX + "The configured solo venue dimension is unavailable."));
+            return 0;
+        }
+        double venueX = venue != null ? venue.x : player.getX();
+        double venueY = venue != null ? venue.y : player.getY();
+        double venueZ = venue != null ? venue.z : player.getZ();
+        LivingEntity mech = GarageFleet.build(level, build);
+        if (mech == null) {
+            src.sendFailure(Component.literal(PREFIX + "Could not assemble garage build #" + build + "."));
+            return 0;
+        }
+        Vec3 spawn = findSoloMechSpawn(level, player, venueX, venueY, venueZ, mech);
+        if (spawn == null) {
+            mech.discard();
+            src.sendFailure(Component.literal(PREFIX
+                    + "No collision-free surface is loaded near the solo venue. Visit/load its street or plaza and retry."));
+            return 0;
+        }
+        ServerPlayer intruder = findSoloIntruder(server, player.getUUID(), level.dimension(),
+                spawn.x, spawn.z, SOLO_BOUNDS_RADIUS + 24.0);
+        if (intruder != null) {
+            mech.discard();
+            src.sendFailure(Component.literal(PREFIX + "The solo venue is occupied by "
+                    + intruder.getName().getString() + "; observers must use spectator mode."));
+            return 0;
+        }
+
+        matchMode = Mode.SOLO;
+        state = ArenaState.COUNTDOWN; // setup guard: admits only the fighter mech/director UUIDs
+        matchId = data.claimMatchId();
+        server.overworld().getDataStorage().save();
+        long seed = requestedSeed != null ? requestedSeed : defaultSoloSeed(level, player.getUUID(), matchId);
+
+        centerX = spawn.x;
+        centerY = spawn.y;
+        centerZ = spawn.z;
+        arenaDimension = level.dimension();
+        matchBoundsRadius = SOLO_BOUNDS_RADIUS;
+        matchMinPlayers = 1;
+        matchTicks = 0;
+        endingTicks = 0;
+        cageTicks = 0;
+        graceTicks = 0;
+
+        if (!spawnDirector.prepare(level, matchId, seed, player.getUUID(),
+                centerX, centerY, centerZ, matchBoundsRadius)) {
+            String reason = spawnDirector.failureReason();
+            mech.discard();
+            resetToIdle();
+            src.sendFailure(Component.literal(PREFIX + "Solo catalog rejected: " + reason));
+            return 0;
+        }
+
+        fighters.clear();
+        Fighter fighter = new Fighter(
+                player.getUUID(), player.getName().getString(), "garage:" + build,
+                player.gameMode.getGameModeForPlayer(), player.level().dimension(),
+                player.getX(), player.getY(), player.getZ(), player.getYRot());
+        fighters.add(fighter);
+        if (data.getPendingRestore(fighter.uuid) != null) {
+            mech.discard();
+            resetToIdle();
+            fighters.clear();
+            src.sendFailure(Component.literal(PREFIX + "A prior restore record prevents a safe start."));
+            return 0;
+        }
+        data.putPendingRestore(fighter.uuid, new RestoreRecord(
+                fighter.originalGameMode, fighter.originalDimension,
+                fighter.originalX, fighter.originalY, fighter.originalZ, fighter.originalYaw));
+        // Durability barrier before gamemode, teleport, entity add, or mount.
+        server.overworld().getDataStorage().save();
+
+        player.setGameMode(GameType.ADVENTURE);
+        mech.setPos(spawn.x, spawn.y, spawn.z);
+        mech.setYRot(player.getYRot());
+        mech.addTag(TAG_ARENA);
+        mech.addTag(TAG_OWNER_PREFIX + fighter.uuid);
+        mech.addTag(TAG_MATCH_PREFIX + matchId);
+        mech.addTag(TAG_SOLO);
+        fighter.mech = mech; // identity must exist before EntityEvent.ADD fires
+        if (!level.addFreshEntity(mech)) {
+            fighter.mech = null;
+            mech.discard();
+            cleanup(server);
+            src.sendFailure(Component.literal(PREFIX + "The player mech could not enter the world; start rolled back."));
+            return 0;
+        }
+        player.teleportTo(level, spawn.x, spawn.y, spawn.z, player.getYRot(), player.getXRot());
+        boolean arrived = player.serverLevel() == level
+                && player.position().distanceToSqr(spawn) < 4.0;
+        if (!arrived || !player.startRiding(mech, true)) {
+            cleanup(server);
+            src.sendFailure(Component.literal(PREFIX + "Could not mount the selected mech; start rolled back."));
+            return 0;
+        }
+
+        queue.remove(player.getUUID());
+        soloOwner = player.getUUID();
+        lastSoloBuild = build;
+        lastSoloSeed = seed;
+        hasLastSoloRun = true;
+        state = ArenaState.ACTIVE;
+        broadcast(server, "SOLO RUN STARTED — " + GarageFleet.name(build)
+                + " | seed " + seed + " | enemies arrive shortly.");
+        src.sendSuccess(() -> Component.literal(PREFIX
+                + "Use /arena solo status, /arena solo retry, or /arena solo stop."), false);
+        return 1;
+    }
+
+    /** Finds a nearby surface that fits the complete custom-mech bounding box. */
+    private static Vec3 findSoloMechSpawn(ServerLevel level, ServerPlayer player,
+                                          double originX, double originY,
+                                          double originZ, LivingEntity mech) {
+        int[][] offsets = {
+                {0, 0}, {6, 0}, {-6, 0}, {0, 6}, {0, -6},
+                {6, 6}, {6, -6}, {-6, 6}, {-6, -6},
+                {12, 0}, {-12, 0}, {0, 12}, {0, -12}
+        };
+        for (int[] offset : offsets) {
+            int xBlock = Mth.floor(originX) + offset[0];
+            int zBlock = Mth.floor(originZ) + offset[1];
+            if (!level.hasChunkAt(new BlockPos(xBlock, Mth.floor(originY), zBlock))) {
+                continue;
+            }
+            int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, xBlock, zBlock);
+            double[] heights = offset[0] == 0 && offset[1] == 0
+                    ? new double[]{originY, surfaceY}
+                    : new double[]{surfaceY};
+            for (double y : heights) {
+                double x = xBlock + 0.5;
+                double z = zBlock + 0.5;
+                BlockPos feet = BlockPos.containing(x, y, z);
+                BlockPos floor = feet.below();
+                if (floor.getY() < level.getMinBuildHeight()
+                        || !level.getBlockState(floor).isFaceSturdy(level, floor, Direction.UP)) {
+                    continue;
+                }
+                mech.setPos(x, y, z);
+                AABB box = mech.getBoundingBox();
+                if (box.maxY >= level.getMaxBuildHeight()
+                        || !isAabbLoaded(level, box)
+                        || !hasSturdyFootprint(level, box)
+                        || level.getBlockCollisions(mech, box).iterator().hasNext()
+                        || !level.getEntities(mech, box,
+                                entity -> entity != player && entity.canBeCollidedWith()).isEmpty()) {
+                    continue;
+                }
+                return new Vec3(x, y, z);
+            }
+        }
+        return null;
+    }
+
+    private static boolean isAabbLoaded(ServerLevel level, AABB box) {
+        int y = Mth.floor(box.minY);
+        return level.hasChunkAt(new BlockPos(Mth.floor(box.minX), y, Mth.floor(box.minZ)))
+                && level.hasChunkAt(new BlockPos(Mth.floor(box.minX), y, Mth.floor(box.maxZ)))
+                && level.hasChunkAt(new BlockPos(Mth.floor(box.maxX), y, Mth.floor(box.minZ)))
+                && level.hasChunkAt(new BlockPos(Mth.floor(box.maxX), y, Mth.floor(box.maxZ)));
+    }
+
+    private static boolean hasSturdyFootprint(ServerLevel level, AABB box) {
+        double edgeX = Math.max(0.0, (box.maxX - box.minX) * 0.5 - 0.05);
+        double edgeZ = Math.max(0.0, (box.maxZ - box.minZ) * 0.5 - 0.05);
+        double x = (box.minX + box.maxX) * 0.5;
+        double z = (box.minZ + box.maxZ) * 0.5;
+        double y = box.minY - 0.01;
+        double[][] samples = {
+                {x, z},
+                {x - edgeX, z - edgeZ}, {x - edgeX, z + edgeZ},
+                {x + edgeX, z - edgeZ}, {x + edgeX, z + edgeZ}
+        };
+        for (double[] sample : samples) {
+            BlockPos support = BlockPos.containing(sample[0], y, sample[1]);
+            if (!level.getBlockState(support).isFaceSturdy(level, support, Direction.UP)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static long defaultSoloSeed(ServerLevel level, UUID fighterId, int id) {
+        long seed = level.getSeed() ^ ((long) id * 0x9E3779B97F4A7C15L);
+        seed ^= fighterId.getMostSignificantBits();
+        seed ^= Long.rotateLeft(fighterId.getLeastSignificantBits(), 23);
+        return seed;
+    }
+
+    public static int commandSoloRetry(CommandSourceStack src) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal(PREFIX + "Only a player can retry solo combat."));
+            return 0;
+        }
+        if (!hasLastSoloRun) {
+            src.sendFailure(Component.literal(PREFIX + "No completed or active solo recipe exists yet."));
+            return 0;
+        }
+        if (state != ArenaState.IDLE) {
+            boolean ownsRun = matchMode == Mode.SOLO && player.getUUID().equals(soloOwner);
+            if (!ownsRun && !src.hasPermission(2)) {
+                src.sendFailure(Component.literal(PREFIX + "Only the active solo pilot or an operator can retry this run."));
+                return 0;
+            }
+            if (matchMode != Mode.SOLO) {
+                src.sendFailure(Component.literal(PREFIX + "A multiplayer arena match is active."));
+                return 0;
+            }
+            cleanup(player.getServer());
+        }
+        return commandSoloStart(src, lastSoloBuild, lastSoloSeed);
+    }
+
+    public static int commandSoloStatus(CommandSourceStack src) {
+        if (matchMode == Mode.SOLO && state != ArenaState.IDLE) {
+            src.sendSuccess(() -> Component.literal(PREFIX + "SOLO " + state + " | "
+                    + spawnDirector.status() + " | " + soloProjectileStatus()), false);
+            return 1;
+        }
+        String last = hasLastSoloRun
+                ? "Last recipe: build " + lastSoloBuild + " (" + GarageFleet.name(lastSoloBuild)
+                        + "), seed " + lastSoloSeed + "."
+                : "No solo run has started this server session.";
+        src.sendSuccess(() -> Component.literal(PREFIX + "SOLO IDLE | " + last), false);
+        return 1;
+    }
+
+    public static int commandSoloStop(CommandSourceStack src) {
+        if (!(src.getEntity() instanceof ServerPlayer player)) {
+            src.sendFailure(Component.literal(PREFIX + "Only a player can stop solo combat."));
+            return 0;
+        }
+        if (state == ArenaState.IDLE || matchMode != Mode.SOLO) {
+            src.sendFailure(Component.literal(PREFIX + "No solo run is active."));
+            return 0;
+        }
+        if (!player.getUUID().equals(soloOwner) && !src.hasPermission(2)) {
+            src.sendFailure(Component.literal(PREFIX + "Only the active solo pilot or an operator can stop this run."));
+            return 0;
+        }
+        cleanup(player.getServer());
+        src.sendSuccess(() -> Component.literal(PREFIX + "Solo run stopped and cleaned up."), true);
+        return 1;
+    }
+
+    public static int commandSoloDebugNext(CommandSourceStack src) {
+        if (state != ArenaState.ACTIVE || matchMode != Mode.SOLO) {
+            src.sendFailure(Component.literal(PREFIX + "No active solo encounter to advance."));
+            return 0;
+        }
+        spawnDirector.forceNext();
+        src.sendSuccess(() -> Component.literal(PREFIX + "Director forced to the next encounter boundary."), true);
+        return 1;
+    }
+
     public static int commandJoin(CommandSourceStack src, String mech) {
         if (!(src.getEntity() instanceof ServerPlayer player)) {
             src.sendFailure(Component.literal(PREFIX + "Only players can join the queue."));
@@ -1896,9 +2508,10 @@ public final class ArenaManager {
     public static int commandStatus(CommandSourceStack src) {
         MinecraftServer server = src.getLevel().getServer();
         ArenaData data = ArenaData.get(server);
+        Mode shownMode = state == ArenaState.IDLE ? data.getMode() : matchMode;
         StringBuilder sb = new StringBuilder(PREFIX + "State: " + state
-                + " | Mode: " + data.getMode());
-        if (data.getMode() == Mode.ROYALE) {
+                + " | Mode: " + shownMode);
+        if (shownMode == Mode.ROYALE) {
             // Royale venue/tuning at a glance, mirroring what /arena info shows.
             sb.append("\n").append(PREFIX).append("Royale: center ")
                     .append(data.getRoyaleCenter() != null ? data.getRoyaleCenter().toString() : "not set")
@@ -1922,8 +2535,13 @@ public final class ArenaManager {
                 }
                 sb.append("\n").append(PREFIX).append("Fighters alive (").append(alive.size()).append("): ")
                         .append(alive.isEmpty() ? "none" : String.join(", ", alive));
+                int timeout = shownMode == Mode.SOLO ? SOLO_MATCH_TIMEOUT : MATCH_TIMEOUT;
                 sb.append("\n").append(PREFIX).append("Time remaining: ")
-                        .append(Math.max(0, (MATCH_TIMEOUT - matchTicks) / 20)).append("s");
+                        .append(Math.max(0, (timeout - matchTicks) / 20)).append("s");
+                if (shownMode == Mode.SOLO) {
+                    sb.append("\n").append(PREFIX).append(spawnDirector.status())
+                            .append(" | ").append(soloProjectileStatus());
+                }
             }
             case ENDING -> sb.append("\n").append(PREFIX).append("Match ending...");
         }
@@ -2017,6 +2635,11 @@ public final class ArenaManager {
         }
         // Venue requirement seam: ROYALE needs a center; DUEL needs pads.
         ArenaData data = ArenaData.get(server);
+        if (data.getMode() == Mode.SOLO) {
+            src.sendFailure(Component.literal(PREFIX
+                    + "SOLO starts directly with /arena solo start <build> [seed]."));
+            return 0;
+        }
         if (data.getMode() == Mode.ROYALE) {
             if (data.getRoyaleCenter() == null) {
                 src.sendFailure(Component.literal(PREFIX + "Royale center not set. Use /arena royale setcenter first."));

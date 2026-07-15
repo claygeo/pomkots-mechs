@@ -81,7 +81,9 @@ public class BossHitBoxEntity extends LivingEntity {
     }
 
     protected boolean isParentActive() {
-        return parentEntity != null && !parentEntity.isDeadOrDying();
+        return BossHitBoxPolicy.isParentActive(parentEntity != null,
+                parentEntity != null && parentEntity.isAlive(),
+                parentEntity != null && parentEntity.isRemoved());
     }
 
     private float damageCount = 39;

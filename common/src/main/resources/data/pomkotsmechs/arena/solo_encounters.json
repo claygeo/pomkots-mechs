@@ -1,0 +1,113 @@
+{
+  "schema": 1,
+  "min_spawn_distance": 36.0,
+  "max_spawn_distance": 64.0,
+  "forward_cone_degrees": 100.0,
+  "cluster_separation": 12.0,
+  "leash_distance": 176.0,
+  "movement_threshold": 1.0,
+  "initial_warning_ticks": 100,
+  "wave_warning_ticks": 60,
+  "reconcile_ticks": 20,
+  "unloaded_recovery_ticks": 200,
+  "stuck_audit_ticks": 100,
+  "stuck_window_ticks": 300,
+  "max_candidate_attempts": 32,
+  "candidate_attempts_per_tick": 4,
+  "max_commit_retries": 3,
+  "unit_cap": 5,
+  "threat_cap": 6,
+  "waves": [
+    {
+      "id": "breach",
+      "budget": 3,
+      "unit_cap": 3,
+      "roster": [
+        {
+          "entity": "pomkotsmechs:pms01",
+          "role": "melee",
+          "cost": 1,
+          "weight": 3,
+          "placement": "ground"
+        },
+        {
+          "entity": "pomkotsmechs:pms03",
+          "role": "gunner",
+          "cost": 1,
+          "weight": 1,
+          "placement": "ground"
+        }
+      ]
+    },
+    {
+      "id": "crossfire",
+      "budget": 4,
+      "unit_cap": 4,
+      "roster": [
+        {
+          "entity": "pomkotsmechs:pms01",
+          "role": "melee",
+          "cost": 1,
+          "weight": 2,
+          "placement": "ground"
+        },
+        {
+          "entity": "pomkotsmechs:pms03",
+          "role": "gunner",
+          "cost": 1,
+          "weight": 3,
+          "placement": "ground"
+        },
+        {
+          "entity": "pomkotsmechs:pms02",
+          "role": "flyer",
+          "cost": 2,
+          "weight": 1,
+          "placement": "air",
+          "vertical_offset": 12
+        }
+      ]
+    },
+    {
+      "id": "air_siege",
+      "budget": 6,
+      "unit_cap": 5,
+      "roster": [
+        {
+          "entity": "pomkotsmechs:pms01",
+          "role": "melee",
+          "cost": 1,
+          "weight": 1,
+          "placement": "ground"
+        },
+        {
+          "entity": "pomkotsmechs:pms03",
+          "role": "gunner",
+          "cost": 1,
+          "weight": 2,
+          "placement": "ground"
+        },
+        {
+          "entity": "pomkotsmechs:pms02",
+          "role": "flyer",
+          "cost": 2,
+          "weight": 3,
+          "placement": "air",
+          "vertical_offset": 12
+        }
+      ]
+    }
+  ],
+  "boss": {
+    "id": "pmb01mk2",
+    "warning_ticks": 100,
+    "min_spawn_distance": 48.0,
+    "max_spawn_distance": 72.0,
+    "entity": "pomkotsmechs:pmb01mk2",
+    "role": "boss",
+    "cost": 6,
+    "weight": 1,
+    "placement": "ground",
+    "boss": true
+  }
+}

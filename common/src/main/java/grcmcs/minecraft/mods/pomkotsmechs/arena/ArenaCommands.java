@@ -1,6 +1,7 @@
 package grcmcs.minecraft.mods.pomkotsmechs.arena;
 
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import dev.architectury.event.events.common.CommandRegistrationEvent;
@@ -37,6 +38,27 @@ public final class ArenaCommands {
                         .executes(ctx -> ArenaManager.commandLeave(ctx.getSource())))
                 .then(Commands.literal("status")
                         .executes(ctx -> ArenaManager.commandStatus(ctx.getSource())))
+                // --- solo combat (no permission; the caller owns their run) ---
+                .then(Commands.literal("solo")
+                        .then(Commands.literal("start")
+                                .executes(ctx -> ArenaManager.commandSoloStart(ctx.getSource(), 0, null))
+                                .then(Commands.argument("build", IntegerArgumentType.integer(0, GarageFleet.size() - 1))
+                                        .executes(ctx -> ArenaManager.commandSoloStart(ctx.getSource(),
+                                                IntegerArgumentType.getInteger(ctx, "build"), null))
+                                        .then(Commands.argument("seed", LongArgumentType.longArg())
+                                                .executes(ctx -> ArenaManager.commandSoloStart(ctx.getSource(),
+                                                        IntegerArgumentType.getInteger(ctx, "build"),
+                                                        LongArgumentType.getLong(ctx, "seed"))))))
+                        .then(Commands.literal("retry")
+                                .executes(ctx -> ArenaManager.commandSoloRetry(ctx.getSource())))
+                        .then(Commands.literal("status")
+                                .executes(ctx -> ArenaManager.commandSoloStatus(ctx.getSource())))
+                        .then(Commands.literal("stop")
+                                .executes(ctx -> ArenaManager.commandSoloStop(ctx.getSource())))
+                        .then(Commands.literal("debug")
+                                .requires(src -> src.hasPermission(2))
+                                .then(Commands.literal("next")
+                                        .executes(ctx -> ArenaManager.commandSoloDebugNext(ctx.getSource())))))
                 // --- admin commands (permission level 2) ---
                 .then(Commands.literal("setlobby")
                         .requires(src -> src.hasPermission(2))

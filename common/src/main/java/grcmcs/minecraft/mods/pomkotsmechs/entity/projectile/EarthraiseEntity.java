@@ -47,6 +47,9 @@ public class EarthraiseEntity extends ThrowableProjectile implements GeoEntity, 
         super(entityType, world);
         this.setNoGravity(true);
         this.shooter = shooter;
+        if (shooter != null) {
+            this.setOwner(shooter);
+        }
         this.vec = vec;
         var tmp = vec.normalize();
         this.knockbackVec = new Vec3(-tmp.x, tmp.y, -tmp.z);
