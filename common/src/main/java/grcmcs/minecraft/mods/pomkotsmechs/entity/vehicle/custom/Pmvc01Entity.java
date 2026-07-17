@@ -1,6 +1,7 @@
 package grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom;
 
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaHooks;
 import grcmcs.minecraft.mods.pomkotsmechs.client.gui.MechWorkbenchMenu;
 import grcmcs.minecraft.mods.pomkotsmechs.client.input.DriverInput;
 import grcmcs.minecraft.mods.pomkotsmechs.client.particles.ParticleUtil;
@@ -113,7 +114,7 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
                 this.initializeAmmoManager(false);
             }
 
-            if (this.isAlive() && this.isVehicle() && tickCount % 200 == 0) {
+            if (this.isAlive() && this.hasControlAuthority() && tickCount % 200 == 0) {
                 syncFuels();
             }
 
@@ -1002,11 +1003,18 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
         // also has shouldDestroy=true in 1.20.1, so the old check turned every
         // arena cleanup/sweep discard into a ~15-item litter burst per mech —
         // hundreds of untagged ItemEntities nothing ever reaped.
-        if (!this.level().isClientSide && removalReason == Entity.RemovalReason.KILLED) {
+        if (!this.level().isClientSide && shouldDropLoadout(removalReason)) {
             Containers.dropContents(this.level(), this, this);
         }
 
         super.remove(removalReason);
+    }
+
+    /** Arena-owned player and rival frames are mission state, never loot containers. */
+    protected boolean shouldDropLoadout(Entity.RemovalReason removalReason) {
+        return Pmvc01DeathPolicy.allowsLoadoutDrop(
+                removalReason == Entity.RemovalReason.KILLED,
+                getTags().contains(ArenaHooks.TAG_OWNED));
     }
 
     /**************************************************************************************
@@ -1076,6 +1084,28 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
     public void setChanged() {
         this.syncAllParameter2Client();
         this.initializeAmmoManager(true);
+    }
+
+    /**
+     * Resets only the combat resources covered by the authored Arena service stop.
+     * The caller must first write the selected Garage Fleet inventory template. This
+     * does not restore arbitrary pre-run items or player inventory.
+     */
+    public void resetForArenaService() {
+        if (this.level().isClientSide) {
+            return;
+        }
+        this.fuel = 0;
+        this.actionController.reset();
+        this.lockTargets.clearLockTargets();
+        this.resetExtensionUnitStatus();
+        this.syncAllParameter2Client(true);
+        for (AmmoManager ammoManager : ammoManagers) {
+            ammoManager.resetForArenaService();
+        }
+        this.energy = this.getMaxEnergy();
+        this.syncFuels();
+        this.setHealth(this.getMaxHealth());
     }
 
     @Override
@@ -1358,6 +1388,29 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
             }
         }
 
+        private void resetForArenaService() {
+            if (!owner.isServerSide()) {
+                return;
+            }
+            this.bulletNum = 0;
+            this.bulletNumPerMagazine = 0;
+            this.magazineNum = 0;
+            this.prevState = 0;
+            this.reloadTicks = 0;
+
+            ItemStack ammoStack = this.ammoStackSupplier.get();
+            ItemStack weaponStack = this.weaponStackSupplier.get();
+            if (ammoStack != null && weaponStack != null
+                    && ammoStack.getItem() instanceof BasePartsItem.Magazine magazine
+                    && weaponStack.getItem() instanceof BasePartsItem.Weapon weapon
+                    && weapon.isMatchAmmo(magazine)) {
+                this.bulletNumPerMagazine = magazine.getBulletsPerMagazine(ammoStack);
+                this.bulletNum = this.bulletNumPerMagazine;
+                this.magazineNum = ammoStack.getCount();
+            }
+            syncClient();
+        }
+
         protected void tick() {
             if (owner.isClientSide()) {
                 int state = owner.entityData.get(this.reloadStateAccessor);
@@ -1428,6 +1481,11 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
 
         public int getMagazineNum() {
             return magazineNum;
+        }
+
+        /** Remaining reload delay; zero is the ready-to-fire service state. */
+        public int getReloadTicks() {
+            return reloadTicks;
         }
 
         private int serialize() {
@@ -1823,7 +1881,7 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
     @Override
     protected void tickDeath() {
         super.tickDeath();
-        if (this.deathTime == 10) {
+        if (this.deathTime == 10 && shouldSpawnDeathExplosion()) {
             if (isServerSide()) {
                 var level = this.level();
                 ExplosionEntity e = new ExplosionEntity(PomkotsMechs.EXPLOSION.get(), level);
@@ -1831,6 +1889,12 @@ public class Pmvc01Entity extends PomkotsVehicleBase implements HasCustomInvento
                 level.addFreshEntity(e);
             }
         }
+    }
+
+    /** Arena-owned player and rival frames leave no unowned death effect behind. */
+    protected boolean shouldSpawnDeathExplosion() {
+        return Pmvc01DeathPolicy.allowsDeathExplosion(
+                getTags().contains(ArenaHooks.TAG_OWNED));
     }
 
     @Override

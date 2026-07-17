@@ -8,4 +8,8 @@ final class BossHitBoxPolicy {
     static boolean isParentActive(boolean present, boolean alive, boolean removed) {
         return present && alive && !removed;
     }
+
+    static boolean rejectsDamage(boolean staged, boolean invulnerable) {
+        return staged || invulnerable;
+    }
 }

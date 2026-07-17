@@ -1,0 +1,72 @@
+{
+  "cities": {
+    "cityChance": 0.0,
+    "cityLevel0Height": 384,
+    "cityMinRadius": 1,
+    "cityMaxRadius": 2,
+    "cityStyleThreshold": -1.0
+  },
+  "client": {
+    "fogDensity": -1.0,
+    "horizon": -1.0
+  },
+  "explosions": {
+    "explosionChance": 0.0,
+    "miniExplosionChance": 0.0
+  },
+  "lostcity": {
+    "avoidFoliage": true,
+    "avoidWater": true,
+    "bedrockLayer": 0,
+    "bridgeChance": 0.0,
+    "bridgeSupports": false,
+    "buildingChance": 0.0,
+    "buildingDoorwayChance": 0.0,
+    "buildingFrontChance": 0.0,
+    "buildingMaxCellars": 0,
+    "buildingMaxFloors": 0,
+    "buildingMaxFloorsChance": 1,
+    "buildingMinCellars": 0,
+    "buildingMinFloors": 0,
+    "buildingMinFloorsChance": 1,
+    "buildingWithoutLootChance": 1.0,
+    "chestWithoutLootChance": 1.0,
+    "corridorChance": 0.0,
+    "editMode": false,
+    "fountainChance": 0.0,
+    "generateLighting": false,
+    "generateLoot": false,
+    "generateNether": false,
+    "generateSpawners": false,
+    "groundLevel": 48,
+    "highwayDistanceMask": 0,
+    "highwaySupports": false,
+    "landscapeType": "default",
+    "liquidBlock": "minecraft:water",
+    "multiUseCorner": false,
+    "parkBorder": false,
+    "parkChance": 0.0,
+    "parkElevation": false,
+    "railwayDungeonChance": 0.0,
+    "railwayStationsEnabled": false,
+    "railwaySurfaceStationsEnabled": false,
+    "railwaysCanEnd": false,
+    "railwaysEnabled": false,
+    "randomLeafBlockChance": 0.0,
+    "randomLeafBlockThickness": 1,
+    "rubbleDirtScale": 0.0,
+    "rubbleLayer": false,
+    "rubbleLeaveScale": 0.0,
+    "ruinChance": 0.0,
+    "scatteredChanceMultiplier": 0.0,
+    "seaLevel": -1,
+    "useAvgHeightmap": false,
+    "vineChance": 0.0,
+    "worldStyle": "mecharena_sector01:ashen_span_world"
+  },
+  "cityspheres": {
+    "citySphereChance": 0.0,
+    "onlyPredefined": true
+  },
+  "public": false
+}

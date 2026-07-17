@@ -72,3 +72,13 @@ subprojects {
         }
     }
 }
+
+// Complete noninteractive verification gate. Keep this separate from ordinary
+// `check`: this task depends on the unit checks, while the unit checks must not
+// depend back on this task or launch Minecraft on every test run.
+tasks.register("offlineCheck") {
+    group = "verification"
+    description = "Runs all subproject checks and the Forge GameTest server."
+    dependsOn(":common:check", ":fabric:check", ":forge:check",
+            ":forge:runGameTestServer")
+}

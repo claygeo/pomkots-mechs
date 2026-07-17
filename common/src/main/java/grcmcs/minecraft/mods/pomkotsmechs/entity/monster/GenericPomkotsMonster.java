@@ -1,6 +1,8 @@
 package grcmcs.minecraft.mods.pomkotsmechs.entity.monster;
 
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaHooks;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaOwnershipRegistry;
 import grcmcs.minecraft.mods.pomkotsmechs.client.particles.ParticleUtil;
 import grcmcs.minecraft.mods.pomkotsmechs.config.datapack.PomkotsDataPack;
 import grcmcs.minecraft.mods.pomkotsmechs.config.datapack.PomkotsDataPackManager;
@@ -109,6 +111,13 @@ public abstract class GenericPomkotsMonster extends Monster {
 
     @Override
     public void tick() {
+        if (ArenaHooks.isStaged(this)) {
+            this.setTarget(null);
+            this.setNoAi(true);
+            this.setDeltaMovement(Vec3.ZERO);
+            super.tick();
+            return;
+        }
         if (!(this.getControllingPassenger() instanceof Player player)) {
             this.setNoAi(false);
         } else {
@@ -226,7 +235,11 @@ public abstract class GenericPomkotsMonster extends Monster {
                 var level = this.level();
                 ExplosionEntity e = new ExplosionEntity(PomkotsMechs.EXPLOSION.get(), level);
                 e.setPos(this.position());
-                level.addFreshEntity(e);
+                if (!ArenaHooks.isActive()
+                        || ArenaHooks.beforeOwnedAdd(this, e,
+                        ArenaOwnershipRegistry.DescendantKind.EFFECT)) {
+                    level.addFreshEntity(e);
+                }
             }
         }
     }

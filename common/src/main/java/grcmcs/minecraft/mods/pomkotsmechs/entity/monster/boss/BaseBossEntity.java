@@ -1,6 +1,8 @@
 package grcmcs.minecraft.mods.pomkotsmechs.entity.monster.boss;
 
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaHooks;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaOwnershipRegistry;
 import grcmcs.minecraft.mods.pomkotsmechs.client.input.DriverInput;
 import grcmcs.minecraft.mods.pomkotsmechs.client.particles.ParticleUtil;
 import grcmcs.minecraft.mods.pomkotsmechs.config.BattleBalance;
@@ -15,6 +17,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerBossEvent;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
@@ -89,7 +92,11 @@ public abstract class BaseBossEntity extends GenericPomkotsMonster implements Ge
             if (this.firstTick) {
                 for (var hitBox: hitBoxes) {
                     hitBox.setPos(hitBox.getRelativeParentPos().add(offset));
-                    this.level().addFreshEntity(hitBox);
+                    if (!ArenaHooks.isActive()
+                            || ArenaHooks.beforeOwnedAdd(this, hitBox,
+                            ArenaOwnershipRegistry.DescendantKind.HITBOX)) {
+                        this.level().addFreshEntity(hitBox);
+                    }
                 }
             } else {
                 for (var hitBox: hitBoxes) {
@@ -276,6 +283,13 @@ public abstract class BaseBossEntity extends GenericPomkotsMonster implements Ge
     }
 
     private final ServerBossEvent bossInfo = new ServerBossEvent(this.getDisplayName(), ServerBossEvent.BossBarColor.RED, ServerBossEvent.BossBarOverlay.PROGRESS);
+
+    /** Sets an authored Arena name and keeps the already-created boss bar in sync. */
+    public void setArenaBossName(Component name) {
+        this.setCustomName(name);
+        this.setCustomNameVisible(true);
+        this.bossInfo.setName(name);
+    }
 
     @Override
     public void startSeenByPlayer(ServerPlayer player) {

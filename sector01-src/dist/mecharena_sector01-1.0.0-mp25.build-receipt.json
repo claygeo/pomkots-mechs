@@ -1,0 +1,64 @@
+{
+  "artifact": {
+    "bytes": 297084,
+    "name": "mecharena_sector01-1.0.0-mp25.jar",
+    "sha256": "e1ac026bc07966803c5f3afcf455a0b6b7f924f4131c52600355944a5cbbefa9"
+  },
+  "authored_chunk_count": 308,
+  "builder_version": "1.0.0",
+  "building_count": 308,
+  "canonical_timestamp": "1980-01-01T00:00:00Z",
+  "lost_cities": "7.4.13",
+  "lost_cities_version_range": "[1.20-7.4.13]",
+  "map_id": "cold_ruin_sector_01",
+  "map_version": 1,
+  "mission_id": "operation_ashen_span",
+  "mode": "full",
+  "one_chunk_proof": {
+    "canonical_chunk": [
+      -11,
+      -2
+    ],
+    "required_before_full_build": true,
+    "test": "test_00_one_chunk_proof"
+  },
+  "part_count_including_empty": 309,
+  "predefined_building_count": 308,
+  "profile": "mecharena_sector01",
+  "resource_entry_count": 629,
+  "schema": 1,
+  "seed": 4707185498036326465,
+  "source_sha256": {
+    "THIRD_PARTY_NOTICES.md": "f404310da1022b0c30bf3223224bd25f26e6ab6d1c4c7b719ae0587af499ce65",
+    "build_mecharena_sector01.py": "6c83ecc514ee93846d1d5beced4c27da42a72f67a31918e749a5089fb71d0f92",
+    "lostcities-profile.json": "d0a3f587d39350e0c66fd59164ce500146406ce55bd75d582912905eb5c1e868",
+    "sector01-contract.json": "60d315c55e9382cd11dd98cc1b5c4b78e97cefe7eb7f150a17724987f109f92e"
+  },
+  "world_generation": {
+    "dimension": "minecraft:overworld",
+    "origin": [
+      0,
+      0
+    ],
+    "profile_source": "lostcities-profile.json",
+    "safety_chunk_bounds": {
+      "count": 680,
+      "size": [
+        34,
+        20
+      ],
+      "x": [
+        -17,
+        16
+      ],
+      "z": [
+        -10,
+        9
+      ]
+    },
+    "simulation_distance": 6,
+    "view_distance": 6,
+    "world_budget_mib": 32,
+    "world_not_in_asset_jar": true
+  }
+}

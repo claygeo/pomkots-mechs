@@ -1,0 +1,10 @@
+# Large/reconstructed world build products stay out of source control.
+dist/*/
+dist/*.zip
+
+# The measured receipt is source-trackable release evidence.
+!dist/*.build-receipt.json
+
+# Canonical generation logs are tracked receipt evidence, not runtime logs.
+!evidence/
+!evidence/*.log

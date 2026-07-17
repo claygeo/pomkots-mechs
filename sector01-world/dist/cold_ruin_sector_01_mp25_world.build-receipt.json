@@ -1,0 +1,199 @@
+{
+  "asset": {
+    "name": "mecharena_sector01-1.0.0-mp25.jar",
+    "sha256": "e1ac026bc07966803c5f3afcf455a0b6b7f924f4131c52600355944a5cbbefa9"
+  },
+  "builder": "ashen-span-world/2.0.0",
+  "canonical_zip_timestamp": "1980-01-01T00:00:00Z",
+  "contract": {
+    "compressed_budget_bytes": 33554432,
+    "content_chunk_count": 308,
+    "data_version": 3465,
+    "dimension": "minecraft:overworld",
+    "safety_chunk_count": 680,
+    "safety_chunk_digest": "cf7c9217fe947bc7048731622db60f809d12ba4987b97074416b9439ab5ca8b1",
+    "simulation_distance": 6,
+    "view_distance": 6
+  },
+  "determinism": {
+    "independent_forge_generation_byte_equality_claimed": false,
+    "scope": "canonical archive bytes for this verified frozen curated world tree"
+  },
+  "forge": "47.3.3",
+  "frozen_tree_verification": {
+    "authored_chunk_count": 308,
+    "authored_facts": {
+      "gates": 6,
+      "markers": 4,
+      "power_deck_clear_layer_blocks": 7744,
+      "recovery_anchors": 7,
+      "route_support_samples": 344,
+      "sockets": 17,
+      "staging_shutters": 10
+    },
+    "block_entities_and_scheduled_ticks": 0,
+    "curated_file_count": 10,
+    "curated_tree_sha256": "537af7f1ab05b5070ced69697cea04330e89177c9e7b810da60bae24a88a1223",
+    "forbidden_palette_entries": 0,
+    "generation_datapack_sha256": "1006df5f0363cf4c37a546fbab8199ba11b5d301d1f11116c3bc7b201e2b1fc4",
+    "level": {
+      "data_version": 3465,
+      "day_time": 11000,
+      "dimension": "minecraft:overworld",
+      "fixed_game_rules": {
+        "doDaylightCycle": "false",
+        "doEntityDrops": "false",
+        "doFireTick": "false",
+        "doInsomnia": "false",
+        "doMobLoot": "false",
+        "doMobSpawning": "false",
+        "doPatrolSpawning": "false",
+        "doTileDrops": "false",
+        "doTraderSpawning": "false",
+        "doWardenSpawning": "false",
+        "doWeatherCycle": "false",
+        "mobGriefing": "false",
+        "randomTickSpeed": "0"
+      },
+      "spawn": [
+        -160,
+        83,
+        0
+      ],
+      "weather": "clear"
+    },
+    "safety_chunk_digest": "cf7c9217fe947bc7048731622db60f809d12ba4987b97074416b9439ab5ca8b1",
+    "terrain_bytes": 2818048,
+    "terrain_chunk_count": 680
+  },
+  "generation": {
+    "batches": [
+      {
+        "chunk_bounds": [
+          -17,
+          -6,
+          -10,
+          9
+        ],
+        "count": 240
+      },
+      {
+        "chunk_bounds": [
+          -5,
+          6,
+          -10,
+          9
+        ],
+        "count": 240
+      },
+      {
+        "chunk_bounds": [
+          7,
+          16,
+          -10,
+          9
+        ],
+        "count": 200
+      }
+    ],
+    "generated_chunks": 680,
+    "log": "sector01-world/evidence/full-generation.log",
+    "log_sha256": "d7e3426fa82f33cf90e60e56783e17759345fce7cfdece6a0f44c3115294e671"
+  },
+  "generation_datapack": {
+    "biome": "mecharena_generation:empty",
+    "name": "ashen_span_generator",
+    "sha256": "1006df5f0363cf4c37a546fbab8199ba11b5d301d1f11116c3bc7b201e2b1fc4"
+  },
+  "generation_runtime": {
+    "forge_libraries_sha256": "1159a5bc02501e3971b397576f979b78e510f7defefd7988611e5b1e0637a0bf",
+    "java_executable_sha256": "b3afe83e1ab067da4c56f1a7b2ba4c14ec832d694333f35b2b45178e9ac596ef"
+  },
+  "lost_cities": {
+    "sha256": "da5ae1b0c0d0c8066f2971c9adb57d18657c4844aad6cba4f9f07f7946e30a95",
+    "version": "7.4.13"
+  },
+  "map_id": "cold_ruin_sector_01",
+  "map_version": 1,
+  "minecraft": "1.20.1",
+  "mission_id": "operation_ashen_span",
+  "one_chunk_proof": {
+    "chunk": [
+      -11,
+      -2
+    ],
+    "log": "sector01-world/evidence/one-chunk-proof.log",
+    "log_sha256": "1475fce7be7e8ef635e2970db94a6960467b905fbad5e4f5bcf836630c14079d",
+    "markers": 4,
+    "status": "full"
+  },
+  "profile": {
+    "name": "mecharena_sector01",
+    "sha256": "d0a3f587d39350e0c66fd59164ce500146406ce55bd75d582912905eb5c1e868"
+  },
+  "schema": 2,
+  "seed": 4707185498036326465,
+  "source_contract": {
+    "name": "sector01-contract.json",
+    "sha256": "60d315c55e9382cd11dd98cc1b5c4b78e97cefe7eb7f150a17724987f109f92e"
+  },
+  "verification": {
+    "archive_bytes": 434013,
+    "archive_root": "cold_ruin_sector_01",
+    "archive_sha256": "3ee5d52888daba0f15ce8e9bc7a142292d46a0f3f966dcd2c1533771c89f4fa4",
+    "archive_uncompressed_bytes": 2857651,
+    "authored_chunk_count": 308,
+    "authored_facts": {
+      "gates": 6,
+      "markers": 4,
+      "power_deck_clear_layer_blocks": 7744,
+      "recovery_anchors": 7,
+      "route_support_samples": 344,
+      "sockets": 17,
+      "staging_shutters": 10
+    },
+    "block_entities_and_scheduled_ticks": 0,
+    "canonical_frozen_tree_archive": true,
+    "curated_file_count": 10,
+    "curated_tree_sha256": "537af7f1ab05b5070ced69697cea04330e89177c9e7b810da60bae24a88a1223",
+    "forbidden_palette_entries": 0,
+    "generation_datapack_sha256": "1006df5f0363cf4c37a546fbab8199ba11b5d301d1f11116c3bc7b201e2b1fc4",
+    "level": {
+      "data_version": 3465,
+      "day_time": 11000,
+      "dimension": "minecraft:overworld",
+      "fixed_game_rules": {
+        "doDaylightCycle": "false",
+        "doEntityDrops": "false",
+        "doFireTick": "false",
+        "doInsomnia": "false",
+        "doMobLoot": "false",
+        "doMobSpawning": "false",
+        "doPatrolSpawning": "false",
+        "doTileDrops": "false",
+        "doTraderSpawning": "false",
+        "doWardenSpawning": "false",
+        "doWeatherCycle": "false",
+        "mobGriefing": "false",
+        "randomTickSpeed": "0"
+      },
+      "spawn": [
+        -160,
+        83,
+        0
+      ],
+      "weather": "clear"
+    },
+    "safety_chunk_digest": "cf7c9217fe947bc7048731622db60f809d12ba4987b97074416b9439ab5ca8b1",
+    "terrain_bytes": 2818048,
+    "terrain_chunk_count": 680
+  },
+  "world": {
+    "archive_root": "cold_ruin_sector_01",
+    "bytes": 434013,
+    "curated_tree_sha256": "537af7f1ab05b5070ced69697cea04330e89177c9e7b810da60bae24a88a1223",
+    "name": "cold_ruin_sector_01_mp25_world.zip",
+    "sha256": "3ee5d52888daba0f15ce8e9bc7a142292d46a0f3f966dcd2c1533771c89f4fa4",
+    "uncompressed_bytes": 2857651
+  }
+}

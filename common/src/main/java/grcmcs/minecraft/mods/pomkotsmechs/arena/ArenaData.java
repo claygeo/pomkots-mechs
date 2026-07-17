@@ -3,6 +3,7 @@ package grcmcs.minecraft.mods.pomkotsmechs.arena;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -49,6 +50,10 @@ public class ArenaData extends SavedData {
     // crash cannot leave a glass box in the city; emptied when the cage is
     // removed (cage break, cleanup, or the SERVER_STARTED boot sweep).
     private final List<CageBlock> cageBlocks = new ArrayList<>();
+    // Ashen Span uses arbitrary authored gates/shutters. Unlike royale cages, every
+    // entry retains the complete original BlockState and survives a crash until the
+    // corresponding block has been restored successfully.
+    private final List<MissionGateBlock> missionGateBlocks = new ArrayList<>();
     // Monotonic royale match sequence. Persisted (and force-flushed before any
     // scatter spawns) so a restart can never reuse a match id that crash-leftover
     // mechs in unloaded chunks still carry.
@@ -109,6 +114,13 @@ public class ArenaData extends SavedData {
         for (int i = 0; i < cageList.size(); i++) {
             data.cageBlocks.add(CageBlock.load(cageList.getCompound(i)));
         }
+        ListTag missionGateList = tag.getList("missionGateBlocks", Tag.TAG_COMPOUND);
+        for (int i = 0; i < missionGateList.size(); i++) {
+            MissionGateBlock block = MissionGateBlock.load(missionGateList.getCompound(i));
+            if (block != null) {
+                data.missionGateBlocks.add(block);
+            }
+        }
         if (tag.contains("nextMatchId")) {
             data.nextMatchId = tag.getInt("nextMatchId");
         }
@@ -147,6 +159,11 @@ public class ArenaData extends SavedData {
             cageList.add(cb.save());
         }
         tag.put("cageBlocks", cageList);
+        ListTag missionGateList = new ListTag();
+        for (MissionGateBlock block : missionGateBlocks) {
+            missionGateList.add(block.save());
+        }
+        tag.put("missionGateBlocks", missionGateList);
         tag.putInt("nextMatchId", nextMatchId);
         return tag;
     }
@@ -302,6 +319,32 @@ public class ArenaData extends SavedData {
     public void setCageBlocks(List<CageBlock> blocks) {
         cageBlocks.clear();
         cageBlocks.addAll(blocks);
+        setDirty();
+    }
+
+    // ---------------------------------------------------------------------
+    // Ashen Span full-state gate ledger (durable, crash-safe)
+    // ---------------------------------------------------------------------
+
+    public List<MissionGateBlock> getMissionGateBlocks() {
+        return List.copyOf(missionGateBlocks);
+    }
+
+    public boolean hasMissionGateBlock(ResourceLocation dimension, net.minecraft.core.BlockPos pos) {
+        return missionGateBlocks.stream().anyMatch(block -> block.dimension().equals(dimension)
+                && block.pos().equals(pos));
+    }
+
+    public void addMissionGateBlock(MissionGateBlock block) {
+        if (!hasMissionGateBlock(block.dimension(), block.pos())) {
+            missionGateBlocks.add(block);
+            setDirty();
+        }
+    }
+
+    public void setMissionGateBlocks(List<MissionGateBlock> blocks) {
+        missionGateBlocks.clear();
+        missionGateBlocks.addAll(blocks);
         setDirty();
     }
 

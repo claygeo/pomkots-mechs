@@ -1,6 +1,8 @@
 package grcmcs.minecraft.mods.pomkotsmechs.entity.projectile;
 
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaHooks;
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaOwnershipRegistry;
 import grcmcs.minecraft.mods.pomkotsmechs.config.BattleBalance;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
@@ -91,7 +93,11 @@ public class GrenadeLargeEntity extends PomkotsThrowableProjectile implements Ge
 
             ExplosionEntity e = new ExplosionEntity(PomkotsMechs.EXPLOSION.get(), world);
             e.setPos(this.position());
-            world.addFreshEntity(e);
+            if (!ArenaHooks.isActive()
+                    || ArenaHooks.beforeOwnedAdd(this, e,
+                    ArenaOwnershipRegistry.DescendantKind.EFFECT)) {
+                world.addFreshEntity(e);
+            }
         }
     }
 

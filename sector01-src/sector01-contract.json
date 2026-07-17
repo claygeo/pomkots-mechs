@@ -1,0 +1,270 @@
+{
+  "schema_version": 2,
+  "asset": {
+    "mod_id": "mecharena_sector01",
+    "version": "1.0.0-mp25",
+    "map_id": "cold_ruin_sector_01",
+    "map_version": 1,
+    "mission_id": "operation_ashen_span",
+    "display_name": "Cold Ruin Sector 01 — Operation Ashen Span"
+  },
+  "generation": {
+    "minecraft": "1.20.1",
+    "loader": "forge",
+    "lost_cities": "7.4.13",
+    "lost_cities_version_range": "[1.20-7.4.13]",
+    "profile": "mecharena_sector01",
+    "world_style": "mecharena_sector01:ashen_span_world",
+    "seed": 4707185498036326465,
+    "dimension": "minecraft:overworld",
+    "origin": [0, 0],
+    "part_min_y": 48,
+    "part_max_y": 120,
+    "predefined_city_radius": 1,
+    "zip_timestamp": "1980-01-01T00:00:00Z"
+  },
+  "bounds": {
+    "authored_blocks": {
+      "x": [-176, 175],
+      "z": [-112, 111],
+      "size": [352, 224]
+    },
+    "authored_chunks": {
+      "x": [-11, 10],
+      "z": [-7, 6],
+      "size": [22, 14],
+      "count": 308
+    },
+    "playable": {
+      "x": [-168, 167],
+      "z": [-56, 55]
+    },
+    "safety_chunks": {
+      "x": [-17, 16],
+      "z": [-10, 9],
+      "size": [34, 20],
+      "count": 680
+    },
+    "safety_blocks": {
+      "x": [-272, 271],
+      "z": [-160, 159],
+      "size": [544, 320]
+    },
+    "view_distance": 6,
+    "simulation_distance": 6,
+    "compressed_world_budget_mib": 32
+  },
+  "environment": {
+    "weather": "clear",
+    "time_of_day": 11000,
+    "natural_spawning": false,
+    "mob_griefing": false,
+    "entity_block_destruction": false,
+    "loot": false,
+    "fluids": false,
+    "foliage": false,
+    "random_cities": false,
+    "stock_spawners": false,
+    "stock_explosions": false,
+    "stock_highways": false,
+    "stock_railways": false
+  },
+  "route": {
+    "garage_drop_deck": {
+      "bounds": {"x": [-168, -137], "z": [-23, 24]},
+      "roof_y": 82,
+      "player_spawn": [-160, 83, 0],
+      "facing": "east"
+    },
+    "garage_ramp": {
+      "bounds": {"x": [-136, -101], "z": [-5, 6]},
+      "from_y": 82,
+      "to_y": 64,
+      "width": 12,
+      "run": 36
+    },
+    "freight_canyon": {
+      "bounds": {"x": [-136, -89], "z": [-39, 40]},
+      "ground_y": 64,
+      "lane_width": 18,
+      "minimum_overhead_clearance": 12
+    },
+    "ashen_span": {
+      "bounds": {"x": [-88, 23], "z": [-13, 14]},
+      "deck_y": 72,
+      "approach_ramp_x": [-88, -73],
+      "approach_from_y": 64,
+      "approach_to_y": 72,
+      "trench_x": [-72, -25],
+      "trench_floor_y": 48
+    },
+    "service_recovery_ramp": {
+      "bounds": {"x": [-88, -77], "z": [15, 55]},
+      "from_y": 48,
+      "to_y": 72,
+      "width": 12
+    },
+    "gatehouse_apron": {
+      "bounds": {"x": [24, 71], "z": [-31, 32]},
+      "deck_y": 72,
+      "service_gantry_root": [60, 73, 28]
+    },
+    "reveal_corridor": {
+      "bounds": {"x": [72, 79], "z": [-7, 8]},
+      "deck_y": 72
+    },
+    "east_power_deck": {
+      "bounds": {"x": [80, 175], "z": [-47, 48]},
+      "deck_y": 72,
+      "clear_center": {"x": [84, 171], "z": [-43, 44]},
+      "clear_center_size": [88, 88],
+      "safety_apron": 4,
+      "parapet_height": 3,
+      "open_sky": true
+    }
+  },
+  "gates": [
+    {"id": "G1", "phase": 1, "bounds": {"x": [-137, -137], "y": [82, 89], "z": [-8, 8]}},
+    {"id": "G2", "phase": 2, "bounds": {"x": [-89, -89], "y": [64, 78], "z": [-14, 14]}},
+    {"id": "G3", "phase": 3, "bounds": {"x": [-32, -32], "y": [72, 82], "z": [-13, 14]}},
+    {"id": "G4", "phase": 4, "bounds": {"x": [24, 24], "y": [72, 82], "z": [-13, 14]}},
+    {"id": "G5", "phase": 5, "bounds": {"x": [72, 72], "y": [72, 84], "z": [-8, 8]}},
+    {"id": "R01_INTERNAL", "phase": "5B", "bounds": {"x": [58, 58], "y": [72, 84], "z": [-8, 8]}}
+  ],
+  "staging_shutters": [
+    {"id": "P1_NORTH", "phase": 1, "opens_on_activation": true, "bounds": {"x": [-151, -151], "y": [83, 89], "z": [-17, -11]}},
+    {"id": "P1_SOUTH", "phase": 1, "opens_on_activation": true, "bounds": {"x": [-151, -151], "y": [83, 89], "z": [11, 17]}},
+    {"id": "P1_CENTER", "phase": 1, "opens_on_activation": true, "bounds": {"x": [-153, -153], "y": [83, 89], "z": [-3, 3]}},
+    {"id": "P2_NORTH_CARGO_LOUVER", "phase": 2, "opens_on_activation": true, "bounds": {"x": [-113, -113], "y": [65, 78], "z": [-28, -19]}},
+    {"id": "P2_SOUTH_CARGO_LOUVER", "phase": 2, "opens_on_activation": true, "bounds": {"x": [-113, -113], "y": [65, 78], "z": [19, 28]}},
+    {"id": "P2_CENTER_CARGO_LOUVER", "phase": 2, "opens_on_activation": true, "bounds": {"x": [-97, -97], "y": [65, 78], "z": [-5, 5]}},
+    {"id": "P3_CENTER_WINDBREAK_LOUVER", "phase": 3, "opens_on_activation": true, "bounds": {"x": [-64, -64], "y": [73, 78], "z": [-5, 6]}},
+    {"id": "P4_EAST_BARRICADE", "phase": 4, "opens_on_activation": true, "bounds": {"x": [0, 1], "y": [73, 78], "z": [-13, 14]}},
+    {"id": "P5_NORTH", "phase": "5A", "opens_on_activation": true, "bounds": {"x": [45, 45], "y": [73, 82], "z": [-23, -8]}},
+    {"id": "P5_SOUTH", "phase": "5A", "opens_on_activation": true, "bounds": {"x": [45, 45], "y": [73, 82], "z": [8, 23]}}
+  ],
+  "encounters": [
+    {
+      "phase": 1,
+      "trigger": "after_build_mount",
+      "objective": "BREACH WEST GATE",
+      "sockets": [
+        {"entity": "PMS01", "position": [-150, 83, -14], "facing": "west"},
+        {"entity": "PMS01", "position": [-150, 83, 14], "facing": "west"},
+        {"entity": "PMS03", "position": [-141, 83, 0], "facing": "west"}
+      ],
+      "recovery_anchor": [-152, 83, 0]
+    },
+    {
+      "phase": 2,
+      "trigger": {"x_gte": -132},
+      "objective": "BREAK THE FIRE LANE",
+      "sockets": [
+        {"entity": "PMS03", "position": [-112, 65, -24], "facing": "west"},
+        {"entity": "PMS03", "position": [-112, 65, 24], "facing": "west"},
+        {"entity": "PMS04", "position": [-96, 65, 0], "facing": "west"}
+      ],
+      "recovery_anchor": [-116, 65, 0]
+    },
+    {
+      "phase": 3,
+      "trigger": {"x_gte": -84},
+      "objective": "CLEAR THE AIRSPACE",
+      "sockets": [
+        {"entity": "PMS02", "position": [-48, 54, 0], "facing": "west", "staging": "trench_rise"},
+        {"entity": "PMS04", "position": [-42, 73, -9], "facing": "west"},
+        {"entity": "PMS03", "position": [-42, 73, 9], "facing": "west"}
+      ],
+      "recovery_anchor": [-56, 73, 0]
+    },
+    {
+      "phase": 4,
+      "trigger": {"x_gte": -28},
+      "objective": "CRACK THE BARRICADE",
+      "sockets": [
+        {"entity": "PMS05", "position": [16, 73, 0], "facing": "west"},
+        {"entity": "PMS01", "position": [4, 73, -8], "facing": "west"},
+        {"entity": "PMS01", "position": [4, 73, 8], "facing": "west"},
+        {"entity": "PMS03", "position": [18, 73, 9], "facing": "west"}
+      ],
+      "recovery_anchor": [-4, 73, 0]
+    },
+    {
+      "phase": "5A",
+      "trigger": {"x_gte": 28},
+      "objective": "ACE ESCORTS INBOUND",
+      "sockets": [
+        {"entity": "PMS07", "position": [48, 73, -18], "facing": "west"},
+        {"entity": "PMS07", "position": [48, 73, 18], "facing": "west"}
+      ],
+      "recovery_anchor": [44, 73, 0]
+    },
+    {
+      "phase": "5B",
+      "trigger": "phase_5a_exact_zero",
+      "objective": "RIVAL SIGNAL: GATEKEEPER R-01",
+      "sockets": [
+        {"entity": "arena_rival_pmvc01", "position": [64, 73, 0], "facing": "west", "preplaced_inactive": true}
+      ],
+      "recovery_anchor": [56, 73, 0]
+    },
+    {
+      "phase": 6,
+      "trigger": {"x_gte": 88, "after_service": true},
+      "objective": "SPAN WARDEN ONLINE",
+      "sockets": [
+        {"entity": "PMB04", "name": "SPAN WARDEN", "position": [144, 73, 0], "facing": "west", "preplaced_inactive": true}
+      ],
+      "recovery_anchor": [128, 73, 0],
+      "player_fallback": [92, 73, 0]
+    }
+  ],
+  "cargo_pods": [
+    {"center": [-124, 65, -22], "size": [8, 5, 6]},
+    {"center": [-124, 65, 22], "size": [8, 5, 6]},
+    {"center": [-108, 65, -12], "size": [8, 5, 6]},
+    {"center": [-108, 65, 12], "size": [8, 5, 6]},
+    {"center": [-96, 65, -26], "size": [8, 5, 6]},
+    {"center": [-96, 65, 26], "size": [8, 5, 6]}
+  ],
+  "windbreaks": [
+    {"center_x": -64, "side": "south", "size": [8, 6], "orientation": "transverse", "bounds": {"x": [-64, -64], "y": [73, 78], "z": [-13, -6]}},
+    {"center_x": -64, "side": "north", "size": [8, 6], "orientation": "transverse", "bounds": {"x": [-64, -64], "y": [73, 78], "z": [7, 14]}},
+    {"center_x": -8, "side": "south", "size": [8, 6], "orientation": "transverse", "bounds": {"x": [-8, -8], "y": [73, 78], "z": [-13, -6]}},
+    {"center_x": -8, "side": "north", "size": [8, 6], "orientation": "transverse", "bounds": {"x": [-8, -8], "y": [73, 78], "z": [7, 14]}}
+  ],
+  "shells": [
+    {"id": "S01", "x": [-168, -145], "z": [-104, -81], "base_y": 64, "floors": 4},
+    {"id": "S02", "x": [-136, -113], "z": [-104, -81], "base_y": 64, "floors": 5},
+    {"id": "S03", "x": [-104, -81], "z": [-104, -81], "base_y": 64, "floors": 6},
+    {"id": "S04", "x": [-16, 7], "z": [-104, -81], "base_y": 64, "floors": 4},
+    {"id": "S05", "x": [16, 39], "z": [-104, -81], "base_y": 64, "floors": 5},
+    {"id": "S06", "x": [80, 103], "z": [-104, -81], "base_y": 64, "floors": 6},
+    {"id": "S07", "x": [-168, -145], "z": [80, 103], "base_y": 64, "floors": 5},
+    {"id": "S08", "x": [-136, -113], "z": [80, 103], "base_y": 64, "floors": 4},
+    {"id": "S09", "x": [-104, -81], "z": [80, 103], "base_y": 64, "floors": 6},
+    {"id": "S10", "x": [16, 39], "z": [80, 103], "base_y": 64, "floors": 5},
+    {"id": "S11", "x": [80, 103], "z": [80, 103], "base_y": 64, "floors": 4},
+    {"id": "S12", "x": [144, 167], "z": [80, 103], "base_y": 64, "floors": 6}
+  ],
+  "landmarks": {
+    "broken_cooling_stack": {"center": [-48, 64, -78], "radius": 10, "rise": 42},
+    "east_relay_mast": {"root": [128, 72, 80], "rise": 48}
+  },
+  "markers": {
+    "contract_sentinels": [
+      {"id": "map_id", "position": [-168, 79, -23], "block": "minecraft:lodestone"},
+      {"id": "map_version", "position": [-167, 79, -23], "block": "minecraft:chiseled_polished_blackstone"},
+      {"id": "origin", "position": [-166, 79, -23], "block": "minecraft:orange_glazed_terracotta[facing=east]"},
+      {"id": "orientation", "position": [-165, 79, -23], "block": "minecraft:cyan_glazed_terracotta[facing=west]"}
+    ],
+    "socket_surface": "minecraft:cyan_concrete",
+    "recovery_surface": "minecraft:chiseled_polished_blackstone",
+    "gate_material": "minecraft:orange_concrete"
+  },
+  "service": {
+    "root": [60, 73, 28],
+    "uses_per_run": 1,
+    "requires": ["rival_exact_zero", "rival_projectiles_exact_zero"]
+  }
+}

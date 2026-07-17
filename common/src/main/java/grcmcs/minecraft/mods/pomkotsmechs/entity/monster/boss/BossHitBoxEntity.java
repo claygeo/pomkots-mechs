@@ -1,5 +1,6 @@
 package grcmcs.minecraft.mods.pomkotsmechs.entity.monster.boss;
 
+import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaHooks;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.projectile.MissileBaseEntity;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.projectile.PomkotsThrowableProjectile;
 import net.minecraft.core.NonNullList;
@@ -43,6 +44,11 @@ public class BossHitBoxEntity extends LivingEntity {
 
     public void setBreakCallback(Consumer<Void> breakCallback) {
         this.breakCallback = breakCallback;
+    }
+
+    /** Arena ownership ancestry; null only for a registry-created placeholder. */
+    public BaseBossEntity getParentEntity() {
+        return parentEntity;
     }
 
     public Vec3 getRelativeParentPos() {
@@ -90,6 +96,13 @@ public class BossHitBoxEntity extends LivingEntity {
 
     @Override
     public boolean hurt(DamageSource source, float amount) {
+        // A staged modular boss is present only so its authored phase can be
+        // admitted atomically. Its supplemental hitboxes must not consume their
+        // break counters or forward damage before the reveal shutter opens.
+        if (BossHitBoxPolicy.rejectsDamage(
+                ArenaHooks.isStaged(this), this.isInvulnerable())) {
+            return false;
+        }
         // 当たった場合、親エンティティにダメージを伝える
         if (isParentActive()) {
             if (damageCount < 0) {

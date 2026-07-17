@@ -61,15 +61,18 @@ public class SuwaItem extends BasePartsItem.WeaponShoulder {
 
     @Override
     public void startUsing(ActionWeapon.WeaponMechInterface context) {
-        if (!context.getWorld().isClientSide && context.getPlayer() != null && context.getItemStack() != null) {
-            triggerAnim(context.getPlayer(), GeoItem.getOrAssignId(context.getItemStack(), (ServerLevel) context.getWorld()), "Activation", "use");
+        if (!context.getWorld().isClientSide && context.getItemStack() != null) {
+            // The related entity is only GeckoLib's tracking anchor; it need not be a
+            // player. Using the mech keeps ordinary player behavior and also lets the
+            // server-controlled Arena rival animate without a dummy pilot.
+            triggerAnim(context.getMechEntity(), GeoItem.getOrAssignId(context.getItemStack(), (ServerLevel) context.getWorld()), "Activation", "use");
         }
     }
 
     @Override
     public void endUsing(ActionWeapon.WeaponMechInterface context) {
-        if (!context.getWorld().isClientSide && context.getPlayer() != null && context.getItemStack() != null) {
-            triggerAnim(context.getPlayer(), GeoItem.getOrAssignId(context.getItemStack(), (ServerLevel) context.getWorld()), "Activation", "stop");
+        if (!context.getWorld().isClientSide && context.getItemStack() != null) {
+            triggerAnim(context.getMechEntity(), GeoItem.getOrAssignId(context.getItemStack(), (ServerLevel) context.getWorld()), "Activation", "stop");
         }
     }
 

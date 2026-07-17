@@ -7,10 +7,14 @@ import dev.architectury.event.events.common.PlayerEvent;
 import dev.architectury.event.events.common.TickEvent;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -18,6 +22,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.PomkotsVehicle;
+import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.Pmvc01Entity;
 import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
@@ -98,6 +103,7 @@ public final class ArenaManager {
     static final String TAG_PVE = "mecharena_pve";
     static final String TAG_SOLO = "mecharena_solo";
     static final String TAG_SOLO_PROJECTILE = "mecharena_solo_projectile";
+    static final int ASHEN_SPAN_BUILD_COUNT = 6;
     // Hostile roster for the PvE hook: charging, gun, and spider mobs. All are
     // Monsters that autonomously target the nearest player (hostile to everyone).
     private static final List<String> PVE_ROSTER = List.of("pms01", "pms03", "pms05");
@@ -107,6 +113,7 @@ public final class ArenaManager {
     private static final LinkedHashMap<UUID, String> queue = new LinkedHashMap<>();
     private static final List<Fighter> fighters = new ArrayList<>();
     private static final SpawnDirector spawnDirector = new SpawnDirector();
+    private static final AshenSpanDirector ashenSpanDirector = new AshenSpanDirector();
     private static final Set<UUID> soloProjectileIds = new HashSet<>();
     private static int soloProjectileDrops = 0;
 
@@ -209,6 +216,7 @@ public final class ArenaManager {
         // A crash mid-royale can leave a glass cage in the city; the recorded
         // positions outlive the process in ArenaData, so remove them now.
         removeCageBlocks(server);
+        MissionGateLedger.restoreAll(server);
     }
 
     private static void onServerStopping(MinecraftServer server) {
@@ -265,6 +273,7 @@ public final class ArenaManager {
         if (rec != null && canRestorePlayerImmediately(player.isAlive())) {
             restorePlayer(server, player, rec);
         }
+        sendGarageFleetCardIfSectorReady(player);
     }
 
     private static void onPlayerRespawn(ServerPlayer player, boolean conqueredEnd) {
@@ -329,6 +338,13 @@ public final class ArenaManager {
         if (!(level instanceof ServerLevel serverLevel)) {
             return EventResult.pass();
         }
+        ArenaHooks.AddDecision authored = ArenaHooks.admitAdded(entity, serverLevel);
+        if (authored == ArenaHooks.AddDecision.ACCEPT) {
+            return EventResult.pass();
+        }
+        if (authored == ArenaHooks.AddDecision.REJECT) {
+            return EventResult.interruptFalse();
+        }
         // A tagged projectile is being re-added from saved/chunk state, never
         // freshly fired. Reject it before owner classification so an old shot
         // from the same pilot cannot be relabelled into a later run.
@@ -343,6 +359,7 @@ public final class ArenaManager {
         // arrows/projectiles in the same dimension remain untouched.
         if (entity instanceof Projectile projectile
                 && matchMode == Mode.SOLO
+                && !ArenaHooks.isActive()
                 && isSoloCombatProjectileOwner(projectile.getOwner())) {
             // Once an outcome is decided, the still-mounted pilot gets a visual
             // wind-down but cannot create shots that outlive the match. Wrong-
@@ -460,11 +477,42 @@ public final class ArenaManager {
         if (state == ArenaState.ACTIVE) {
             MinecraftServer server = entity.getServer();
             if (server != null) {
-                if (matchMode == Mode.SOLO
-                        && entity.getTags().contains(TAG_PVE)
-                        && entity.getTags().contains(TAG_MATCH_PREFIX + matchId)) {
-                    spawnDirector.onDeath(entity);
+                boolean currentMatchPve = entity.getTags().contains(TAG_PVE)
+                        && entity.getTags().contains(TAG_MATCH_PREFIX + matchId);
+                if (matchMode == Mode.SOLO && currentMatchPve) {
+                    ashenSpanDirector.onDeath(entity);
                     return EventResult.pass();
+                }
+
+                // Terminalize a SOLO fighter death in the death event itself. If
+                // we only mark the fighter eliminated, tickSolo() sees that flag
+                // later and can no longer distinguish a destroyed pilot/frame
+                // from a disconnect. Moving directly to ENDING also preserves the
+                // required loss-before-victory ordering for same-tick double KOs.
+                if (matchMode == Mode.SOLO) {
+                    Fighter soloFighter = null;
+                    boolean fighterPlayer = false;
+                    boolean fighterMech = false;
+                    if (entity instanceof ServerPlayer) {
+                        soloFighter = findFighterByUuid(entity.getUUID());
+                        fighterPlayer = soloFighter != null;
+                    } else if (entity.getTags().contains(TAG_ARENA)
+                            && entity.getTags().contains(TAG_MATCH_PREFIX + matchId)) {
+                        soloFighter = findFighterByMech(entity);
+                        fighterMech = soloFighter != null;
+                    }
+                    AshenSpanMissionModel.DefeatReason reason = classifySoloFighterDeath(
+                            matchMode, currentMatchPve, fighterMech, fighterPlayer);
+                    if (reason != null) {
+                        eliminate(server, soloFighter,
+                                reason == AshenSpanMissionModel.DefeatReason.MECH_DESTROYED);
+                        String message = reason == AshenSpanMissionModel.DefeatReason.MECH_DESTROYED
+                                ? "SOLO DEFEAT — your combat frame was destroyed."
+                                : "SOLO DEFEAT — pilot destroyed.";
+                        recordSoloDefeat(server, soloFighter, reason, message);
+                        beginEnding(server);
+                        return EventResult.pass();
+                    }
                 }
                 if (entity.getTags().contains(TAG_ARENA)) {
                     if (matchMode == Mode.ROYALE) {
@@ -479,7 +527,7 @@ public final class ArenaManager {
                             royaleMechsAlive = Math.max(0, royaleMechsAlive - 1);
                             broadcast(server, "A mech went down — " + royaleMechsAlive + " mechs remain.");
                         }
-                    } else {
+                    } else if (matchMode == Mode.DUEL) {
                         // DUEL: an arena mech died -> eliminate its owner.
                         Fighter f = findFighterByMech(entity);
                         if (f != null) {
@@ -495,6 +543,20 @@ public final class ArenaManager {
             }
         }
         return EventResult.pass();
+    }
+
+    static AshenSpanMissionModel.DefeatReason classifySoloFighterDeath(
+            Mode mode, boolean currentMatchPve, boolean fighterMech, boolean fighterPlayer) {
+        if (mode != Mode.SOLO || currentMatchPve) {
+            return null;
+        }
+        if (fighterPlayer) {
+            return AshenSpanMissionModel.DefeatReason.PLAYER_DESTROYED;
+        }
+        if (fighterMech) {
+            return AshenSpanMissionModel.DefeatReason.MECH_DESTROYED;
+        }
+        return null;
     }
 
     // ---------------------------------------------------------------------
@@ -618,7 +680,14 @@ public final class ArenaManager {
                     e -> e.getTags().contains(TAG_ARENA));
             for (Entity e : tagged) {
                 boolean legit;
-                if (royaleLive) {
+                if (soloLive && ArenaHooks.isActive()
+                        && e.getTags().contains(ArenaHooks.TAG_OWNED)) {
+                    // Authored roots and descendants use the Ashen ownership graph,
+                    // not SpawnDirector/soloProjectileIds. Check this first so the
+                    // 100-tick stray sweep cannot erase a valid encounter or make a
+                    // phase appear to reach exact zero five seconds after staging.
+                    legit = ArenaHooks.isCurrentOwnedEntity(e, level);
+                } else if (royaleLive) {
                     // ROYALE: scattered mechs are unowned; the current match tag
                     // is what keeps them from being reaped by our own sweep.
                     legit = e.getTags().contains(TAG_MATCH_PREFIX + matchId);
@@ -1460,37 +1529,45 @@ public final class ArenaManager {
     private static void tickSolo(MinecraftServer server) {
         Fighter fighter = fighters.size() == 1 ? fighters.get(0) : null;
         if (fighter == null || fighter.eliminated) {
-            broadcast(server, "SOLO DEFEAT — your combat frame was lost.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.DISCONNECTED,
+                    "SOLO DEFEAT — your combat frame was lost.");
             beginEnding(server);
             return;
         }
 
         ServerPlayer player = server.getPlayerList().getPlayer(fighter.uuid);
         if (player == null || player.hasDisconnected() || !player.isAlive()) {
+            AshenSpanMissionModel.DefeatReason reason = player == null || player.hasDisconnected()
+                    ? AshenSpanMissionModel.DefeatReason.DISCONNECTED
+                    : AshenSpanMissionModel.DefeatReason.PLAYER_DESTROYED;
             eliminate(server, fighter, false);
-            broadcast(server, "SOLO DEFEAT — pilot unavailable.");
+            recordSoloDefeat(server, fighter, reason, "SOLO DEFEAT — pilot unavailable.");
             beginEnding(server);
             return;
         }
         if (fighter.mech == null || !fighter.mech.isAlive()) {
             eliminate(server, fighter, true);
-            broadcast(server, "SOLO DEFEAT — your combat frame was destroyed.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.MECH_DESTROYED,
+                    "SOLO DEFEAT — your combat frame was destroyed.");
             beginEnding(server);
             return;
         }
         if (matchTicks >= SOLO_MATCH_TIMEOUT) {
-            broadcast(server, "SOLO DEFEAT — 20-minute safety limit reached.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.TIME_LIMIT,
+                    "SOLO DEFEAT — 20-minute safety limit reached.");
             beginEnding(server);
             return;
         }
         if (arenaDimension == null) {
-            broadcast(server, "SOLO RUN ABORTED — arena dimension became unavailable.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.MISSION_ABORTED,
+                    "SOLO RUN ABORTED — arena dimension became unavailable.");
             beginEnding(server);
             return;
         }
         if (!fighter.mech.level().dimension().equals(arenaDimension)) {
             eliminate(server, fighter, true);
-            broadcast(server, "SOLO DEFEAT — your combat frame left the arena dimension.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.MISSION_ABORTED,
+                    "SOLO DEFEAT — your combat frame left the arena dimension.");
             beginEnding(server);
             return;
         }
@@ -1501,23 +1578,10 @@ public final class ArenaManager {
         ServerPlayer intruder = findSoloIntruder(server, fighter.uuid, arenaDimension,
                 centerX, centerZ, matchBoundsRadius + 24.0);
         if (intruder != null) {
-            broadcast(server, "SOLO RUN ABORTED — " + intruder.getName().getString()
-                    + " entered the combat zone. Observers must use spectator mode.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.MISSION_ABORTED,
+                    "SOLO RUN ABORTED — " + intruder.getName().getString()
+                            + " entered the combat zone. Observers must use spectator mode.");
             beginEnding(server);
-            return;
-        }
-
-        checkOutOfBounds(server, true);
-        if (fighter.eliminated) {
-            broadcast(server, "SOLO DEFEAT — you left the combat zone.");
-            beginEnding(server);
-            return;
-        }
-        // Bounds grace is real grace: existing enemies may keep moving, but the
-        // finite spawn/recovery candidate budgets are frozen until the pilot is
-        // back. This prevents a boosting overshoot or portal trip from consuming
-        // all candidates against impossible geometry.
-        if (fighter.outsideTicks > 0) {
             return;
         }
 
@@ -1537,36 +1601,47 @@ public final class ArenaManager {
                 && (player.distanceToSqr(fighter.mech) > 64.0
                 || !player.startRiding(fighter.mech, true))) {
             eliminate(server, fighter, true);
-            broadcast(server, "SOLO DEFEAT — pilot separated from the combat frame.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.PILOT_SEPARATED,
+                    "SOLO DEFEAT — pilot separated from the combat frame.");
             beginEnding(server);
             return;
         }
 
         ServerLevel arenaLevel = server.getLevel(arenaDimension);
         if (arenaLevel == null) {
-            broadcast(server, "SOLO RUN ABORTED — arena dimension became unavailable.");
+            recordSoloDefeat(server, fighter, AshenSpanMissionModel.DefeatReason.MISSION_ABORTED,
+                    "SOLO RUN ABORTED — arena dimension became unavailable.");
             beginEnding(server);
             return;
         }
-        if (matchTicks % 20 == 0) {
-            pruneSoloProjectiles(arenaLevel);
-        }
-
-        SpawnDirector.TickResult result = spawnDirector.tick(arenaLevel, player, fighter.mech);
-        for (String message : spawnDirector.drainMessages()) {
+        AshenSpanDirector.TickResult result = ashenSpanDirector.tick(
+                server, arenaLevel, player, fighter.mech);
+        for (String message : ashenSpanDirector.drainMessages()) {
             broadcast(server, message);
         }
-        if (result == SpawnDirector.TickResult.VICTORY) {
-            broadcast(server, "SOLO VICTORY — boss destroyed. Run seed: " + lastSoloSeed + ".");
+        if (result == AshenSpanDirector.TickResult.VICTORY) {
+            broadcast(server, "SOLO VICTORY — SPAN WARDEN DESTROYED.");
+            broadcast(server, ashenSpanDirector.summary(fighter.mech.getHealth()));
             beginEnding(server);
             return;
         }
-        if (result == SpawnDirector.TickResult.FAILED) {
-            broadcast(server, "SOLO RUN ABORTED — " + spawnDirector.failureReason());
+        if (result == AshenSpanDirector.TickResult.FAILED) {
+            broadcast(server, "SOLO DEFEAT — " + ashenSpanDirector.failureReason());
+            broadcast(server, ashenSpanDirector.summary(fighter.mech.getHealth()));
             beginEnding(server);
             return;
         }
 
+    }
+
+    private static void recordSoloDefeat(MinecraftServer server, Fighter fighter,
+                                         AshenSpanMissionModel.DefeatReason reason,
+                                         String message) {
+        ashenSpanDirector.recordDefeat(reason, message);
+        broadcast(server, message);
+        float remainingHealth = fighter != null && fighter.mech != null
+                ? fighter.mech.getHealth() : 0.0F;
+        broadcast(server, ashenSpanDirector.summary(remainingHealth));
     }
 
     private static ServerPlayer findSoloIntruder(MinecraftServer server, UUID owner,
@@ -1876,6 +1951,7 @@ public final class ArenaManager {
         // reaps the mechs; this restores the cage blocks. No-op for DUEL (the
         // ledger is empty), so DUEL teardown is unchanged.
         removeCageBlocks(server);
+        MissionGateLedger.restoreAll(server);
         ArenaData data = ArenaData.get(server);
         boolean healed = false;
         for (Fighter f : new ArrayList<>(fighters)) {
@@ -1987,6 +2063,7 @@ public final class ArenaManager {
 
     private static void resetToIdle() {
         spawnDirector.reset();
+        ashenSpanDirector.reset();
         soloProjectileIds.clear();
         soloProjectileDrops = 0;
         soloOwner = null;
@@ -2132,15 +2209,51 @@ public final class ArenaManager {
      * keybinds (all rebindable in Controls). Kept as a single multi-line
      * component so it prints as one chat block.
      */
+    static final String MOUNT_HELP_TEXT =
+            "===== MECH CONTROLS =====\n"
+            + "Move: W A S D    Jump / Boost: Space    Dash: Left Ctrl\n"
+            + "Fire right weapon: Left Mouse    Fire left weapon: Right Mouse\n"
+            + "Shoulder weapons: P (right) / O (left)    Switch mode: Y\n"
+            + "Lock-on: U (hold to track targets in your sights)\n"
+            + "Your mech is your health bar. In SOLO and DUEL, losing it means defeat.\n"
+            + "Outside those modes, mech destruction ejects you. Type /mechhelp to see this again.";
+
     private static Component mountHelpCard() {
-        return Component.literal(
-                "===== MECH CONTROLS =====\n"
-                + "Move: W A S D    Jump / Boost: Space    Dash: Left Ctrl\n"
-                + "Fire right weapon: Left Mouse    Fire left weapon: Right Mouse\n"
-                + "Shoulder weapons: P (right) / O (left)    Switch mode: Y\n"
-                + "Lock-on: U (hold to track targets in your sights)\n"
-                + "Your mech is your health bar — if it dies, you EJECT.\n"
-                + "You only lose when YOU die. Type /mechhelp to see this again.");
+        return Component.literal(MOUNT_HELP_TEXT);
+    }
+
+    /** One accessible chat card; each authored build invokes the existing command path. */
+    private static void sendGarageFleetCardIfSectorReady(ServerPlayer player) {
+        MinecraftServer server = player.getServer();
+        if (server == null || state != ArenaState.IDLE || player.serverLevel() != server.overworld()) {
+            return;
+        }
+        // Joining should never scan all 680 persisted chunks or block on remote
+        // marker reads. The clicked start command below remains the authoritative,
+        // fail-closed map validation boundary.
+        if (!AshenSpanMapContract.hasExpectedWorldIdentity(server, server.overworld())) {
+            return;
+        }
+        MutableComponent card = Component.literal("===== GARAGE FLEET =====\n")
+                .withStyle(ChatFormatting.DARK_GRAY)
+                .append(Component.literal("Select Operation Ashen Span deployment:\n")
+                        .withStyle(ChatFormatting.GOLD));
+        for (int i = 0; i < GarageFleet.size(); i++) {
+            int publicBuild = i + 1;
+            String buildName = GarageFleet.name(i);
+            MutableComponent button = Component.literal("[" + publicBuild + " "
+                            + buildName.toUpperCase(java.util.Locale.ROOT) + "]")
+                    .withStyle(style -> style.withColor(ChatFormatting.AQUA)
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
+                                    "/arena solo start " + publicBuild))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                    Component.literal("Deploy " + buildName))));
+            card.append(button);
+            card.append(Component.literal(i == GarageFleet.size() - 1 ? "" : "  "));
+        }
+        card.append(Component.literal("\nKeyboard fallback: /arena solo start <1-6>")
+                .withStyle(ChatFormatting.GRAY));
+        player.sendSystemMessage(card);
     }
 
     private static void broadcast(MinecraftServer server, String message) {
@@ -2165,8 +2278,9 @@ public final class ArenaManager {
             src.sendFailure(Component.literal(PREFIX + "Another arena run is already starting or active."));
             return 0;
         }
-        if (build < 0 || build >= GarageFleet.size()) {
-            src.sendFailure(Component.literal(PREFIX + "Build must be 0-" + (GarageFleet.size() - 1) + "."));
+        int normalizedBuild = normalizeGarageBuild(build);
+        if (normalizedBuild < 0) {
+            src.sendFailure(Component.literal(PREFIX + "Build must be 1-" + GarageFleet.size() + "."));
             return 0;
         }
         if (player.isPassenger()) {
@@ -2177,6 +2291,12 @@ public final class ArenaManager {
         MinecraftServer server = player.getServer();
         if (server == null) {
             src.sendFailure(Component.literal(PREFIX + "Server unavailable."));
+            return 0;
+        }
+        ServerLevel level = server.overworld();
+        AshenSpanMapContract.Result contract = AshenSpanMapContract.validate(server, level);
+        if (!contract.valid()) {
+            src.sendFailure(Component.literal(PREFIX + contract.error()));
             return 0;
         }
         ArenaData data = ArenaData.get(server);
@@ -2191,7 +2311,11 @@ public final class ArenaManager {
                 return 0;
             }
         }
-        return startSoloRun(src, player, build, requestedSeed);
+        return startSoloRun(src, player, normalizedBuild, requestedSeed);
+    }
+
+    static int normalizeGarageBuild(int publicBuild) {
+        return publicBuild >= 1 && publicBuild <= ASHEN_SPAN_BUILD_COUNT ? publicBuild - 1 : -1;
     }
 
     private static int startSoloRun(CommandSourceStack src, ServerPlayer player, int build, Long requestedSeed) {
@@ -2200,34 +2324,34 @@ public final class ArenaManager {
             return 0;
         }
         ArenaData data = ArenaData.get(server);
-        ArenaPoint venue = data.getRoyaleCenter();
-        if (venue == null && !server.isSingleplayer() && !src.hasPermission(2)) {
-            src.sendFailure(Component.literal(PREFIX
-                    + "This server has no approved solo venue. An operator must set the arena center first."));
-            return 0;
-        }
-        ServerLevel level = venue != null ? server.getLevel(venue.dimensionKey()) : player.serverLevel();
-        if (level == null) {
-            src.sendFailure(Component.literal(PREFIX + "The configured solo venue dimension is unavailable."));
-            return 0;
-        }
-        double venueX = venue != null ? venue.x : player.getX();
-        double venueY = venue != null ? venue.y : player.getY();
-        double venueZ = venue != null ? venue.z : player.getZ();
+        ServerLevel level = server.overworld();
         LivingEntity mech = GarageFleet.build(level, build);
-        if (mech == null) {
-            src.sendFailure(Component.literal(PREFIX + "Could not assemble garage build #" + build + "."));
+        if (!prepareSoloGarageBuild(mech)) {
+            if (mech != null) {
+                mech.discard();
+            }
+            src.sendFailure(Component.literal(PREFIX + "Could not assemble garage build #" + (build + 1) + "."));
             return 0;
         }
-        Vec3 spawn = findSoloMechSpawn(level, player, venueX, venueY, venueZ, mech);
-        if (spawn == null) {
+        Vec3 spawn = new Vec3(AshenSpanDefinition.PLAYER_PAD.x(),
+                AshenSpanDefinition.PLAYER_PAD.y(), AshenSpanDefinition.PLAYER_PAD.z());
+        mech.setPos(spawn.x, spawn.y, spawn.z);
+        AABB spawnBox = mech.getBoundingBox();
+        BlockPos spawnFloor = BlockPos.containing(spawn.x, spawn.y, spawn.z).below();
+        if (!level.hasChunkAt(spawnFloor)
+                || !level.getBlockState(spawnFloor).isFaceSturdy(level, spawnFloor, Direction.UP)
+                || !isAabbLoaded(level, spawnBox)
+                || !hasSturdyFootprint(level, spawnBox)
+                || !level.noCollision(mech, spawnBox)
+                || !level.getEntities(mech, spawnBox,
+                entity -> entity != player && entity.canBeCollidedWith()).isEmpty()) {
             mech.discard();
             src.sendFailure(Component.literal(PREFIX
-                    + "No collision-free surface is loaded near the solo venue. Visit/load its street or plaza and retry."));
+                    + "The authored Garage deployment pad is blocked or not loaded."));
             return 0;
         }
         ServerPlayer intruder = findSoloIntruder(server, player.getUUID(), level.dimension(),
-                spawn.x, spawn.z, SOLO_BOUNDS_RADIUS + 24.0);
+                0.0D, 0.0D, 190.0D);
         if (intruder != null) {
             mech.discard();
             src.sendFailure(Component.literal(PREFIX + "The solo venue is occupied by "
@@ -2239,22 +2363,21 @@ public final class ArenaManager {
         state = ArenaState.COUNTDOWN; // setup guard: admits only the fighter mech/director UUIDs
         matchId = data.claimMatchId();
         server.overworld().getDataStorage().save();
-        long seed = requestedSeed != null ? requestedSeed : defaultSoloSeed(level, player.getUUID(), matchId);
+        long seed = requestedSeed != null ? requestedSeed : AshenSpanMapData.WORLD_SEED;
 
-        centerX = spawn.x;
-        centerY = spawn.y;
-        centerZ = spawn.z;
+        centerX = AshenSpanDefinition.ORIGIN_X;
+        centerY = AshenSpanDefinition.SPAN_DECK_Y;
+        centerZ = AshenSpanDefinition.ORIGIN_Z;
         arenaDimension = level.dimension();
-        matchBoundsRadius = SOLO_BOUNDS_RADIUS;
+        matchBoundsRadius = 190.0D;
         matchMinPlayers = 1;
         matchTicks = 0;
         endingTicks = 0;
         cageTicks = 0;
         graceTicks = 0;
 
-        if (!spawnDirector.prepare(level, matchId, seed, player.getUUID(),
-                centerX, centerY, centerZ, matchBoundsRadius)) {
-            String reason = spawnDirector.failureReason();
+        if (!ashenSpanDirector.prepare(level, matchId, seed, build, player.getUUID(), mech)) {
+            String reason = ashenSpanDirector.failureReason();
             mech.discard();
             resetToIdle();
             src.sendFailure(Component.literal(PREFIX + "Solo catalog rejected: " + reason));
@@ -2282,11 +2405,8 @@ public final class ArenaManager {
 
         player.setGameMode(GameType.ADVENTURE);
         mech.setPos(spawn.x, spawn.y, spawn.z);
-        mech.setYRot(player.getYRot());
-        mech.addTag(TAG_ARENA);
+        mech.setYRot(-90.0F);
         mech.addTag(TAG_OWNER_PREFIX + fighter.uuid);
-        mech.addTag(TAG_MATCH_PREFIX + matchId);
-        mech.addTag(TAG_SOLO);
         fighter.mech = mech; // identity must exist before EntityEvent.ADD fires
         if (!level.addFreshEntity(mech)) {
             fighter.mech = null;
@@ -2295,13 +2415,24 @@ public final class ArenaManager {
             src.sendFailure(Component.literal(PREFIX + "The player mech could not enter the world; start rolled back."));
             return 0;
         }
-        player.teleportTo(level, spawn.x, spawn.y, spawn.z, player.getYRot(), player.getXRot());
+        player.teleportTo(level, spawn.x, spawn.y, spawn.z, -90.0F, 0.0F);
         boolean arrived = player.serverLevel() == level
                 && player.position().distanceToSqr(spawn) < 4.0;
         if (!arrived || !player.startRiding(mech, true)) {
             cleanup(server);
             src.sendFailure(Component.literal(PREFIX + "Could not mount the selected mech; start rolled back."));
             return 0;
+        }
+        if (!ashenSpanDirector.startAfterMount(level, player, mech)) {
+            String reason = ashenSpanDirector.failureReason();
+            cleanup(server);
+            src.sendFailure(Component.literal(PREFIX + "Mission staging failed: " + reason));
+            return 0;
+        }
+        // Deliver the authored objective before the next server tick opens the
+        // launch-bay shutters and activates the already-staged roots.
+        for (String message : ashenSpanDirector.drainMessages()) {
+            broadcast(server, message);
         }
 
         queue.remove(player.getUUID());
@@ -2310,11 +2441,25 @@ public final class ArenaManager {
         lastSoloSeed = seed;
         hasLastSoloRun = true;
         state = ArenaState.ACTIVE;
-        broadcast(server, "SOLO RUN STARTED — " + GarageFleet.name(build)
-                + " | seed " + seed + " | enemies arrive shortly.");
+        broadcast(server, "COLD RUIN SECTOR 01 — OPERATION ASHEN SPAN | "
+                + GarageFleet.name(build) + " | seed " + seed + ".");
         src.sendSuccess(() -> Component.literal(PREFIX
                 + "Use /arena solo status, /arena solo retry, or /arena solo stop."), false);
         return 1;
+    }
+
+    /**
+     * SOLO-only launch preparation. GarageFleet.build intentionally retains its
+     * legacy inventory-only semantics for ROYALE scatter and admin garage spawns;
+     * Ashen Span additionally requires a full loaded magazine, no pending reload,
+     * full energy, synced fuel, and full health before the entity enters the world.
+     */
+    static boolean prepareSoloGarageBuild(LivingEntity mech) {
+        if (!(mech instanceof Pmvc01Entity customMech)) {
+            return false;
+        }
+        customMech.resetForArenaService();
+        return true;
     }
 
     /** Finds a nearby surface that fits the complete custom-mech bounding box. */
@@ -2417,20 +2562,36 @@ public final class ArenaManager {
             }
             cleanup(player.getServer());
         }
-        return commandSoloStart(src, lastSoloBuild, lastSoloSeed);
+        return commandSoloStart(src, lastSoloBuild + 1, lastSoloSeed);
     }
 
     public static int commandSoloStatus(CommandSourceStack src) {
         if (matchMode == Mode.SOLO && state != ArenaState.IDLE) {
             src.sendSuccess(() -> Component.literal(PREFIX + "SOLO " + state + " | "
-                    + spawnDirector.status() + " | " + soloProjectileStatus()), false);
+                    + ashenSpanDirector.status()), false);
             return 1;
         }
         String last = hasLastSoloRun
-                ? "Last recipe: build " + lastSoloBuild + " (" + GarageFleet.name(lastSoloBuild)
+                ? "Last recipe: build " + (lastSoloBuild + 1) + " (" + GarageFleet.name(lastSoloBuild)
                         + "), seed " + lastSoloSeed + "."
                 : "No solo run has started this server session.";
         src.sendSuccess(() -> Component.literal(PREFIX + "SOLO IDLE | " + last), false);
+        return 1;
+    }
+
+    /** Read-only dedicated-server/offline health check for the authored map contract. */
+    public static int commandSoloValidate(CommandSourceStack src) {
+        MinecraftServer server = src.getServer();
+        AshenSpanMapContract.Result result =
+                AshenSpanMapContract.validate(server, server.overworld());
+        if (!result.valid()) {
+            src.sendFailure(Component.literal(PREFIX + "ASHEN SPAN CONTRACT FAIL — "
+                    + result.error()));
+            return 0;
+        }
+        src.sendSuccess(() -> Component.literal(PREFIX
+                + "ASHEN SPAN CONTRACT PASS — 680 full safety chunks and "
+                + AshenSpanMapContract.markers().size() + " physical markers verified."), true);
         return 1;
     }
 
@@ -2447,9 +2608,22 @@ public final class ArenaManager {
             src.sendFailure(Component.literal(PREFIX + "Only the active solo pilot or an operator can stop this run."));
             return 0;
         }
+        if (!soloStopChangesOutcome(state)) {
+            cleanup(player.getServer());
+            src.sendSuccess(() -> Component.literal(PREFIX
+                    + "Concluded solo run cleaned up without changing its outcome."), true);
+            return 1;
+        }
+        Fighter activeFighter = fighters.size() == 1 ? fighters.get(0) : null;
+        recordSoloDefeat(player.getServer(), activeFighter,
+                AshenSpanMissionModel.DefeatReason.STOPPED, "SOLO DEFEAT — run stopped.");
         cleanup(player.getServer());
         src.sendSuccess(() -> Component.literal(PREFIX + "Solo run stopped and cleaned up."), true);
         return 1;
+    }
+
+    static boolean soloStopChangesOutcome(ArenaState currentState) {
+        return currentState != ArenaState.IDLE && currentState != ArenaState.ENDING;
     }
 
     public static int commandSoloDebugNext(CommandSourceStack src) {
@@ -2457,9 +2631,9 @@ public final class ArenaManager {
             src.sendFailure(Component.literal(PREFIX + "No active solo encounter to advance."));
             return 0;
         }
-        spawnDirector.forceNext();
-        src.sendSuccess(() -> Component.literal(PREFIX + "Director forced to the next encounter boundary."), true);
-        return 1;
+        src.sendFailure(Component.literal(PREFIX
+                + "Authored mission phases cannot be bypassed; exact-zero gates are mandatory."));
+        return 0;
     }
 
     public static int commandJoin(CommandSourceStack src, String mech) {
@@ -2539,8 +2713,7 @@ public final class ArenaManager {
                 sb.append("\n").append(PREFIX).append("Time remaining: ")
                         .append(Math.max(0, (timeout - matchTicks) / 20)).append("s");
                 if (shownMode == Mode.SOLO) {
-                    sb.append("\n").append(PREFIX).append(spawnDirector.status())
-                            .append(" | ").append(soloProjectileStatus());
+                    sb.append("\n").append(PREFIX).append(ashenSpanDirector.status());
                 }
             }
             case ENDING -> sb.append("\n").append(PREFIX).append("Match ending...");

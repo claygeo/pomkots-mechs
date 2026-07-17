@@ -51,6 +51,9 @@ public class PomkotsMechsClient {
 		EntityRendererRegistry.register(PomkotsMechs.PMVC01, (context)->{
 			return new Pmvc01EntityRenderer(context);
 		});
+		EntityRendererRegistry.register(PomkotsMechs.ARENA_RIVAL_PMVC01, (context)->{
+			return new Pmvc01EntityRenderer(context);
+		});
 
 		EntityRendererRegistry.register(PomkotsMechs.PMB01, (context)->{
 			return new Pmb01EntityRenderer(context);

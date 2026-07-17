@@ -29,6 +29,7 @@ import grcmcs.minecraft.mods.pomkotsmechs.entity.monster.mob.*;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.projectile.*;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.*;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.projectile.PlayerDummyEntity;
+import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.ArenaRivalPmvc01Entity;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.Pmvc01Entity;
 import grcmcs.minecraft.mods.pomkotsmechs.items.*;
 import grcmcs.minecraft.mods.pomkotsmechs.items.parts.*;
@@ -111,6 +112,8 @@ public class PomkotsMechs {
 	public static final RegistrySupplier<EntityType<Pmv03Entity>> PMV03 = registerEntityType("pmv03", Pmv03Entity::new, MobCategory.CREATURE, 4F, 10F);
 
 	public static final RegistrySupplier<EntityType<Pmvc01Entity>> PMVC01 = registerEntityType("pmvc01", Pmvc01Entity::new, MobCategory.CREATURE, 4F, 5.5F);
+	public static final RegistrySupplier<EntityType<ArenaRivalPmvc01Entity>> ARENA_RIVAL_PMVC01 = registerEntityType(
+			"arena_rival_pmvc01", ArenaRivalPmvc01Entity::new, MobCategory.MONSTER, 4F, 5.5F);
 
 	// Monster, Boss
 	public static final RegistrySupplier<EntityType<Pms01Entity>> PMS01 = registerEntityType("pms01", Pms01Entity::new, MobCategory.MONSTER, 0.9F, 3F); // Charging Mob
@@ -743,6 +746,7 @@ public class PomkotsMechs {
 		EntityAttributeRegistry.register(PMV03::get, Pmv03Entity::createMobAttributes);
 
 		EntityAttributeRegistry.register(PMVC01::get, Pmvc01Entity::createMobAttributes);
+		EntityAttributeRegistry.register(ARENA_RIVAL_PMVC01::get, Pmvc01Entity::createMobAttributes);
 
 		EntityAttributeRegistry.register(PMB01::get, Pmb01Entity::createMobAttributes);
 		EntityAttributeRegistry.register(PMB01MK2::get, Pmb01mk2Entity::createMobAttributes);

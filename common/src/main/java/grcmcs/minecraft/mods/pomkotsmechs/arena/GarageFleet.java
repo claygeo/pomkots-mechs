@@ -3,9 +3,11 @@ package grcmcs.minecraft.mods.pomkotsmechs.arena;
 import dev.architectury.registry.registries.RegistrySupplier;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import grcmcs.minecraft.mods.pomkotsmechs.entity.vehicle.custom.Pmvc01Entity;
+import grcmcs.minecraft.mods.pomkotsmechs.items.parts.BasePartsItem;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -139,6 +141,80 @@ public final class GarageFleet {
     }
 
     /**
+     * Performs the one-shot authored service reset for a selected Garage Fleet build.
+     * Unlike scatter selection, invalid indices fail closed instead of cycling.
+     */
+    public static boolean service(@Nullable Pmvc01Entity mech, int zeroBasedBuild) {
+        if (mech == null || zeroBasedBuild < 0 || zeroBasedBuild >= FLEET.size()) {
+            return false;
+        }
+        mech.clearContent();
+        FLEET.get(zeroBasedBuild).writeInventoryTo(mech);
+        mech.resetForArenaService();
+        return true;
+    }
+
+    public static final int GATEKEEPER_MAX_HEALTH = 400;
+    public static final int GATEKEEPER_RIFLE_LEVEL = 2;
+    public static final int GATEKEEPER_SMG_LEVEL = 1;
+    public static final int GATEKEEPER_SUWA_LEVEL = 1;
+    public static final int GATEKEEPER_RIFLE_MAGAZINES = 2;
+    public static final int GATEKEEPER_SMG_MAGAZINES = 2;
+    public static final int GATEKEEPER_SUWA_MAGAZINES = 1;
+    public static final int GATEKEEPER_FUEL_PELLETS = 24;
+    public static final int GATEKEEPER_DARK_GRAY_TEXTURE = 1;
+
+    /**
+     * Applies the locked Gatekeeper R-01 assembly. This is deliberately separate from
+     * the six selectable fleet presets: R-01 is a mission enemy, never a seventh player
+     * build. Every slot is cleared first so recovery/replacement cannot inherit loot.
+     */
+    public static void applyGatekeeperLoadout(Pmvc01Entity mech) {
+        mech.clearContent();
+
+        put(mech, Pmvc01Entity.INV_PARTS_HEAD, PomkotsMechs.MUKNVALI_HEAD.get(), 1);
+        put(mech, Pmvc01Entity.INV_PARTS_BODY, PomkotsMechs.MUKNVALI_BODY.get(), 1);
+        put(mech, Pmvc01Entity.INV_PARTS_ARMS, PomkotsMechs.MUKNVALI_ARM.get(), 1);
+        put(mech, Pmvc01Entity.INV_PARTS_LEGS, PomkotsMechs.ALDEBARAN_LEGS.get(), 1);
+        put(mech, Pmvc01Entity.INV_PARTS_GENERATOR, PomkotsMechs.SHIGA_GENERATOR.get(), 1);
+        put(mech, Pmvc01Entity.INV_PARTS_BOOSTER, PomkotsMechs.NARITA_BOOSTER.get(), 1);
+
+        putAtLevel(mech, Pmvc01Entity.INV_WEAPON_RIGHT_HAND,
+                PomkotsMechs.SHAKUJI_WEAPON.get(), GATEKEEPER_RIFLE_LEVEL);
+        putAtLevel(mech, Pmvc01Entity.INV_WEAPON_LEFT_HAND,
+                PomkotsMechs.SHINOBAZU_WEAPON.get(), GATEKEEPER_SMG_LEVEL);
+        putAtLevel(mech, Pmvc01Entity.INV_WEAPON_RIGHT_SHOULDER,
+                PomkotsMechs.SUWA_WEAPON.get(), GATEKEEPER_SUWA_LEVEL);
+
+        put(mech, Pmvc01Entity.INV_AMMO_RA, PomkotsMechs.RIFLE_MAGAZINE.get(), GATEKEEPER_RIFLE_MAGAZINES);
+        put(mech, Pmvc01Entity.INV_AMMO_LA, PomkotsMechs.MACHINE_GUN_MAGAZINE.get(), GATEKEEPER_SMG_MAGAZINES);
+        put(mech, Pmvc01Entity.INV_AMMO_RS, PomkotsMechs.GATLING_MAGAZINE.get(), GATEKEEPER_SUWA_MAGAZINES);
+        put(mech, Pmvc01Entity.INV_FUEL, PomkotsMechs.PELLET.get(), GATEKEEPER_FUEL_PELLETS);
+
+        mech.setTextureColor(GATEKEEPER_DARK_GRAY_TEXTURE);
+        // Parts are complete before the one synchronization/reload reset. This gives
+        // every equipped gun a full initial magazine rather than a pending reload.
+        mech.resetForArenaService();
+        mech.getAttribute(Attributes.MAX_HEALTH).setBaseValue(GATEKEEPER_MAX_HEALTH);
+        mech.setHealth(GATEKEEPER_MAX_HEALTH);
+    }
+
+    private static void putAtLevel(Pmvc01Entity mech, int slot, Item item, int level) {
+        ItemStack stack = new ItemStack(item);
+        if (item instanceof BasePartsItem part) {
+            part.setLevel(stack, level);
+            // Keep the authored enemy level exact even if a legacy-compatible server
+            // reads the historical literal key instead of the namespaced one.
+            stack.getOrCreateTag().putInt("Level", level);
+        }
+        mech.setItem(slot, stack);
+    }
+
+    private static void put(Pmvc01Entity mech, int slot, Item item, int count) {
+        mech.setItem(slot, new ItemStack(item, Math.min(count, item.getMaxStackSize())));
+    }
+
+    /**
      * An immutable preset. Item references are the mod's registered {@link Item} suppliers;
      * {@code null} in an ammo slot means the paired weapon is melee (consumes no magazine).
      */
@@ -209,6 +285,12 @@ public final class GarageFleet {
          * pool of a bare frame.
          */
         void applyTo(Pmvc01Entity mech) {
+            writeInventoryTo(mech);
+            mech.setChanged();
+            mech.setHealth(mech.getMaxHealth());
+        }
+
+        private void writeInventoryTo(Pmvc01Entity mech) {
             put(mech, Pmvc01Entity.INV_PARTS_HEAD, head, 1);
             put(mech, Pmvc01Entity.INV_PARTS_BODY, body, 1);
             put(mech, Pmvc01Entity.INV_PARTS_ARMS, arm, 1);
@@ -229,9 +311,6 @@ public final class GarageFleet {
             put(mech, Pmvc01Entity.INV_AMMO_LS, ammoLeftShoulder, AMMO_MAGAZINES);
 
             put(mech, Pmvc01Entity.INV_FUEL, PomkotsMechs.PELLET.get(), FUEL_PELLETS);
-
-            mech.setChanged();
-            mech.setHealth(mech.getMaxHealth());
         }
 
         /** Sets a slot to {@code count} of {@code item}, clamped to the item's max stack; no-op for null. */

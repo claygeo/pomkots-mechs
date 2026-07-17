@@ -95,7 +95,7 @@ public abstract class PomkotsVehicleBase extends LivingEntity implements GeoEnti
 
         this.actionController.tick();
 
-        if (this.isAlive() && this.isVehicle() && this.canWork()) {
+        if (this.isAlive() && this.hasControlAuthority() && this.canWork()) {
             if (rideCoolTick > 0) {
                 rideCoolTick--;
 
@@ -243,8 +243,8 @@ public abstract class PomkotsVehicleBase extends LivingEntity implements GeoEnti
             xRot = -Math.toDegrees(Math.atan2(deltaY, distanceXZ)); // Y
 
         } else {
-            var driver = this.getDrivingPassenger();
-            var lookAngle = driver.getLookAngle();
+            var driver = this.getControlActor();
+            var lookAngle = driver == null ? this.getLookAngle() : driver.getLookAngle();
 
             xRot = -Math.toDegrees(Math.asin(lookAngle.y)) - 7.5;
             yRot = Math.toDegrees(Math.atan2(lookAngle.z, lookAngle.x)) - 90.0;
@@ -274,19 +274,17 @@ public abstract class PomkotsVehicleBase extends LivingEntity implements GeoEnti
 
     @Override
     public void travel(Vec3 pos) {
-        if (this.isAlive() && this.isVehicle() && this.canWork()) {
-            var pilot = this.getDrivingPassenger();
-
+        if (this.isAlive() && this.hasMotionControlAuthority() && this.canWork()) {
             // ROTATE Vehicle
-            this.setYRot(pilot.getYRot());
+            this.setYRot(this.getControlYaw());
             this.yRotO = this.getYRot();
-            this.setXRot(pilot.getXRot() * 0.5F);
+            this.setXRot(this.getControlPitch() * 0.5F);
             this.setRot(this.getYRot(), this.getXRot());
             this.setYBodyRot(this.getYRot());
             this.setYHeadRot(this.getYRot());
 
-            float f = pilot.xxa * 0.5F;
-            float f1 = pilot.zza * 0.5F;
+            float f = this.getControlSideways() * 0.5F;
+            float f1 = this.getControlForward() * 0.5F;
 
             // BOOST
             if (isServerSide()) {
@@ -302,6 +300,47 @@ public abstract class PomkotsVehicleBase extends LivingEntity implements GeoEnti
         } else {
             super.travel(pos);
         }
+    }
+
+    /**
+     * Narrow control hooks used by server-authoritative vehicle variants. Ordinary mechs
+     * retain the passenger-driven behavior; subclasses may supply a bounded controller
+     * without fabricating a player or accepting client input packets.
+     */
+    protected boolean hasControlAuthority() {
+        return this.isVehicle();
+    }
+
+    protected boolean hasMotionControlAuthority() {
+        return this.hasControlAuthority();
+    }
+
+    protected LivingEntity getControlActor() {
+        return this.getDrivingPassenger();
+    }
+
+    protected float getControlYaw() {
+        LivingEntity actor = this.getControlActor();
+        return actor == null ? this.getYRot() : actor.getYRot();
+    }
+
+    protected float getControlPitch() {
+        LivingEntity actor = this.getControlActor();
+        return actor == null ? this.getXRot() : actor.getXRot();
+    }
+
+    protected float getControlSideways() {
+        LivingEntity actor = this.getControlActor();
+        return actor == null ? 0.0F : actor.xxa;
+    }
+
+    protected float getControlForward() {
+        LivingEntity actor = this.getControlActor();
+        return actor == null ? 0.0F : actor.zza;
+    }
+
+    protected boolean hasAnimationControl() {
+        return this.getDrivingPassenger() != null;
     }
 
     protected float getWalkSpeed(){
@@ -412,7 +451,7 @@ public abstract class PomkotsVehicleBase extends LivingEntity implements GeoEnti
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         controllers.add(new AnimationController<>(this, "controller", 0, event -> {
-            if (this.getDrivingPassenger() == null) {
+            if (!this.hasAnimationControl()) {
                 event.getController().forceAnimationReset();
                 return event.setAndContinue(RawAnimation.begin().thenPlayAndHold("animation." + getMechName() + ".idle"));
             }

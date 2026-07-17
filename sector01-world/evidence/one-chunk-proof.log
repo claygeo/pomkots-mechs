@@ -1,0 +1,127 @@
+2026-07-16 17:48:17,037 main WARN Advanced terminal features are not available in this environment
+[17:48:17] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserver, --fml.forgeVersion, 47.3.3, --fml.mcVersion, 1.20.1, --fml.forgeGroup, net.minecraftforge, --fml.mcpVersion, 20230612.114412, nogui]
+[17:48:17] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 10.0.9+10.0.9+main.dcd20f30 starting: java version 17.0.19 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[17:48:17] [main/WARN] [ne.mi.fm.lo.FMLConfig/CORE]: Configuration file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\config\fml.toml is not correct. Correcting
+[17:48:17] [main/INFO] [ne.mi.fm.lo.FMLConfig/CORE]: Incorrect key [earlyWindowSkipGLVersions] was corrected from null to []
+[17:48:17] [main/INFO] [ne.mi.fm.lo.FMLConfig/CORE]: Incorrect key [earlyWindowSquir] was corrected from null to false
+[17:48:17] [main/INFO] [ne.mi.fm.lo.FMLConfig/CORE]: Incorrect key [earlyWindowShowCPU] was corrected from null to false
+[17:48:17] [main/INFO] [ne.mi.fm.lo.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserver
+[17:48:17] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.5 Source=union:/C:/Users/clayg/OneDrive/Documents/mech-arena-ashen-span/pomkots-mechs/build/ashen-span-world/runtime/libraries/org/spongepowered/mixin/0.8.5/mixin-0.8.5.jar%2365!/ Service=ModLauncher Env=SERVER
+[17:48:18] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\fmlcore\1.20.1-47.3.3\fmlcore-1.20.1-47.3.3.jar is missing mods.toml file
+[17:48:18] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\javafmllanguage\1.20.1-47.3.3\javafmllanguage-1.20.1-47.3.3.jar is missing mods.toml file
+[17:48:18] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\lowcodelanguage\1.20.1-47.3.3\lowcodelanguage-1.20.1-47.3.3.jar is missing mods.toml file
+[17:48:18] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\mclanguage\1.20.1-47.3.3\mclanguage-1.20.1-47.3.3.jar is missing mods.toml file
+[17:48:18] [main/INFO] [ne.mi.fm.lo.mo.JarInJarDependencyLocator/]: No dependencies to load found. Skipping!
+[17:48:20] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserver' with arguments [nogui]
+[17:48:32] [modloading-worker-0/INFO] [ne.mi.co.ForgeMod/FORGEMOD]: Forge mod loading, version 47.3.3, for MC 1.20.1 with MCP 20230612.114412
+[17:48:32] [modloading-worker-0/INFO] [ne.mi.co.MinecraftForge/FORGE]: MinecraftForge v47.3.3 Initialized
+[17:48:32] [modloading-worker-0/INFO] [lostcities/]: Creating standard profiles into 'config/lostcities/profiles'
+[17:48:32] [modloading-worker-0/INFO] [lostcities/]: Reading existing profiles from 'config/lostcities/profiles'
+[17:48:33] [main/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Configuration file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\config\lostcities\common.toml is not correct. Correcting
+[17:48:33] [main/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key profiles was corrected from null to its default, SimpleCommentedConfig:{}. 
+[17:48:33] [main/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key profiles.dimensionsWithProfiles was corrected from null to its default, [lostcities:lostcity=biosphere, lostworlds:abyss=biosphere_caves]. 
+[17:48:33] [main/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key profiles.optimizedHeightmap was corrected from null to its default, false. 
+[17:48:33] [main/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key profiles.heightSampleSize was corrected from null to its default, 3. 
+[17:48:34] [Forge Version Check/INFO] [ne.mi.fm.VersionChecker/]: [forge] Starting version check at https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json
+[17:48:35] [Forge Version Check/INFO] [ne.mi.fm.VersionChecker/]: [forge] Found status: OUTDATED Current: 47.3.3 Target: 47.4.10
+[17:48:36] [main/INFO] [mojang/YggdrasilAuthenticationService]: Environment: authHost='https://authserver.mojang.com', accountsHost='https://api.mojang.com', sessionHost='https://sessionserver.mojang.com', servicesHost='https://api.minecraftservices.com', name='PROD'
+[17:48:36] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/C:/Users/clayg/OneDrive/Documents/mech-arena-ashen-span/pomkots-mechs/build/ashen-span-world/runtime/libraries/net/minecraft/server/1.20.1-20230612.114412/server-1.20.1-20230612.114412-srg.jar%23105!/assets/.mcassetsroot' uses unexpected schema
+[17:48:36] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/C:/Users/clayg/OneDrive/Documents/mech-arena-ashen-span/pomkots-mechs/build/ashen-span-world/runtime/libraries/net/minecraft/server/1.20.1-20230612.114412/server-1.20.1-20230612.114412-srg.jar%23105!/data/.mcassetsroot' uses unexpected schema
+[17:48:36] [main/INFO] [minecraft/MinecraftServer]: Found new data pack file/ashen_span_generator, loading it automatically
+[17:48:40] [main/INFO] [minecraft/RecipeManager]: Loaded 7 recipes
+[17:48:40] [main/INFO] [minecraft/AdvancementList]: Loaded 1271 advancements
+[17:48:41] [Server thread/INFO] [minecraft/DedicatedServer]: Starting minecraft server version 1.20.1
+[17:48:41] [Server thread/INFO] [minecraft/DedicatedServer]: Loading properties
+[17:48:41] [Server thread/INFO] [minecraft/DedicatedServer]: Default game type: SURVIVAL
+[17:48:41] [Server thread/INFO] [minecraft/MinecraftServer]: Generating keypair
+[17:48:41] [Server thread/INFO] [minecraft/DedicatedServer]: Starting Minecraft server on 127.0.0.1:0
+[17:48:41] [Server thread/INFO] [minecraft/ServerConnectionListener]: Using default channel type
+[17:48:41] [Server thread/WARN] [minecraft/DedicatedServer]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[17:48:41] [Server thread/WARN] [minecraft/DedicatedServer]: The server will make no attempt to authenticate usernames. Beware.
+[17:48:41] [Server thread/WARN] [minecraft/DedicatedServer]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[17:48:41] [Server thread/WARN] [minecraft/DedicatedServer]: To change this, set "online-mode" to "true" in the server.properties file.
+[17:48:41] [Server thread/INFO] [ne.mi.fm.co.ConfigFileTypeHandler/CONFIG]: Loading default config file from path C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\defaultconfigs\lostcities-server.toml
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Configuration file .\world\serverconfig\lostcities-server.toml is not correct. Correcting
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Configuration file .\world\serverconfig\forge-server.toml is not correct. Correcting
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server was corrected from null to its default, SimpleCommentedConfig:{}. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.removeErroringBlockEntities was corrected from null to its default, false. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.removeErroringEntities was corrected from null to its default, false. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.fullBoundingBoxLadders was corrected from null to its default, false. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.zombieBaseSummonChance was corrected from null to its default, 0.1. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.zombieBabyChance was corrected from null to its default, 0.05. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.permissionHandler was corrected from null to its default, forge:default_handler. 
+[17:48:41] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.advertiseDedicatedServerToLan was corrected from null to its default, true. 
+[17:48:41] [Server thread/INFO] [minecraft/DedicatedServer]: Preparing level "world"
+[17:48:44] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
+[17:48:45] [Worker-Main-2/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:48:45] [Worker-Main-8/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:48:45] [Worker-Main-6/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:48:46] [Worker-Main-1/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:48:46] [Worker-Main-5/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 3%
+[17:48:47] [Worker-Main-10/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 6%
+[17:48:47] [Worker-Main-1/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 10%
+[17:48:48] [Worker-Main-10/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 16%
+[17:48:48] [Worker-Main-6/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 22%
+[17:48:49] [Worker-Main-13/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 27%
+[17:48:49] [Worker-Main-4/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 35%
+[17:48:50] [Worker-Main-11/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 43%
+[17:48:50] [Worker-Main-1/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 51%
+[17:48:51] [Worker-Main-10/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 57%
+[17:48:51] [Worker-Main-15/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 62%
+[17:48:52] [Worker-Main-5/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 72%
+[17:48:52] [Worker-Main-4/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 88%
+[17:48:53] [Server thread/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 8294 ms
+[17:48:53] [Server thread/INFO] [minecraft/DedicatedServer]: Done (11.452s)! For help, type "help"
+[17:48:53] [LanServerPinger #1/WARN] [minecraft/LanServerPinger]: LanServerPinger: Network is unreachable: sendto
+[17:48:53] [Server thread/INFO] [ne.mi.se.pe.PermissionAPI/]: Successfully initialized permission handler forge:default_handler
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doDaylightCycle is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doEntityDrops is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doFireTick is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doInsomnia is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doMobLoot is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doMobSpawning is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doPatrolSpawning is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doTileDrops is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doTraderSpawning is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doWardenSpawning is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doWeatherCycle is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule mobGriefing is now set to: false
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule randomTickSpeed is now set to: 0
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Set the time to 11000
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Set the weather to clear
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Set the world spawn point to -160, 83, 0 [0.0]
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: The difficulty did not change; it is already set to normal
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_WORLD_RULES_DONE
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Marked chunk [-11, -2] in minecraft:overworld to be force loaded
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_FORCELOAD_DONE
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_M11_M2_LOADED
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_LOAD_CHECK_1_DONE
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_MARKER_1_OK
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_MARKER_2_OK
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_MARKER_3_OK
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_MARKER_4_OK
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_MARKERS_DONE
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Unmarked chunk [-11, -2] in minecraft:overworld for force loading
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_RELEASE_DONE
+[17:48:53] [Server thread/INFO] [minecraft/MinecraftServer]: Saving the game (this may take a moment!)
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_PROOF_FINAL_DONE
+[17:48:58] [Server thread/WARN] [minecraft/MinecraftServer]: Can't keep up! Is the server overloaded? Running 4968ms or 99 ticks behind
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping the server
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
+[17:48:58] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
+[17:48:59] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/lostcities:lostcity
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:49:02] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved

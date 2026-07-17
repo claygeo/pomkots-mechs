@@ -1,0 +1,50 @@
+Operation Ashen Span mp.25/RC5 dedicated-server smoke
+Measured: 2026-07-16 America/New_York
+Mode: noninteractive Forge 47.3.3 dedicated server, console only
+
+Runtime
+  Java: Eclipse Adoptium 17.0.19+10
+  Java SHA-256: b3afe83e1ab067da4c56f1a7b2ba4c14ec832d694333f35b2b45178e9ac596ef
+  Forge runtime tree SHA-256: 1159a5bc02501e3971b397576f979b78e510f7defefd7988611e5b1e0637a0bf
+  View distance: 6
+  Simulation distance: 6
+
+Pinned content
+  Pomkots mp.25 JAR: locally rebuilt from the final tested source
+  Lost Cities: lostcities-1.20-7.4.13.jar
+  Lost Cities SHA-256: da5ae1b0c0d0c8066f2971c9adb57d18657c4844aad6cba4f9f07f7946e30a95
+  Sector asset SHA-256: e1ac026bc07966803c5f3afcf455a0b6b7f924f4131c52600355944a5cbbefa9
+  Embedded profile SHA-256: 836b07b6493f4381587960e592058e9c78a9c71118fab3597796e040172f9018
+  Mods: Pomkots, Lost Cities, Sector asset, Architectury 9.2.14,
+        Cloth Config 11.1.136, GeckoLib 4.4.9 (exactly six)
+
+Input world inventory
+  Terrain chunks: 680
+  Status: all full
+  Bounds: x=-17..16, z=-10..9
+
+Console input
+  arena solo validate
+  stop
+
+Observed result
+  Server reached Done in 1.378 seconds after level preparation.
+  Arena contract PASS: 680 full safety chunks and 47 physical markers verified.
+  Stop completed cleanly; Java process exit code 0.
+  Output world terrain chunks: 680
+  Output status: all full
+  Output bounds: x=-17..16, z=-10..9
+  No persisted proto-chunk dependency halo.
+
+Full local logs (ignored scratch, hashes retained here)
+  latest.log: 71,948 bytes
+  SHA-256: 6f7ac3da7ead53df8e11abc2b586de549e6291afaaec714bb3d0ede2497cb9c9
+  smoke-console.log: 69,490 bytes
+  SHA-256: 5898448564662f90df5c8abedd7b01fd91e1da26f9dfe7b71085be83808f19f1
+
+Expected inherited diagnostic
+  The baseline CameraAccessor is listed as a common mixin, so Forge logs one
+  dedicated-dist Camera lookup error/warning before continuing. This behavior
+  exists at fec9e9d; it did not prevent startup, validation, or clean shutdown.
+
+No interactive client or gameplay session was launched.

@@ -1,0 +1,828 @@
+2026-07-16 17:49:07,723 main WARN Advanced terminal features are not available in this environment
+[17:49:07] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher running: args [--launchTarget, forgeserver, --fml.forgeVersion, 47.3.3, --fml.mcVersion, 1.20.1, --fml.forgeGroup, net.minecraftforge, --fml.mcpVersion, 20230612.114412, nogui]
+[17:49:08] [main/INFO] [cp.mo.mo.Launcher/MODLAUNCHER]: ModLauncher 10.0.9+10.0.9+main.dcd20f30 starting: java version 17.0.19 by Eclipse Adoptium; OS Windows 11 arch amd64 version 10.0
+[17:49:08] [main/INFO] [ne.mi.fm.lo.ImmediateWindowHandler/]: ImmediateWindowProvider not loading because launch target is forgeserver
+[17:49:08] [main/INFO] [mixin/]: SpongePowered MIXIN Subsystem Version=0.8.5 Source=union:/C:/Users/clayg/OneDrive/Documents/mech-arena-ashen-span/pomkots-mechs/build/ashen-span-world/runtime/libraries/org/spongepowered/mixin/0.8.5/mixin-0.8.5.jar%2365!/ Service=ModLauncher Env=SERVER
+[17:49:08] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\fmlcore\1.20.1-47.3.3\fmlcore-1.20.1-47.3.3.jar is missing mods.toml file
+[17:49:08] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\javafmllanguage\1.20.1-47.3.3\javafmllanguage-1.20.1-47.3.3.jar is missing mods.toml file
+[17:49:09] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\lowcodelanguage\1.20.1-47.3.3\lowcodelanguage-1.20.1-47.3.3.jar is missing mods.toml file
+[17:49:09] [main/WARN] [ne.mi.fm.lo.mo.ModFileParser/LOADING]: Mod file C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\libraries\net\minecraftforge\mclanguage\1.20.1-47.3.3\mclanguage-1.20.1-47.3.3.jar is missing mods.toml file
+[17:49:09] [main/INFO] [ne.mi.fm.lo.mo.JarInJarDependencyLocator/]: No dependencies to load found. Skipping!
+[17:49:11] [main/INFO] [cp.mo.mo.LaunchServiceHandler/MODLAUNCHER]: Launching target 'forgeserver' with arguments [nogui]
+[17:49:22] [modloading-worker-0/INFO] [ne.mi.co.ForgeMod/FORGEMOD]: Forge mod loading, version 47.3.3, for MC 1.20.1 with MCP 20230612.114412
+[17:49:22] [modloading-worker-0/INFO] [ne.mi.co.MinecraftForge/FORGE]: MinecraftForge v47.3.3 Initialized
+[17:49:22] [modloading-worker-0/INFO] [lostcities/]: Creating standard profiles into 'config/lostcities/profiles'
+[17:49:22] [modloading-worker-0/INFO] [lostcities/]: Reading existing profiles from 'config/lostcities/profiles'
+[17:49:24] [Forge Version Check/INFO] [ne.mi.fm.VersionChecker/]: [forge] Starting version check at https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json
+[17:49:25] [Forge Version Check/INFO] [ne.mi.fm.VersionChecker/]: [forge] Found status: OUTDATED Current: 47.3.3 Target: 47.4.10
+[17:49:26] [main/INFO] [mojang/YggdrasilAuthenticationService]: Environment: authHost='https://authserver.mojang.com', accountsHost='https://api.mojang.com', sessionHost='https://sessionserver.mojang.com', servicesHost='https://api.minecraftservices.com', name='PROD'
+[17:49:26] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/C:/Users/clayg/OneDrive/Documents/mech-arena-ashen-span/pomkots-mechs/build/ashen-span-world/runtime/libraries/net/minecraft/server/1.20.1-20230612.114412/server-1.20.1-20230612.114412-srg.jar%23105!/assets/.mcassetsroot' uses unexpected schema
+[17:49:26] [main/WARN] [minecraft/VanillaPackResourcesBuilder]: Assets URL 'union:/C:/Users/clayg/OneDrive/Documents/mech-arena-ashen-span/pomkots-mechs/build/ashen-span-world/runtime/libraries/net/minecraft/server/1.20.1-20230612.114412/server-1.20.1-20230612.114412-srg.jar%23105!/data/.mcassetsroot' uses unexpected schema
+[17:49:26] [main/INFO] [minecraft/MinecraftServer]: Found new data pack file/ashen_span_generator, loading it automatically
+[17:49:29] [main/INFO] [minecraft/RecipeManager]: Loaded 7 recipes
+[17:49:30] [main/INFO] [minecraft/AdvancementList]: Loaded 1271 advancements
+[17:49:30] [Server thread/INFO] [minecraft/DedicatedServer]: Starting minecraft server version 1.20.1
+[17:49:30] [Server thread/INFO] [minecraft/DedicatedServer]: Loading properties
+[17:49:30] [Server thread/INFO] [minecraft/DedicatedServer]: Default game type: SURVIVAL
+[17:49:30] [Server thread/INFO] [minecraft/MinecraftServer]: Generating keypair
+[17:49:30] [Server thread/INFO] [minecraft/DedicatedServer]: Starting Minecraft server on 127.0.0.1:0
+[17:49:30] [Server thread/INFO] [minecraft/ServerConnectionListener]: Using default channel type
+[17:49:31] [Server thread/WARN] [minecraft/DedicatedServer]: **** SERVER IS RUNNING IN OFFLINE/INSECURE MODE!
+[17:49:31] [Server thread/WARN] [minecraft/DedicatedServer]: The server will make no attempt to authenticate usernames. Beware.
+[17:49:31] [Server thread/WARN] [minecraft/DedicatedServer]: While this makes the game possible to play without internet access, it also opens up the ability for hackers to connect with any username they choose.
+[17:49:31] [Server thread/WARN] [minecraft/DedicatedServer]: To change this, set "online-mode" to "true" in the server.properties file.
+[17:49:31] [Server thread/INFO] [ne.mi.fm.co.ConfigFileTypeHandler/CONFIG]: Loading default config file from path C:\Users\clayg\OneDrive\Documents\mech-arena-ashen-span\pomkots-mechs\build\ashen-span-world\runtime\defaultconfigs\lostcities-server.toml
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Configuration file .\world\serverconfig\lostcities-server.toml is not correct. Correcting
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Configuration file .\world\serverconfig\forge-server.toml is not correct. Correcting
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server was corrected from null to its default, SimpleCommentedConfig:{}. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.removeErroringBlockEntities was corrected from null to its default, false. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.removeErroringEntities was corrected from null to its default, false. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.fullBoundingBoxLadders was corrected from null to its default, false. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.zombieBaseSummonChance was corrected from null to its default, 0.1. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.zombieBabyChance was corrected from null to its default, 0.05. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.permissionHandler was corrected from null to its default, forge:default_handler. 
+[17:49:31] [Server thread/WARN] [ne.mi.co.ForgeConfigSpec/CORE]: Incorrect key server.advertiseDedicatedServerToLan was corrected from null to its default, true. 
+[17:49:31] [Server thread/INFO] [minecraft/DedicatedServer]: Preparing level "world"
+[17:49:33] [Server thread/INFO] [minecraft/MinecraftServer]: Preparing start region for dimension minecraft:overworld
+[17:49:34] [Worker-Main-2/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:49:34] [Worker-Main-3/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:49:34] [Worker-Main-4/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:49:35] [Worker-Main-9/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 0%
+[17:49:35] [Worker-Main-1/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 2%
+[17:49:36] [Worker-Main-13/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 5%
+[17:49:36] [Worker-Main-13/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 10%
+[17:49:37] [Worker-Main-10/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 15%
+[17:49:37] [Worker-Main-9/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 20%
+[17:49:38] [Worker-Main-10/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 26%
+[17:49:38] [Worker-Main-8/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 34%
+[17:49:39] [Worker-Main-2/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 43%
+[17:49:39] [Worker-Main-11/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 54%
+[17:49:40] [Worker-Main-6/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 65%
+[17:49:40] [Worker-Main-12/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 79%
+[17:49:41] [Worker-Main-7/INFO] [minecraft/LoggerChunkProgressListener]: Preparing spawn area: 94%
+[17:49:41] [Server thread/INFO] [minecraft/LoggerChunkProgressListener]: Time elapsed: 7627 ms
+[17:49:41] [Server thread/INFO] [minecraft/DedicatedServer]: Done (10.334s)! For help, type "help"
+[17:49:41] [LanServerPinger #1/WARN] [minecraft/LanServerPinger]: LanServerPinger: Network is unreachable: sendto
+[17:49:41] [Server thread/INFO] [ne.mi.se.pe.PermissionAPI/]: Successfully initialized permission handler forge:default_handler
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doDaylightCycle is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doEntityDrops is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doFireTick is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doInsomnia is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doMobLoot is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doMobSpawning is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doPatrolSpawning is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doTileDrops is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doTraderSpawning is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doWardenSpawning is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule doWeatherCycle is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule mobGriefing is now set to: false
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Gamerule randomTickSpeed is now set to: 0
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Set the time to 11000
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Set the weather to clear
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: Set the world spawn point to -160, 83, 0 [0.0]
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: The difficulty did not change; it is already set to normal
+[17:49:41] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_WORLD_RULES_DONE
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: Marked [-17, -10] chunks in minecraft:overworld from [-17, -10] to [-6, 9] to be force loaded
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_ADD_DONE
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M10_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M11_P9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M10_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M10_P9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M10_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M9_P9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M10_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M8_P9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M10_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M7_P9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M10_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_M1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P0_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P1_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P2_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P3_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P4_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P5_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P6_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P7_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P8_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M6_P9_LOADED
+[17:49:42] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_LOAD_CHECK_1_DONE
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M10_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_M8_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P8_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M17_P9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M10_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_M8_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P8_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M16_P9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M10_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_M9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P8_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M15_P9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M10_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_M9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P8_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M14_P9_LOADED
+[17:49:44] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M10_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_M9_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P8_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M13_P9_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M10_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_M9_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_M12_P9_LOADED
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_LOAD_CHECK_2_DONE
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: Unmarked [-17, -10] chunks in minecraft:overworld from [-17, -10] to [-6, 9] for force loading
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_REMOVE_DONE
+[17:49:45] [Server thread/INFO] [minecraft/MinecraftServer]: Saving the game (this may take a moment!)
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_1_FINAL_DONE
+[17:49:48] [Server thread/WARN] [minecraft/MinecraftServer]: Can't keep up! Is the server overloaded? Running 3193ms or 63 ticks behind
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: Marked [-5, -10] chunks in minecraft:overworld from [-5, -10] to [6, 9] to be force loaded
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_ADD_DONE
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M5_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M4_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M3_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M2_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_M1_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P0_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M10_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_M1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P0_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P1_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P2_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P3_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P4_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P5_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P6_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P7_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P8_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P1_P9_LOADED
+[17:49:48] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_LOAD_CHECK_1_DONE
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M10_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_M1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P0_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P2_P9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M10_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_M1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P0_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P3_P9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M10_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_M1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P0_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P4_P9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M10_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_M1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P0_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P5_P9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M10_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_M1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P0_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P1_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P2_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P3_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P4_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P5_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P6_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P7_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P8_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_P6_P9_LOADED
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_LOAD_CHECK_2_DONE
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: Unmarked [-5, -10] chunks in minecraft:overworld from [-5, -10] to [6, 9] for force loading
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_REMOVE_DONE
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: Saving the game (this may take a moment!)
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game
+[17:49:50] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_2_FINAL_DONE
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: Marked [7, -10] chunks in minecraft:overworld from [7, -10] to [16, 9] to be force loaded
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_ADD_DONE
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M10_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P7_P9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M10_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P8_P9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M10_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P9_P9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M9_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M8_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P0_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P1_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P2_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P3_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P4_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P5_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P6_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P7_LOADED
+[17:49:51] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_LOAD_CHECK_1_DONE
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P10_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P11_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P12_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P13_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P8_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P14_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M8_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M7_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M6_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M5_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M4_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M3_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M2_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_M1_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P0_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P1_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P2_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P3_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P4_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P5_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P6_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P7_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P8_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P15_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M10_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M8_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M7_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M6_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M5_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M4_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M3_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M2_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_M1_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P0_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P1_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P2_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P3_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P4_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P5_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P6_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P7_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P8_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_P16_P9_LOADED
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_LOAD_CHECK_2_DONE
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: Unmarked [7, -10] chunks in minecraft:overworld from [7, -10] to [16, 9] for force loading
+[17:49:53] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_REMOVE_DONE
+[17:49:54] [Server thread/INFO] [minecraft/MinecraftServer]: Saving the game (this may take a moment!)
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_BATCH_3_FINAL_DONE
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saving the game (this may take a moment!)
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saved the game
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: [Not Secure] [Server] ASHEN_FULL_FINAL_DONE
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping the server
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Stopping server
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saving players
+[17:49:55] [Server thread/INFO] [minecraft/MinecraftServer]: Saving worlds
+[17:49:56] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/minecraft:overworld
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/lostcities:lostcity
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_nether
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: Saving chunks for level 'ServerLevel[world]'/minecraft:the_end
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (world): All chunks are saved
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (lostcity): All chunks are saved
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM-1): All chunks are saved
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage (DIM1): All chunks are saved
+[17:50:00] [Server thread/INFO] [minecraft/MinecraftServer]: ThreadedAnvilChunkStorage: All dimensions are saved

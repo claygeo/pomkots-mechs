@@ -6,6 +6,22 @@ loom {
     forge {
         mixinConfig "pomkotsmechs.mixins.json"
     }
+
+    runs {
+        gameTestServer {
+            environment "gameTestServer"
+            source sourceSets.main
+            forgeTemplate "gameTestServer"
+            name "Ashen Span Game Tests"
+            runDir "run/gametest"
+            property "forge.enableGameTest", "true"
+            property "forge.gameTestServer", "true"
+            property "forge.enabledGameTestNamespaces", "pomkotsmechs"
+            // Loom 1.6 lower-cases custom environment names, but Forge's launch
+            // config key is camel-cased. Override the DLI lookup key exactly.
+            property "fabric.dli.env", "gameTestServer"
+        }
+    }
 }
 
 architectury {
@@ -72,4 +88,83 @@ shadowJar {
 
 remapJar {
     input.set shadowJar.archiveFile
+}
+
+// GameTest structures are compressed NBT, which is not representable as a text
+// patch. Generate the one-block empty template from a fixed byte-level recipe so
+// clean checkouts and offline builds receive identical namespaced test resources.
+def generatedGameTestResources = layout.buildDirectory.dir("generated/gameTestResources")
+def generatedEmptyGameTestStructure = generatedGameTestResources.map {
+    it.file("data/pomkotsmechs/structures/gametest/empty.nbt")
+}
+
+tasks.register("generateGameTestStructure") {
+    outputs.file(generatedEmptyGameTestStructure)
+    doLast {
+        File target = generatedEmptyGameTestStructure.get().asFile
+        target.parentFile.mkdirs()
+        target.withOutputStream { raw ->
+            def data = new DataOutputStream(new java.util.zip.GZIPOutputStream(raw))
+            data.writeByte(10) // root compound
+            data.writeUTF("")
+
+            data.writeByte(3)
+            data.writeUTF("DataVersion")
+            data.writeInt(3465) // Minecraft 1.20.1
+
+            data.writeByte(9)
+            data.writeUTF("size")
+            data.writeByte(3)
+            data.writeInt(3)
+            data.writeInt(24)
+            data.writeInt(2)
+            data.writeInt(24)
+
+            data.writeByte(9)
+            data.writeUTF("palette")
+            data.writeByte(10)
+            data.writeInt(1)
+            data.writeByte(8)
+            data.writeUTF("Name")
+            data.writeUTF("minecraft:air")
+            data.writeByte(0)
+
+            data.writeByte(9)
+            data.writeUTF("blocks")
+            data.writeByte(10)
+            data.writeInt(1)
+            data.writeByte(9)
+            data.writeUTF("pos")
+            data.writeByte(3)
+            data.writeInt(3)
+            data.writeInt(0)
+            data.writeInt(0)
+            data.writeInt(0)
+            data.writeByte(3)
+            data.writeUTF("state")
+            data.writeInt(0)
+            data.writeByte(0)
+
+            data.writeByte(9)
+            data.writeUTF("entities")
+            data.writeByte(10)
+            data.writeInt(0)
+            data.writeByte(0)
+            data.close()
+        }
+    }
+}
+
+sourceSets.main.resources.srcDir(generatedGameTestResources)
+tasks.named("processResources").configure {
+    dependsOn("generateGameTestStructure")
+}
+tasks.named("sourcesJar").configure {
+    dependsOn("generateGameTestStructure")
+}
+
+tasks.named("runGameTestServer").configure {
+    // Forge's dedicated GameTest server exits nonzero when any registered test
+    // fails; preserve JavaExec's fail-fast behavior for the offlineCheck gate.
+    ignoreExitValue = false
 }

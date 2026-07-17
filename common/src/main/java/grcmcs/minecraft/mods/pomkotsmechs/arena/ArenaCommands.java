@@ -41,8 +41,8 @@ public final class ArenaCommands {
                 // --- solo combat (no permission; the caller owns their run) ---
                 .then(Commands.literal("solo")
                         .then(Commands.literal("start")
-                                .executes(ctx -> ArenaManager.commandSoloStart(ctx.getSource(), 0, null))
-                                .then(Commands.argument("build", IntegerArgumentType.integer(0, GarageFleet.size() - 1))
+                                .executes(ctx -> ArenaManager.commandSoloStart(ctx.getSource(), 1, null))
+                                .then(Commands.argument("build", IntegerArgumentType.integer(1, GarageFleet.size()))
                                         .executes(ctx -> ArenaManager.commandSoloStart(ctx.getSource(),
                                                 IntegerArgumentType.getInteger(ctx, "build"), null))
                                         .then(Commands.argument("seed", LongArgumentType.longArg())
@@ -53,6 +53,9 @@ public final class ArenaCommands {
                                 .executes(ctx -> ArenaManager.commandSoloRetry(ctx.getSource())))
                         .then(Commands.literal("status")
                                 .executes(ctx -> ArenaManager.commandSoloStatus(ctx.getSource())))
+                        .then(Commands.literal("validate")
+                                .requires(src -> src.hasPermission(2))
+                                .executes(ctx -> ArenaManager.commandSoloValidate(ctx.getSource())))
                         .then(Commands.literal("stop")
                                 .executes(ctx -> ArenaManager.commandSoloStop(ctx.getSource())))
                         .then(Commands.literal("debug")

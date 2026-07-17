@@ -13,4 +13,12 @@ class BossHitBoxEntityTest {
         assertFalse(BossHitBoxPolicy.isParentActive(true, false, false));
         assertFalse(BossHitBoxPolicy.isParentActive(false, false, false));
     }
+
+    @Test
+    void stagedOrInvulnerableHitBoxRejectsDamageBeforeBreakAccounting() {
+        assertTrue(BossHitBoxPolicy.rejectsDamage(true, false));
+        assertTrue(BossHitBoxPolicy.rejectsDamage(false, true));
+        assertTrue(BossHitBoxPolicy.rejectsDamage(true, true));
+        assertFalse(BossHitBoxPolicy.rejectsDamage(false, false));
+    }
 }
