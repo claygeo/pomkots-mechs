@@ -46,6 +46,14 @@ class ArenaManagerTest {
     }
 
     @Test
+    void soloDeploymentCollisionGateRejectsBlocksAndNonPlayerObstructions() {
+        assertTrue(ArenaManager.soloDeploymentCollisionFree(false, false));
+        assertFalse(ArenaManager.soloDeploymentCollisionFree(true, false));
+        assertFalse(ArenaManager.soloDeploymentCollisionFree(false, true));
+        assertFalse(ArenaManager.soloDeploymentCollisionFree(true, true));
+    }
+
+    @Test
     void soloDeathClassificationRetainsCauseWithoutChangingDuelOrRoyale() {
         assertEquals(AshenSpanMissionModel.DefeatReason.PLAYER_DESTROYED,
                 ArenaManager.classifySoloFighterDeath(Mode.SOLO, false, false, true));

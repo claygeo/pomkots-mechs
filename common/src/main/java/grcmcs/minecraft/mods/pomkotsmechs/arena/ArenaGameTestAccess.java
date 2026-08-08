@@ -3,6 +3,7 @@ package grcmcs.minecraft.mods.pomkotsmechs.arena;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.level.Level;
@@ -58,6 +59,12 @@ public final class ArenaGameTestAccess {
 
     public static boolean prepareSoloGarageBuild(LivingEntity mech) {
         return ArenaManager.prepareSoloGarageBuild(mech);
+    }
+
+    public static boolean isSoloDeploymentPadClear(ServerLevel level,
+                                                    LivingEntity mech,
+                                                    ServerPlayer player) {
+        return ArenaManager.isSoloDeploymentPadClear(level, mech, player);
     }
 
     public static void clearTransientDescendantsForRelocation(

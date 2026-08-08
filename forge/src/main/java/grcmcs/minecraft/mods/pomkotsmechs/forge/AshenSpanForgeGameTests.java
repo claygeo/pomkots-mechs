@@ -1,5 +1,6 @@
 package grcmcs.minecraft.mods.pomkotsmechs.forge;
 
+import com.mojang.authlib.GameProfile;
 import grcmcs.minecraft.mods.pomkotsmechs.PomkotsMechs;
 import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaData;
 import grcmcs.minecraft.mods.pomkotsmechs.arena.ArenaGameTestAccess;
@@ -26,6 +27,7 @@ import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.item.Item;
@@ -34,6 +36,7 @@ import net.minecraft.world.level.GameRules;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.HorizontalDirectionalBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
@@ -41,7 +44,11 @@ import net.minecraftforge.common.util.FakePlayer;
 import net.minecraftforge.common.util.FakePlayerFactory;
 import software.bernie.geckolib.animatable.GeoItem;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 /** Headless, world-backed coverage for the authored Ashen Span runtime seams. */
 @GameTestHolder(PomkotsMechs.MODID)
@@ -117,6 +124,64 @@ public final class AshenSpanForgeGameTests {
             }
         }
         helper.assertTrue(GarageFleet.size() == 6, "Garage Fleet roster is not locked to six builds");
+        helper.succeed();
+    }
+
+    @GameTest(template = EMPTY_TEMPLATE, timeoutTicks = 200)
+    public static void soloDeploymentAtPlayerPadExcludesPilotButRejectsNonPlayerBlocker(
+            GameTestHelper helper) {
+        ServerLevel level = helper.getLevel();
+        Vec3 pad = new Vec3(AshenSpanDefinition.PLAYER_PAD.x(),
+                AshenSpanDefinition.PLAYER_PAD.y(), AshenSpanDefinition.PLAYER_PAD.z());
+        Pmvc01Entity mech = buildMech(helper, level, 0);
+        CollidableGameTestPlayer pilot = new CollidableGameTestPlayer(level,
+                new GameProfile(UUID.fromString("00000000-0000-0000-0000-000000002505"),
+                        "ashen-span-pad-pilot"));
+        Entity blocker = EntityType.BOAT.create(level);
+        helper.assertTrue(blocker != null, "vanilla Boat blocker was unavailable");
+        Map<BlockPos, BlockState> originalBlocks = new LinkedHashMap<>();
+        Set<UUID> createdIds = Set.of(mech.getUUID(), pilot.getUUID(), blocker.getUUID());
+
+        ArenaGameTestAccess.endOwnership();
+        mech.setPos(pad);
+        prepareDeploymentPad(level, mech.getBoundingBox(), originalBlocks);
+        try {
+            pilot.setPos(pad);
+            level.addNewPlayer(pilot);
+            helper.assertTrue(!level.noCollision(mech, mech.getBoundingBox()),
+                    "GameTest fixture did not reproduce the caller entity collision");
+            helper.assertTrue(ArenaGameTestAccess.isSoloDeploymentPadClear(level, mech, pilot),
+                    "player at the authored PLAYER_PAD incorrectly blocked SOLO deployment");
+
+            helper.assertTrue(ArenaGameTestAccess.prepareSoloGarageBuild(mech),
+                    "Garage build was not ready for the deployment mount");
+            helper.assertTrue(level.addFreshEntity(mech),
+                    "player mech could not enter the world after pad validation");
+            helper.assertTrue(pilot.startRiding(mech, true)
+                            && mech.getDrivingPassenger() == pilot,
+                    "player at PLAYER_PAD could not mount the validated Garage build");
+
+            blocker.setPos(pad);
+            helper.assertTrue(blocker.canBeCollidedWith(),
+                    "Boat fixture was not a collidable non-player obstruction");
+            helper.assertTrue(level.addFreshEntity(blocker),
+                    "non-player blocker could not enter the deployment pad");
+            helper.assertTrue(!ArenaGameTestAccess.isSoloDeploymentPadClear(level, mech, pilot),
+                    "collidable non-player entity did not block SOLO deployment");
+        } finally {
+            pilot.stopRiding();
+            blocker.discard();
+            mech.discard();
+            if (!pilot.isRemoved()) {
+                level.removePlayerImmediately(pilot, Entity.RemovalReason.DISCARDED);
+            }
+            ArenaGameTestAccess.endOwnership();
+            restoreBlocks(level, originalBlocks);
+        }
+
+        helper.assertTrue(createdIds.stream().allMatch(id -> level.getEntity(id) == null)
+                        && !ArenaHooks.isActive(),
+                "deployment regression GameTest did not clean its entities to exact zero");
         helper.succeed();
     }
 
@@ -788,6 +853,43 @@ public final class AshenSpanForgeGameTests {
                 label + " did not restore a clean deterministic garage state");
     }
 
+    private static void prepareDeploymentPad(ServerLevel level, AABB box,
+                                             Map<BlockPos, BlockState> originalBlocks) {
+        int minX = (int) Math.floor(box.minX);
+        int maxX = (int) Math.floor(Math.nextDown(box.maxX));
+        int minZ = (int) Math.floor(box.minZ);
+        int maxZ = (int) Math.floor(Math.nextDown(box.maxZ));
+        int minY = (int) Math.floor(box.minY);
+        int maxY = (int) Math.ceil(box.maxY) - 1;
+        for (int chunkX = minX >> 4; chunkX <= maxX >> 4; chunkX++) {
+            for (int chunkZ = minZ >> 4; chunkZ <= maxZ >> 4; chunkZ++) {
+                level.getChunk(chunkX, chunkZ);
+            }
+        }
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                setTemporaryBlock(level, new BlockPos(x, minY - 1, z),
+                        Blocks.STONE.defaultBlockState(), originalBlocks);
+                for (int y = minY; y <= maxY; y++) {
+                    setTemporaryBlock(level, new BlockPos(x, y, z),
+                            Blocks.AIR.defaultBlockState(), originalBlocks);
+                }
+            }
+        }
+    }
+
+    private static void setTemporaryBlock(ServerLevel level, BlockPos pos,
+                                          BlockState state,
+                                          Map<BlockPos, BlockState> originalBlocks) {
+        originalBlocks.putIfAbsent(pos.immutable(), level.getBlockState(pos));
+        level.setBlock(pos, state, 3);
+    }
+
+    private static void restoreBlocks(ServerLevel level,
+                                      Map<BlockPos, BlockState> originalBlocks) {
+        originalBlocks.forEach((pos, state) -> level.setBlock(pos, state, 3));
+    }
+
     private static void buildSupportPlatform(GameTestHelper helper,
                                              int minX, int maxX, int minZ, int maxZ) {
         ServerLevel level = helper.getLevel();
@@ -828,5 +930,16 @@ public final class AshenSpanForgeGameTests {
             }
         }
         return copy;
+    }
+
+    private static final class CollidableGameTestPlayer extends FakePlayer {
+        private CollidableGameTestPlayer(ServerLevel level, GameProfile profile) {
+            super(level, profile);
+        }
+
+        @Override
+        public boolean canBeCollidedWith() {
+            return true;
+        }
     }
 }

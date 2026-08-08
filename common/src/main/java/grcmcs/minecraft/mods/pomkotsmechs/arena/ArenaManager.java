@@ -2336,15 +2336,7 @@ public final class ArenaManager {
         Vec3 spawn = new Vec3(AshenSpanDefinition.PLAYER_PAD.x(),
                 AshenSpanDefinition.PLAYER_PAD.y(), AshenSpanDefinition.PLAYER_PAD.z());
         mech.setPos(spawn.x, spawn.y, spawn.z);
-        AABB spawnBox = mech.getBoundingBox();
-        BlockPos spawnFloor = BlockPos.containing(spawn.x, spawn.y, spawn.z).below();
-        if (!level.hasChunkAt(spawnFloor)
-                || !level.getBlockState(spawnFloor).isFaceSturdy(level, spawnFloor, Direction.UP)
-                || !isAabbLoaded(level, spawnBox)
-                || !hasSturdyFootprint(level, spawnBox)
-                || !level.noCollision(mech, spawnBox)
-                || !level.getEntities(mech, spawnBox,
-                entity -> entity != player && entity.canBeCollidedWith()).isEmpty()) {
+        if (!isSoloDeploymentPadClear(level, mech, player)) {
             mech.discard();
             src.sendFailure(Component.literal(PREFIX
                     + "The authored Garage deployment pad is blocked or not loaded."));
@@ -2460,6 +2452,31 @@ public final class ArenaManager {
         }
         customMech.resetForArenaService();
         return true;
+    }
+
+    /**
+     * Validates the fixed Garage deployment pad without treating the command's
+     * starting player as an obstruction.  Minecraft 1.20.1's
+     * {@code noCollision(Entity, AABB)} includes entity collision shapes, so it
+     * cannot be composed with the following caller-excluding entity query.
+     */
+    static boolean isSoloDeploymentPadClear(ServerLevel level, LivingEntity mech,
+                                             ServerPlayer player) {
+        AABB spawnBox = mech.getBoundingBox();
+        BlockPos spawnFloor = BlockPos.containing(mech.position()).below();
+        return level.hasChunkAt(spawnFloor)
+                && level.getBlockState(spawnFloor).isFaceSturdy(level, spawnFloor, Direction.UP)
+                && isAabbLoaded(level, spawnBox)
+                && hasSturdyFootprint(level, spawnBox)
+                && soloDeploymentCollisionFree(
+                        level.getBlockCollisions(mech, spawnBox).iterator().hasNext(),
+                        !level.getEntities(mech, spawnBox,
+                                entity -> entity != player && entity.canBeCollidedWith()).isEmpty());
+    }
+
+    static boolean soloDeploymentCollisionFree(boolean hasBlockCollision,
+                                                boolean hasNonPlayerObstruction) {
+        return !hasBlockCollision && !hasNonPlayerObstruction;
     }
 
     /** Finds a nearby surface that fits the complete custom-mech bounding box. */
