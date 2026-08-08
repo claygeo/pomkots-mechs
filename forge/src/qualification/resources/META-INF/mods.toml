@@ -1,0 +1,26 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved - internal qualification tooling only"
+
+[[mods]]
+modId="ashen_span_qualification"
+version="1.1.0"
+displayName="Ashen Span Qualification Probe"
+description='''Unshipped, property-gated headless acceptance probe.'''
+
+[[dependencies.ashen_span_qualification]]
+modId="forge"
+mandatory=true
+versionRange="[47.3.3,48)"
+ordering="NONE"
+side="SERVER"
+
+[[mixins]]
+config="ashen_span_qualification.mixins.json"
+
+[[dependencies.ashen_span_qualification]]
+modId="pomkotsmechs"
+mandatory=true
+versionRange="[0,)"
+ordering="AFTER"
+side="SERVER"

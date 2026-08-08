@@ -1,5 +1,14 @@
 # Operation Ashen Span — Offline mp.25/RC5 Engineering Plan
 
+> **SUPERSEDED RELEASE VERDICT — BLOCKED.** The historical implementation and
+> no-player smoke evidence below remain measured facts, but they do not qualify RC5.
+> Later pinned-source analysis and headless same-chunk reproduction proved that genuine
+> 6/6 player tickets create 17 forbidden FULL chunks outside the locked 680-chunk safety
+> envelope. Do not launch, qualify, package RC6, or publish until an authoritative spec
+> erratum is implemented and a regenerated candidate passes exact-pad one-build and
+> six-build headless acceptance. See
+> [the safety-envelope blocker](docs/ashen-span-hardening/SAFETY_ENVELOPE_BLOCKER.md).
+
 Date: 2026-07-16
 Branch: `feat/ashen-span`
 Baseline: `fec9e9dfba10ecb17b2734a842339d0b8908b2c5`
@@ -303,8 +312,9 @@ integration, artifacts, review, and evidence remain sequential.
   destructible bridge, capture/escort, or public multiplayer: explicitly deferred.
 - New GUI/HUD, models, textures, shaders, music, voice, or animation dependency: the
   mission uses existing title/actionbar/chat and presentation assets.
-- Release, aliases, upstream PR, deployment, or live play: this stops at an offline
-  candidate. Balance/FPS/compatibility/screenshots/soak remain live validation.
+- Release, aliases, upstream PR, deployment, or live play were excluded. The work stopped
+  at a historical offline candidate, which later player-ticket evidence invalidated for
+  bounded-world qualification.
 
 ## Review report
 
@@ -316,6 +326,7 @@ integration, artifacts, review, and evidence remain sequential.
 | Baseline build | PASS | Common, Fabric, and Forge build successful |
 | Final diff review | CLEAR | Independent runtime/spec and packaging reviews found no P0/P1 issue or scope violation |
 | Investigation | COMPLETE | Root causes fixed; full Gradle, GameTest, Python, world, and dedicated-server gates pass |
+| Superseding player-ticket audit | **BLOCKED** | Normal 6/6 player registration generates 17 forbidden FULL chunks outside the 680-chunk envelope; prior clearance is not a release verdict |
 
 ## Investigation report
 
@@ -335,6 +346,8 @@ materialization, persisted-NBT contract checks, and a narrowly authenticated
 Sector 01 startup-ticket policy. The final source gates pass: 25/25 Gradle build
 tasks, 15/15 offlineCheck tasks, 87 common JUnit tests, six Forge GameTests, 36
 packaging/world tests, eight asset tests, and a dedicated server boot/validate/stop
-smoke whose Anvil inventory remained exactly 680 full chunks. Remaining
-uncertainty is restricted to the explicitly separate live balance, FPS,
-compatibility, presentation, and soak gates.
+smoke whose Anvil inventory remained exactly 680 full chunks. Remaining uncertainty was
+then believed to be restricted to the explicitly separate live balance, FPS,
+compatibility, presentation, and soak gates. That conclusion is superseded: the smoke
+registered no player, and later real player-ticket evidence exposed the unresolved
+offline safety-envelope contradiction described at the top of this file.

@@ -1,0 +1,32 @@
+# Release artifacts embed source/resource bytes. Keep those bytes canonical
+# across Windows and Unix checkouts; launch scripts retain their native form.
+.gitattributes text eol=lf
+*.java text eol=lf
+*.gradle text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.mcmeta text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+*.properties text eol=lf
+*.txt text eol=lf
+*.log text eol=lf
+*.gitignore text eol=lf
+*.sh text eol=lf
+gradlew text eol=lf
+LICENSE text eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+*.jar binary
+*.zip binary
+*.mrpack binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ogg binary
+*.nbt binary
+*.mca binary
+*.dat binary

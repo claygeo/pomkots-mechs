@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently verify an Operation Ashen Span mp.25/RC5 candidate.
+"""Independently verify an Operation Ashen Span mp.25/RC6 candidate.
 
 This module imports neither the candidate builder nor a shared packaging
 module.  Given the original explicit inputs, it reconstructs every expected
@@ -43,20 +43,21 @@ ASSET_PROFILE_MEMBER = "config-template/lostcities/profiles/mecharena_sector01.j
 ASSET_PROFILE_BYTES = 1_861
 ASSET_PROFILE_SHA256 = "836B07B6493F4381587960E592058E9C78A9C71118FAB3597796E040172F9018"
 
-CANDIDATE_ID = "operation-ashen-span-mp25-rc5"
-VERSION_ID = "0.8.0-operation-ashen-span-mp25-rc5"
-DISPLAY_NAME = "Mech Arena 0.8 - Operation Ashen Span MP25 RC5"
+CANDIDATE_ID = "operation-ashen-span-mp25-rc6"
+VERSION_ID = "0.8.0-operation-ashen-span-mp25-rc6"
+DISPLAY_NAME = "Mech Arena 0.8 - Operation Ashen Span MP25 RC6"
 SUMMARY = (
     "Offline Cold Ruin Sector 01 vertical slice with the authored Operation "
     "Ashen Span mission, bounded Lost Cities world, and matched mp.25 server; "
     "live qualification pending."
 )
-MRPACK_NAME = "mech-arena-0.8.0-operation-ashen-span-mp25-rc5.mrpack"
-SERVER_NAME = "mech-arena-operation-ashen-span-mp25-rc5-server-overlay.zip"
+MRPACK_NAME = "mech-arena-0.8.0-operation-ashen-span-mp25-rc6.mrpack"
+SERVER_NAME = "mech-arena-operation-ashen-span-mp25-rc6-server-overlay.zip"
 WORLD_NAME = "cold_ruin_sector_01-mp25-world.zip"
 MANIFEST_NAME = "MANIFEST.json"
 RECEIPT_NAME = "OFFLINE_BUILD_RECEIPT.json"
 HASHES_NAME = "SHA256SUMS.txt"
+CANDIDATE_TREE_DOMAIN = b"operation-ashen-span-candidate-tree-v1\0"
 NOTICE_NAME = "THIRD_PARTY_NOTICES.md"
 RUNBOOK_NAME = "RUNBOOK.md"
 ROLLBACK_NAME = "ROLLBACK.md"
@@ -76,6 +77,34 @@ SERVER_LOST_CITIES_PROFILE_PATH = LOST_CITIES_PROFILE_RUNTIME_PATH
 CLIENT_SAVE_ROOT = "overrides/saves/cold_ruin_sector_01"
 SERVER_SAVE_ROOT = "saves/cold_ruin_sector_01"
 SERVER_POMKOTS_CONFIG_PATH = "config/pomkotsmechs.json"
+CLIENT_LICENSE_ROOT = "overrides/licenses"
+SERVER_LICENSE_ROOT = "licenses"
+LICENSE_FILENAMES = {
+    "architectury": "ARCHITECTURY-LGPL-3.0.md",
+    "cloth_config": "CLOTH_CONFIG-LGPL-3.0.md",
+    "geckolib": "GECKOLIB-MIT.txt",
+    "mp25": "POMKOTS_MECHS-MIT.txt",
+    "asset": "COLD_RUIN_SECTOR_01-MIT.txt",
+    "lost_cities": "LOST_CITIES-MIT-NOTICE.md",
+    "matrix": "DEPENDENCY_LICENSE_MATRIX.md",
+}
+FORBIDDEN_QUALIFICATION_PATH_TOKENS = (
+    "qualification", "acceptance_probe", "acceptance-probe", "fakeplayer",
+)
+RC5_CANDIDATE_ID = "operation-ashen-span-mp25-rc5"
+RC5_RUNTIME_SOURCE_COMMIT = "d96b7b84688e925f311849d7c40f72a4f8a691c2"
+RC5_MP25_SHA256 = "29D3295D47CB3CD6744BAE98AFB404E5CFC87F94E26B0556A1120A5B42744213"
+# Historical pre-erratum collision-fix artifact. It predates the LF checkout
+# policy and is not a canonical or releasable RC6 anchor.
+RC6_RUNTIME_SOURCE_COMMIT = "5a35ec3d9a69fdd4d88ed7a0b21b28bc1b18ecfb"
+RC6_MP25_SHA256 = "0263191D695C2CBB136B883CC62DAF1354C1B2013FFCCEDDDE54CE9DD63600F4"
+RC6_MP25_BYTES = 10_704_165
+# This proposed-RC6 verifier is intentionally hard-disabled. A future
+# post-erratum candidate requires a new identity and receipt-bound verifier,
+# not a mutable authorization label in this historical implementation.
+RC5_ASSET_SHA256 = "E1AC026BC07966803C5F3AFCF455A0B6B7F924F4131C52600355944A5CBBEFA9"
+RC5_WORLD_BUILDER_ARCHIVE_SHA256 = "3EE5D52888DABA0F15CE8E9BC7A142292D46A0F3F966DCD2C1533771C89F4FA4"
+RC5_PACKAGED_WORLD_SHA256 = "01FA630AAB605053CD7A7B9D8377CAE1066FDE48815D4FDF8A60049411500D87"
 DEPENDENCY_PATHS = {
     "architectury": "mods/architectury-9.2.14-forge.jar",
     "cloth_config": "mods/cloth-config-11.1.136-forge.jar",
@@ -93,6 +122,7 @@ MAX_ARCHIVE_UNCOMPRESSED_BYTES = 512 * 1024 * 1024
 MAX_ARCHIVE_ENTRY_BYTES = 256 * 1024 * 1024
 MAX_ARCHIVE_ENTRIES = 100_000
 MAX_CENTRAL_DIRECTORY_BYTES = 16 * 1024 * 1024
+MAX_BUILDER_SOURCE_BYTES = 2 * 1024 * 1024
 WORLD_BUILDER_SCHEMA = 2
 WORLD_BUILDER_ID = "ashen-span-world/2.0.0"
 WORLD_BUILDER_ARCHIVE_NAME = "cold_ruin_sector_01_mp25_world.zip"
@@ -119,7 +149,7 @@ FIXED_TIMESTAMP = (1980, 1, 1, 0, 0, 0)
 FIXED_MODE = stat.S_IFREG | 0o644
 HEX_40 = re.compile(r"^[0-9a-fA-F]{40}$")
 HEX_64 = re.compile(r"^[0-9a-fA-F]{64}$")
-BUILDER_PATH = Path(__file__).resolve().with_name("build_ashen_span_mp25.py")
+BUILDER_REPO_PATH = "tools/build_ashen_span_mp25.py"
 SEALED_MP24 = {
     "mrpack_sha256": BASE_SHA256,
     "jar_sha256": BASE_MOD_SHA256,
@@ -134,6 +164,15 @@ class VerifyError(RuntimeError):
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise VerifyError(message)
+
+
+def require_safety_envelope_resolution() -> None:
+    raise VerifyError(
+        "RC6 verification is blocked unconditionally: genuine view-distance 6 player "
+        "tickets exceed the authoritative 680-chunk safety envelope. A future "
+        "post-erratum candidate requires a new identity and receipt-bound verifier; "
+        "see docs/ashen-span-hardening/SAFETY_ENVELOPE_BLOCKER.md"
+    )
 
 
 def sha256_bytes(blob: bytes) -> str:
@@ -190,6 +229,40 @@ def read_stable(path: Path, label: str, expected_sha: str | None = None,
     return blob
 
 
+def checkout_eol_mismatches(listing: str) -> list[str]:
+    """Independently detect physical EOLs that violate tracked attributes."""
+    mismatches: list[str] = []
+    for record in listing.split("\0"):
+        if not record:
+            continue
+        require("\t" in record, "cannot parse Git checkout EOL inventory")
+        metadata, path = record.split("\t", 1)
+        match = re.search(r"(?:^|\s)w/(\S+)", metadata)
+        require(match is not None, "Git checkout EOL inventory lacks worktree state")
+        actual = match.group(1)
+        if "eol=lf" in metadata and actual not in {"lf", "none"}:
+            mismatches.append(f"{path} ({actual}, expected lf)")
+        elif "eol=crlf" in metadata and actual not in {"crlf", "none"}:
+            mismatches.append(f"{path} ({actual}, expected crlf)")
+    return mismatches
+
+
+def validate_checkout_eol(repo: Path) -> None:
+    """Reject clean-filter-equivalent bytes that change reconstructed artifacts."""
+    try:
+        result = subprocess.run(
+            ["git", "ls-files", "--eol", "-z"], cwd=repo, check=False,
+            capture_output=True, text=True, encoding="utf-8",
+        )
+    except (OSError, UnicodeError) as exc:
+        raise VerifyError(f"cannot inspect physical checkout line endings: {exc}") from exc
+    require(result.returncode == 0, "cannot inspect physical checkout line endings")
+    mismatches = checkout_eol_mismatches(result.stdout)
+    require(not mismatches,
+            "physical checkout line endings violate .gitattributes: "
+            + "; ".join(mismatches[:8]))
+
+
 def validate_source_commit(value: str) -> str:
     """Require verification to run from the exact clean commit named by the candidate."""
     require(HEX_40.fullmatch(value) is not None, "source commit is not a Git object ID")
@@ -215,7 +288,28 @@ def validate_source_commit(value: str) -> str:
     require(commit == head.stdout.strip().lower(), "source commit is not the checked-out HEAD")
     require(status.returncode == 0, "cannot inspect source working tree")
     require(not status.stdout.strip(), "source working tree is dirty; verify from the exact release commit")
+    validate_checkout_eol(repo)
     return commit
+
+
+def read_committed_builder_blob(source_commit: str) -> bytes:
+    """Independently read canonical builder bytes from the declared Git tree."""
+    require(HEX_40.fullmatch(source_commit) is not None,
+            "source commit is not a Git object ID")
+    repo = Path(__file__).resolve().parent.parent
+    object_name = f"{source_commit.lower()}:{BUILDER_REPO_PATH}"
+    try:
+        result = subprocess.run(
+            ["git", "cat-file", "blob", object_name],
+            cwd=repo, check=False, capture_output=True,
+        )
+    except OSError as exc:
+        raise VerifyError(f"cannot read committed candidate builder: {exc}") from exc
+    require(result.returncode == 0,
+            "candidate builder is missing from the declared source commit")
+    require(0 < len(result.stdout) <= MAX_BUILDER_SOURCE_BYTES,
+            "committed candidate builder has an invalid byte count")
+    return result.stdout
 
 
 def _zip_directory_limits(blob: bytes, label: str) -> None:
@@ -370,6 +464,11 @@ def inspect_mp25(blob: bytes, expected_sha: str) -> None:
         "grcmcs/minecraft/mods/pomkotsmechs/entity/vehicle/custom/ArenaRivalPmvc01Entity.class",
     }
     require(required <= set(entries), f"mp.25 JAR missing runtime members: {sorted(required-set(entries))}")
+    require(not any(
+        token in name.casefold()
+        for name in entries
+        for token in FORBIDDEN_QUALIFICATION_PATH_TOKENS
+    ), "mp.25 production JAR contains a qualification-only payload")
     metadata = mods_metadata(entries, "mp.25 JAR")
     require(metadata.get("modLoader") == "javafml", "mp.25 is not javafml")
     require(exact_mod(metadata, "pomkotsmechs", "mp.25 JAR").get("version") == MP25_VERSION,
@@ -646,6 +745,107 @@ def inspect_dependency(path: Path, blob: bytes, record: dict[str, object], label
     read_zip(blob, label, allow_directories=True)
 
 
+def exact_license_member(entries: dict[str, bytes], member: str, label: str,
+                         phrases: tuple[bytes, ...]) -> bytes:
+    require(member in entries, f"{label} is missing required license member {member}")
+    blob = entries[member]
+    require(all(phrase in blob for phrase in phrases),
+            f"{label} license member {member} is not the expected license text")
+    return blob
+
+
+def license_matrix(blobs: dict[str, bytes]) -> bytes:
+    return canonical_text(f"""# Operation Ashen Span embedded dependency license matrix
+
+This matrix covers every JAR embedded directly in the RC6 client or matched
+server overlay. Hosted MRPack dependencies remain governed by their indexed
+project records and the inherited third-party notice.
+
+| Runtime artifact | Pinned version | Declared license | Included copy | License SHA-256 |
+| --- | --- | --- | --- | --- |
+| Architectury API | 9.2.14 Forge | GNU LGPLv3 / LGPL-3 | `{LICENSE_FILENAMES['architectury']}` | `{sha256_bytes(blobs['architectury'])}` |
+| Cloth Config | 11.1.136 Forge | GNU LGPLv3 | `{LICENSE_FILENAMES['cloth_config']}` | `{sha256_bytes(blobs['cloth_config'])}` |
+| GeckoLib | 4.4.9 Forge | MIT | `{LICENSE_FILENAMES['geckolib']}` | `{sha256_bytes(blobs['geckolib'])}` |
+| Pomkots Mechs mp.25 | {MP25_VERSION} | MIT | `{LICENSE_FILENAMES['mp25']}` | `{sha256_bytes(blobs['mp25'])}` |
+| Cold Ruin Sector 01 asset | {ASSET_VERSION} | MIT | `{LICENSE_FILENAMES['asset']}` | `{sha256_bytes(blobs['asset'])}` |
+| The Lost Cities | {LOST_CITIES_VERSION} | MIT | `{LICENSE_FILENAMES['lost_cities']}` | `{sha256_bytes(blobs['lost_cities'])}` |
+
+The exact Architectury JAR contains no license member. Its Forge metadata
+declares GNU LGPLv3; the included full LGPLv3 text is byte-identical to the
+`LICENSE.md` carried by the exact Cloth Config JAR. The Lost Cities notice is
+the exact asset-JAR notice and contains the full MIT grant plus upstream source.
+
+This is reproducible archive evidence, not a claim that public-platform
+permission review or live gameplay qualification has been completed.
+""")
+
+
+def reconstruct_license_bundle(mp25: bytes, lost: bytes, asset: bytes,
+                               asset_notice: bytes,
+                               dependencies: dict[str, bytes]) -> dict[str, bytes]:
+    dep_entries = {
+        key: read_zip(blob, f"{key} license source", allow_directories=True)
+        for key, blob in dependencies.items()
+    }
+    mod_ids = {"architectury": "architectury", "cloth_config": "cloth_config", "geckolib": "geckolib"}
+    for key, mod_id in mod_ids.items():
+        metadata = mods_metadata(dep_entries[key], f"{key} dependency")
+        exact_mod(metadata, mod_id, f"{key} dependency")
+        declared = str(metadata.get("license", "")).upper()
+        if key in {"architectury", "cloth_config"}:
+            require("LGPL" in declared, f"{key} dependency does not declare LGPL")
+        else:
+            require("MIT" in declared, "GeckoLib dependency does not declare MIT")
+    cloth = exact_license_member(
+        dep_entries["cloth_config"], "LICENSE.md", "Cloth Config",
+        (b"GNU Lesser General Public License", b"Version 3"),
+    )
+    gecko = exact_license_member(
+        dep_entries["geckolib"], "LICENSE", "GeckoLib",
+        (b"MIT License", b"Permission is hereby granted"),
+    )
+    pomkots = exact_license_member(
+        read_zip(mp25, "mp.25 license source", allow_directories=True),
+        "LICENSE", "Pomkots Mechs mp.25",
+        (b"MIT License", b"Permission is hereby granted"),
+    )
+    asset_entries = read_zip(asset, "asset license source", allow_directories=True)
+    sector = exact_license_member(
+        asset_entries, "META-INF/LICENSE", "Cold Ruin Sector 01 asset",
+        (b"MIT License", b"Permission is hereby granted"),
+    )
+    require(asset_entries.get("META-INF/THIRD_PARTY_NOTICES.md") == asset_notice,
+            "asset notice changed between inspection and license reconstruction")
+    require(b"The Lost Cities" in asset_notice and b"Permission is hereby granted" in asset_notice,
+            "asset notice does not contain the complete Lost Cities MIT notice")
+    lost_meta = mods_metadata(
+        read_zip(lost, "Lost Cities license source", allow_directories=True),
+        "Lost Cities JAR",
+    )
+    require("MIT" in str(lost_meta.get("license", "")).upper(),
+            "Lost Cities metadata does not declare MIT")
+    blobs = {
+        "architectury": cloth, "cloth_config": cloth, "geckolib": gecko,
+        "mp25": pomkots, "asset": sector, "lost_cities": asset_notice,
+    }
+    blobs["matrix"] = license_matrix(blobs)
+    require(set(blobs) == set(LICENSE_FILENAMES), "license bundle component set drifted")
+    return blobs
+
+
+def expected_license_paths(client: bool) -> set[str]:
+    root = CLIENT_LICENSE_ROOT if client else SERVER_LICENSE_ROOT
+    return {f"{root}/{filename}" for filename in LICENSE_FILENAMES.values()}
+
+
+def install_license_bundle(entries: dict[str, bytes], blobs: dict[str, bytes], client: bool) -> None:
+    root = CLIENT_LICENSE_ROOT if client else SERVER_LICENSE_ROOT
+    require(not any(name.casefold().startswith(root.casefold() + "/") for name in entries),
+            f"input archive already contains reserved {root} tree")
+    for key, filename in LICENSE_FILENAMES.items():
+        entries[f"{root}/{filename}"] = blobs[key]
+
+
 def replace_index(blob: bytes) -> bytes:
     value = parse_index(blob, "base index")
     require(value.get("versionId") == BASE_VERSION_ID, "base index is not mp.24 RC4")
@@ -681,7 +881,7 @@ enable-rcon=false
 generate-structures=false
 level-name=saves/cold_ruin_sector_01
 max-players=1
-motd=Operation Ashen Span MP25 RC5 - offline candidate
+motd=Operation Ashen Span MP25 RC6 - offline candidate
 online-mode=true
 simulation-distance=6
 spawn-animals=false
@@ -715,10 +915,16 @@ def boundary(names: set[str], client: bool) -> None:
     profile_root = PurePosixPath(profile_path).parent.as_posix().casefold() + "/"
     profiles = {name for name in names if name.casefold().startswith(profile_root)}
     require(profiles == {profile_path}, f"archive Lost Cities profile set is not exact: {sorted(profiles)}")
+    license_root = CLIENT_LICENSE_ROOT if client else SERVER_LICENSE_ROOT
+    licenses = {name for name in names if name.casefold().startswith(license_root.casefold() + "/")}
+    require(licenses == expected_license_paths(client),
+            f"archive license set is not exact: {sorted(licenses)}")
     for name in names:
         normalized = name.casefold().replace("_", " ").replace("-", " ")
         require(not any(term in normalized for term in ("mosslorn", "future city", "downloaded city")),
                 f"archive forbidden city payload: {name}")
+        require(not any(token in name.casefold() for token in FORBIDDEN_QUALIFICATION_PATH_TOKENS),
+                f"archive contains forbidden qualification-only payload: {name}")
         require(not ({"world", "worlds", "maps"} & {part.casefold() for part in PurePosixPath(name).parts}),
                 f"archive extra world/map path: {name}")
 
@@ -756,12 +962,18 @@ class Loaded:
     world_input: bytes
     world_receipt: bytes
     dependencies: dict[str, bytes]
+    license_blobs: dict[str, bytes]
 
 
 def load(inputs: Inputs) -> Loaded:
+    require_safety_envelope_resolution()
     mp25_sha = normalize_sha(inputs.mp25_sha256, "mp.25 SHA")
     asset_sha = normalize_sha(inputs.asset_sha256, "asset SHA")
     world_sha = normalize_sha(inputs.world_sha256, "world SHA")
+    require(mp25_sha == RC6_MP25_SHA256, "mp.25 input is not the exact RC6 production JAR")
+    require(asset_sha == RC5_ASSET_SHA256, "asset input is not the immutable RC5 Sector 01 JAR")
+    require(world_sha == RC5_WORLD_BUILDER_ARCHIVE_SHA256,
+            "world input is not the immutable RC5 world-builder archive")
     validate_source_commit(inputs.source_commit)
     require(inputs.mp25_jar.name == MP25_NAME and inputs.lost_cities_jar.name == LOST_CITIES_NAME
             and inputs.asset_jar.name == ASSET_NAME, "canonical input JAR filename mismatch")
@@ -780,7 +992,7 @@ def load(inputs: Inputs) -> Loaded:
     index = parse_index(base_entries[INDEX_PATH], "sealed mp.24 index")
     require(index.get("versionId") == BASE_VERSION_ID, "sealed base version mismatch")
 
-    mp25 = read_stable(inputs.mp25_jar, "mp.25 JAR", mp25_sha); inspect_mp25(mp25, mp25_sha)
+    mp25 = read_stable(inputs.mp25_jar, "mp.25 JAR", mp25_sha, RC6_MP25_BYTES); inspect_mp25(mp25, mp25_sha)
     lost = read_stable(inputs.lost_cities_jar, "Lost Cities JAR", LOST_CITIES_SHA256, LOST_CITIES_BYTES); inspect_lost_cities(lost)
     asset = read_stable(inputs.asset_jar, "asset JAR", asset_sha)
     asset_notice, asset_profile = inspect_asset(asset, asset_sha)
@@ -803,14 +1015,15 @@ def load(inputs: Inputs) -> Loaded:
         dependencies[key] = blob
     require(sum("cloth-config" in PurePosixPath(DEPENDENCY_PATHS[key]).name.casefold() for key in dependencies) == 1,
             "physical server inputs do not contain exactly one Cloth Config JAR")
+    license_blobs = reconstruct_license_bundle(mp25, lost, asset, asset_notice, dependencies)
     return Loaded(base_blob, base_entries, mp25, lost, asset, asset_notice, asset_profile, asset_receipt,
-                  world_tree, world_input, world_receipt, dependencies)
+                  world_tree, world_input, world_receipt, dependencies, license_blobs)
 
 
 def notices(loaded: Loaded) -> bytes:
     return canonical_text(f"""# Operation Ashen Span — third-party notices
 
-Status: offline mp.25/RC5 candidate; not live-qualified or released.
+Status: offline mp.25/RC6 candidate; not live-qualified or released.
 
 ## Inherited mp.24 notices
 
@@ -822,6 +1035,12 @@ Exact Lost Cities binary: `{LOST_CITIES_NAME}`
 SHA-256: `{LOST_CITIES_SHA256}`
 
 {loaded.asset_notice.decode('utf-8').rstrip()}
+
+## Embedded license copies
+
+The client MRPack carries the exact fail-closed license set under
+`overrides/licenses/`; the matched server overlay carries the same bytes under
+`licenses/`. `DEPENDENCY_LICENSE_MATRIX.md` explains the source of every copy.
 """)
 
 
@@ -836,6 +1055,7 @@ def client_entries(loaded: Loaded, notice: bytes) -> dict[str, bytes]:
     result[CLIENT_MOD_PATHS["lost_cities"]] = loaded.lost
     result[CLIENT_MOD_PATHS["asset"]] = loaded.asset
     result.update({f"{CLIENT_SAVE_ROOT}/{name}": blob for name, blob in loaded.world_tree.items()})
+    install_license_bundle(result, loaded.license_blobs, True)
     boundary(set(result), True)
     require(result[CLIENT_LOST_CITIES_PROFILE_PATH] == loaded.asset_profile,
             "expected client lost the exact embedded Lost Cities profile")
@@ -857,6 +1077,7 @@ def server_entries(loaded: Loaded, notice: bytes) -> dict[str, bytes]:
         f"mods/{ASSET_NAME}": loaded.asset,
     })
     result.update({f"mods/{PurePosixPath(DEPENDENCY_PATHS[key]).name}": blob for key, blob in loaded.dependencies.items()})
+    install_license_bundle(result, loaded.license_blobs, False)
     boundary(set(result), False)
     expected_mods = {f"mods/{MP25_NAME}", f"mods/{LOST_CITIES_NAME}", f"mods/{ASSET_NAME}",
                      *(f"mods/{PurePosixPath(path).name}" for path in DEPENDENCY_PATHS.values())}
@@ -871,10 +1092,27 @@ def record(name: str, blob: bytes) -> dict[str, object]:
     return {"file": name, "bytes": len(blob), "sha256": sha256_bytes(blob)}
 
 
+def candidate_tree_sha256(files: dict[str, bytes]) -> str:
+    digest = hashlib.sha256()
+    digest.update(CANDIDATE_TREE_DOMAIN)
+    for name in sorted(files):
+        blob = files[name]
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(len(blob)).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(sha256_bytes(blob).encode("ascii"))
+        digest.update(b"\n")
+    return digest.hexdigest().upper()
+
+
 def runbook(records: dict[str, dict[str, object]]) -> bytes:
-    return canonical_text(f"""# Operation Ashen Span mp.25/RC5 offline runbook
+    return canonical_text(f"""# Operation Ashen Span mp.25/RC6 runbook
 
 Status: **finished offline candidate only; live validation is pending**.
+
+This is one authored 10–13 minute single-player level, Cold Ruin Sector 01. It
+is not a campaign, endless mode, progression system, or public release.
 
 ## Candidate payloads
 
@@ -883,6 +1121,41 @@ Status: **finished offline candidate only; live validation is pending**.
 - World archive: `{WORLD_NAME}` — `{records['world']['sha256']}`
 - Matched Pomkots server/client JAR: `{MP25_NAME}` — `{records['mp25']['sha256']}`
 
+Verify these four hashes against `SHA256SUMS.txt` before importing or copying
+anything. RC6 replaces the production Pomkots JAR solely to admit the starting
+player at the exact authored Garage deployment pad. The bounded world and asset
+JAR remain byte-identical to RC5, and mission content, roster, tactics, and
+balance are unchanged.
+
+## Client requirements and clean import
+
+- 64-bit Java 17; Minecraft 1.20.1; Forge 47.3.3.
+- A Modrinth-compatible launcher such as Modrinth App or Prism Launcher.
+- Network access during first import for the nine indexed hosted dependencies.
+  The MRPack is reproducible offline evidence, not a fully offline installer.
+
+Create a new empty launcher profile by importing `{MRPACK_NAME}`. Do not merge
+it into an older Mech Arena instance and do not add, remove, or upgrade mods.
+The imported instance must contain one save named `cold_ruin_sector_01`. Select
+that world, then use the clickable Garage Fleet card or type
+`/arena solo start <1-6>` to deploy one of Vanguard, Siege, Skirmisher,
+Artillery, Duelist, or Trooper. A missing card or rejected command is a failed
+validation boundary; do not force-start the mission.
+
+Default mech controls are W/A/S/D to move, Space to jump/boost, Left Ctrl to
+dash, left mouse for the right weapon, right mouse for the left weapon, P/O for
+right/left shoulder weapons, Y to switch mode, and hold U for lock-on. All are
+rebindable in Controls; `/mechhelp` repeats the card.
+
+## Dedicated server installation
+
+Use an empty, private Forge 47.3.3 server root with Java 17. Extract
+`{SERVER_NAME}` into that root without flattening paths. Keep `online-mode=true`,
+whitelist exactly the intended player, accept Mojang's EULA in the normal server
+workflow, and launch Forge with `nogui`. Do not expose this offline candidate to
+the public internet. The overlay pins `level-name=saves/cold_ruin_sector_01` and
+contains the exact six-mod runtime; do not mix it with mp.24 or another mod set.
+
 The client contains exactly one save at `saves/cold_ruin_sector_01` after import.
 The server overlay uses `level-name=saves/cold_ruin_sector_01`. Client render and
 simulation distance and dedicated-server view and simulation distance are all 6.
@@ -890,6 +1163,11 @@ Both payloads pin the Pomkots common config with entity and player-vehicle block
 destruction disabled. Both also materialize the exact asset-embedded Lost Cities
 profile `{LOST_CITIES_PROFILE_RUNTIME_PATH}` (SHA-256 `{ASSET_PROFILE_SHA256}`);
 mission startup independently rejects any other values.
+
+During the first minute, wait for the Garage Fleet card, choose exactly one
+build, mount the spawned mech, and follow the authored bridge route. There are
+no random waves or drops. The service gantry is a one-shot mid-mission restore;
+Gatekeeper R-01 and PMB04 Span Warden are the two authored boss encounters.
 
 ## Offline verification
 
@@ -904,14 +1182,24 @@ chunks and every authored physical marker without ticketing or generating chunks
 
 Do not launch an interactive client during this offline milestone. Import, play,
 balance, FPS, compatibility, and soak checks remain in `{LIVE_VALIDATION_NAME}`.
+
+## Known limitations and recovery
+
+- All live feel, timing, readability, audio, controls, FPS, compatibility, and
+  soak statements remain unmeasured until the separate protocol is signed.
+- Public Modrinth publication permission review remains pending; do not upload.
+- If startup validation fails, preserve `logs/latest.log`, stop the instance,
+  verify hashes, and retry from a fresh profile or fresh server root. Never edit
+  the frozen save to bypass a marker or gate.
+- For rollback, follow `ROLLBACK.md`; never overwrite RC5 or sealed mp.24.
 """)
 
 
 def rollback() -> bytes:
     return canonical_text(f"""# Operation Ashen Span rollback
 
-This mp.25 candidate is isolated. It does not replace a release alias or mutate
-the sealed mp.24 RC4 directory.
+This mp.25/RC6 candidate is isolated. It does not replace a release alias,
+overwrite immutable RC5, or mutate the sealed mp.24 RC4 directory.
 
 Sealed mp.24 anchors:
 
@@ -927,9 +1215,23 @@ retarget a release alias as part of rollback.
 
 
 def live_validation() -> bytes:
-    return canonical_text("""# Operation Ashen Span live validation
+    return canonical_text(f"""# Operation Ashen Span live validation
 
 Status: **AWAITING SEPARATE LIVE VALIDATION — no live claims are made here.**
+
+Candidate ID: `{CANDIDATE_ID}`
+
+Before each run, record the MRPack/server/world SHA-256 from `SHA256SUMS.txt`,
+machine, OS, Java, launcher, input device, resolution, graphics settings, and a
+SHA-256 for every retained log or capture. A run belongs to exactly one Garage
+Fleet build. Never carry a save forward between builds.
+
+For builds 1–6, capture: fresh-profile/import result; mission start and finish
+times; total duration; R-01 and PMB04 phase timings; service use; death/retry or
+disconnect/restore outcome; minimum/typical FPS and frame-pacing observations;
+visual/audio/control findings; final exact-zero cleanup; and pass/fail with a
+specific reason. Record the world archive byte count and stored chunk inventory
+before and after the soak run.
 
 Offline evidence may prove archive identity, bounded-world structure, automated
 mission behavior, and cleanup invariants. It does not prove the following gates:
@@ -943,19 +1245,42 @@ mission behavior, and cleanup invariants. It does not prove the following gates:
 - [ ] Retry, disconnect, restore, and exact-zero cleanup observed live
 - [ ] Extended soak with no world growth or cleanup residue
 
-Do not convert unchecked items into measured facts in the offline receipt.
+Pass only when every checkbox is supported by hash-bound evidence, all six build
+records pass, mission duration is 10–13 minutes for the intended evaluation
+window, no P0/P1 defect remains, and before/after world/chunk evidence is clean.
+Any missing field, artifact hash, build, or failure-path observation is PENDING,
+not PASS. Do not convert unchecked items into measured facts in the offline
+receipt or release copy.
 """)
 
 
 def manifest(inputs: Inputs, loaded: Loaded, payloads: dict[str, bytes],
              archive_entry_names: dict[str, list[str]]) -> bytes:
-    builder_blob = read_stable(BUILDER_PATH, "candidate builder")
+    builder_blob = read_committed_builder_blob(inputs.source_commit)
     value = {
         "schema_version": 1, "candidate_id": CANDIDATE_ID,
         "status": "offline-candidate-not-live-qualified",
         "identity": {"version_id": VERSION_ID, "display_name": DISPLAY_NAME, "minecraft": "1.20.1",
                      "forge": "47.3.3", "map_id": "cold_ruin_sector_01",
-                     "mission_id": "operation_ashen_span", "source_commit": inputs.source_commit.lower()},
+                     "mission_id": "operation_ashen_span", "source_commit": inputs.source_commit.lower(),
+                     "runtime_source_commit": RC6_RUNTIME_SOURCE_COMMIT},
+        "lineage": {"predecessor_candidate_id": RC5_CANDIDATE_ID,
+                    "production_jar_changed": True,
+                    "authored_world_changed": False,
+                    "mission_content_roster_tactics_balance_changed": False,
+                    "solo_start_player_pad_collision_fixed": True,
+                    "packaging_bytes_changed": True, "packaging_hardening_only": False,
+                    "runtime_anchors": {
+                        "runtime_source_commit": RC6_RUNTIME_SOURCE_COMMIT,
+                        "mp25_sha256": RC6_MP25_SHA256,
+                        "asset_sha256": RC5_ASSET_SHA256,
+                        "world_builder_archive_sha256": RC5_WORLD_BUILDER_ARCHIVE_SHA256,
+                        "packaged_world_sha256": RC5_PACKAGED_WORLD_SHA256,
+                    },
+                    "predecessor_runtime_anchors": {
+                        "runtime_source_commit": RC5_RUNTIME_SOURCE_COMMIT,
+                        "mp25_sha256": RC5_MP25_SHA256,
+                    }},
         "artifacts": {name: record(name, blob) for name, blob in sorted(payloads.items())},
         "inputs": {
             "sealed_mp24_mrpack": record(inputs.base_mrpack.name, loaded.base_blob),
@@ -974,6 +1299,8 @@ def manifest(inputs: Inputs, loaded: Loaded, payloads: dict[str, bytes],
                             "entity_block_destruction": False,
                             "player_vehicle_block_destruction": False,
                             "embedded_mods": [MP25_NAME, LOST_CITIES_NAME, ASSET_NAME],
+                            "embedded_license_paths": sorted(expected_license_paths(True)),
+                            "qualification_payload_present": False,
                             "lost_cities_profile": {
                                 "archive_path": CLIENT_LOST_CITIES_PROFILE_PATH,
                                 "runtime_path": LOST_CITIES_PROFILE_RUNTIME_PATH,
@@ -985,6 +1312,8 @@ def manifest(inputs: Inputs, loaded: Loaded, payloads: dict[str, bytes],
                             "natural_spawning": False,
                             "entity_block_destruction": False,
                             "player_vehicle_block_destruction": False,
+                            "embedded_license_paths": sorted(expected_license_paths(False)),
+                            "qualification_payload_present": False,
                             "lost_cities_profile": {
                                 "archive_path": SERVER_LOST_CITIES_PROFILE_PATH,
                                 "runtime_path": LOST_CITIES_PROFILE_RUNTIME_PATH,
@@ -999,6 +1328,17 @@ def manifest(inputs: Inputs, loaded: Loaded, payloads: dict[str, bytes],
                              "world_builder_archive_bytes": len(loaded.world_input)},
         "archive_contract": {"compression": "ZIP_DEFLATED-9", "timestamp": "1980-01-01T00:00:00Z",
                              "unix_mode": "0644", "entries": archive_entry_names},
+        "distribution_hardening": {
+            "embedded_license_bundle": {
+                key: record(LICENSE_FILENAMES[key], blob)
+                for key, blob in sorted(loaded.license_blobs.items())
+            },
+            "client_license_root": CLIENT_LICENSE_ROOT,
+            "server_license_root": SERVER_LICENSE_ROOT,
+            "qualification_probe_shipped": False,
+            "public_platform_permission_review": "manual-pending",
+            "fully_offline_installer": False,
+        },
         "evidence_status": {"measured_offline": ["input hashes and JAR metadata",
                             "independent archive reconstruction", "one bounded save and exact server overlay",
                             "exact asset-embedded Lost Cities profile on client and server",
@@ -1012,14 +1352,28 @@ def manifest(inputs: Inputs, loaded: Loaded, payloads: dict[str, bytes],
 
 def receipt(inputs: Inputs, loaded: Loaded, files: dict[str, bytes]) -> bytes:
     return canonical_json({
-        "schema_version": 1, "builder": "operation-ashen-span-packager/1.0.0",
+        "schema_version": 1, "builder": "operation-ashen-span-packager/1.1.0",
         "candidate_id": CANDIDATE_ID, "status": "offline-only-not-live-qualified",
         "source_commit": inputs.source_commit.lower(),
+        "runtime_source_commit": RC6_RUNTIME_SOURCE_COMMIT,
+        "runtime_anchors": {
+            "mp25_sha256": RC6_MP25_SHA256,
+            "asset_sha256": RC5_ASSET_SHA256,
+            "world_builder_archive_sha256": RC5_WORLD_BUILDER_ARCHIVE_SHA256,
+            "packaged_world_sha256": RC5_PACKAGED_WORLD_SHA256,
+        },
+        "predecessor_runtime_anchors": {
+            "runtime_source_commit": RC5_RUNTIME_SOURCE_COMMIT,
+            "mp25_sha256": RC5_MP25_SHA256,
+        },
         "fixed_inputs": {"base_mp24_sha256": sha256_bytes(loaded.base_blob), "mp25_sha256": sha256_bytes(loaded.mp25),
                          "lost_cities_sha256": sha256_bytes(loaded.lost), "asset_sha256": sha256_bytes(loaded.asset),
-                         "asset_lost_cities_profile_sha256": sha256_bytes(loaded.asset_profile),
-                         "world_builder_archive_sha256": sha256_bytes(loaded.world_input),
-                         "world_tree_sha256": tree_hash(loaded.world_tree)},
+                          "asset_lost_cities_profile_sha256": sha256_bytes(loaded.asset_profile),
+                          "world_builder_archive_sha256": sha256_bytes(loaded.world_input),
+                          "world_tree_sha256": tree_hash(loaded.world_tree),
+                          "embedded_license_sha256": {
+                              key: sha256_bytes(blob) for key, blob in sorted(loaded.license_blobs.items())
+                          }},
         "offline_gates": {"exclusive_new_staging": True, "two_builds_byte_equal": True,
                           "one_save": "cold_ruin_sector_01", "client_view_distance": 6,
                           "client_simulation_distance": 6, "server_view_distance": 6,
@@ -1030,7 +1384,14 @@ def receipt(inputs: Inputs, loaded: Loaded, files: dict[str, bytes]) -> bytes:
                           "server_lost_cities_profile": SERVER_LOST_CITIES_PROFILE_PATH,
                           "lost_cities_profile_byte_identical": True,
                           "mosslorn_present": False, "downloaded_city_present": False,
-                          "world_within_32_mib": len(loaded.world_input) <= MAX_WORLD_BYTES},
+                          "world_within_32_mib": len(loaded.world_input) <= MAX_WORLD_BYTES,
+                          "embedded_license_bundle_complete": True,
+                          "qualification_probe_shipped": False,
+                          "production_jar_changed_from_rc5": True,
+                          "solo_start_player_pad_collision_fixed": True,
+                          "authored_world_changed_from_rc5": False,
+                          "mission_content_roster_tactics_balance_changed_from_rc5": False,
+                          "package_bytes_changed_from_rc5": True},
         "outputs": {name: record(name, blob) for name, blob in sorted(files.items())},
         "deferred": ["interactive profile import", "10–13 minute gameplay and balance", "FPS and compatibility",
                      "live retry/restore observation", "soak"],
@@ -1046,6 +1407,8 @@ def reconstruct(inputs: Inputs, loaded: Loaded) -> tuple[dict[str, bytes], dict[
     ce = client_entries(loaded, notice); se = server_entries(loaded, notice); we = world_entries(loaded)
     mrpack = make_zip(ce); server = make_zip(se); world = make_zip(we)
     require(len(world) <= MAX_WORLD_BYTES, "expected world archive exceeds 32 MiB")
+    require(sha256_bytes(world) == RC5_PACKAGED_WORLD_SHA256,
+            "expected packaged world differs from immutable RC5")
     files = {MRPACK_NAME: mrpack, SERVER_NAME: server, WORLD_NAME: world, MP25_NAME: loaded.mp25, NOTICE_NAME: notice}
     recs = {"mrpack": record(MRPACK_NAME, mrpack), "server": record(SERVER_NAME, server),
             "world": record(WORLD_NAME, world), "mp25": record(MP25_NAME, loaded.mp25)}
@@ -1125,6 +1488,7 @@ def verify_candidate(inputs: Inputs, candidate_dir: Path) -> dict[str, object]:
     require(actual[HASHES_NAME] == expected_hash_lines, "SHA256SUMS does not match actual candidate files")
     return {
         "candidate_id": CANDIDATE_ID,
+        "candidate_tree_sha256": candidate_tree_sha256(actual),
         "mrpack": record(MRPACK_NAME, actual[MRPACK_NAME]),
         "server": record(SERVER_NAME, actual[SERVER_NAME]),
         "world": record(WORLD_NAME, actual[WORLD_NAME]),
@@ -1167,6 +1531,7 @@ def main(argv: list[str] | None = None) -> int:
         result = verify_candidate(from_args(args), args.candidate_dir)
         print(f"PASS {result['candidate_id']}: {result['mrpack']['sha256']} | "
               f"server {result['server']['sha256']} | world {result['world']['sha256']} | "
+              f"candidate tree {result['candidate_tree_sha256']} | "
               "independent reconstruction, offline-only")
         return 0
     except (VerifyError, OSError, UnicodeError, json.JSONDecodeError,

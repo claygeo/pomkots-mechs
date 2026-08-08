@@ -1,6 +1,14 @@
 # Operation Ashen Span offline validation
 
-Status: finished-source evidence for the mp.25/RC5 offline candidate. This file
+> **SUPERSEDED FOR CANDIDATE QUALIFICATION — do not launch, qualify, or publish
+> RC5 from this historical evidence.** The smoke below registered no player and
+> therefore did not exercise normal 6/6 player-distance tickets. Later pinned-source
+> analysis and same-chunk headless reproduction proved a 17-FULL-chunk breach outside
+> the locked 680-chunk envelope. No releasable RC6 exists pending an authoritative
+> spec erratum and successful exact-pad one-build and six-build headless acceptance.
+> See [the safety-envelope blocker](../ashen-span-hardening/SAFETY_ENVELOPE_BLOCKER.md).
+
+Status: historical source evidence for the mp.25/RC5 candidate, not a current pass. This file
 separates measurements made without an interactive Minecraft client from the
 live-only gates in `ASHEN_SPAN_LIVE_VALIDATION.md`. Final post-commit artifact
 hashes and the source commit are recorded by the generated candidate manifest,
@@ -64,6 +72,11 @@ Pomkots safety config. It reached `Done`, executed `arena solo validate`,
 reported all 680 full safety chunks and 47 physical markers, accepted `stop`,
 and exited 0. A before/after Anvil inventory remained exactly 680 full chunks
 with the same bounds; no startup proto-chunk halo was persisted.
+
+This remains a valid no-player startup measurement only. A normal survival player at the
+authored pad activates a separate vanilla player-ticket path and deterministically creates
+17 forbidden FULL chunks at `x=-18,z=-8..8`; that later evidence invalidates any broader
+bounded-play or finished-candidate interpretation.
 
 The smoke exposed and closed three release blockers before candidate creation:
 

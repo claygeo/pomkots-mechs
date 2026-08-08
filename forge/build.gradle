@@ -46,6 +46,24 @@ configurations {
     }
 }
 
+// Release qualification is deliberately a second, unshipped Forge mod.  It
+// compiles against the production module but is absent from main outputs,
+// normal run configurations, remapJar, MRPack and server-overlay packaging.
+sourceSets {
+    qualification {
+        java.setSrcDirs(['src/qualification/java'])
+        resources.setSrcDirs(['src/qualification/resources'])
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += output + compileClasspath
+    }
+}
+
+configurations {
+    qualificationImplementation.extendsFrom implementation
+    qualificationCompileOnly.extendsFrom compileOnly
+    qualificationRuntimeOnly.extendsFrom runtimeOnly
+}
+
 repositories {
     flatDir {
         dirs 'libs'  // プロジェクト内のlibsフォルダを指定
@@ -167,4 +185,27 @@ tasks.named("runGameTestServer").configure {
     // Forge's dedicated GameTest server exits nonzero when any registered test
     // fails; preserve JavaExec's fail-fast behavior for the offlineCheck gate.
     ignoreExitValue = false
+}
+
+tasks.register("qualificationJar", Jar) {
+    group = "verification"
+    description = "Builds the unremapped, unshipped Ashen Span qualification probe."
+    archiveBaseName = "ashen-span-qualification"
+    archiveVersion = ""
+    archiveClassifier = "dev"
+    manifest {
+        attributes("MixinConfigs": "ashen_span_qualification.mixins.json")
+    }
+    from sourceSets.qualification.output
+    dependsOn tasks.named("qualificationClasses")
+}
+
+tasks.register("remapQualificationJar", net.fabricmc.loom.task.RemapJarTask) {
+    group = "verification"
+    description = "Remaps the unshipped Ashen Span qualification probe for Forge 1.20.1."
+    inputFile.set(tasks.named("qualificationJar", Jar).flatMap { it.archiveFile })
+    archiveBaseName.set("ashen-span-qualification")
+    archiveVersion.set("")
+    archiveClassifier.set("probe")
+    addNestedDependencies.set(false)
 }

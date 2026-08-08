@@ -30,6 +30,8 @@ def _load(name: str, filename: str):
 builder = _load("ashen_span_mp25_builder_test", "build_ashen_span_mp25.py")
 verifier = _load("ashen_span_mp25_verifier_test", "verify_ashen_span_mp25.py")
 REAL_BUILDER_VALIDATE_SOURCE_COMMIT = builder.validate_source_commit
+REAL_BUILDER_SAFETY_GATE = builder.require_safety_envelope_resolution
+REAL_VERIFIER_SAFETY_GATE = verifier.require_safety_envelope_resolution
 
 
 def ordinary_zip(entries: dict[str, bytes]) -> bytes:
@@ -41,7 +43,28 @@ def ordinary_zip(entries: dict[str, bytes]) -> bytes:
 
 
 def dependency_jar(name: str) -> bytes:
-    return ordinary_zip({"META-INF/MANIFEST.MF": f"Manifest-Version: 1.0\nImplementation-Title: {name}\n".encode()})
+    mod_id = {"architectury": "architectury", "cloth-config": "cloth_config", "geckolib": "geckolib"}[name]
+    declared = "GNU LGPLv3" if name != "geckolib" else "MIT"
+    mods = f'''modLoader="javafml"
+loaderVersion="[47,)"
+license="{declared}"
+[[mods]]
+modId="{mod_id}"
+version="1.0.0-test"
+displayName="{name}"
+'''.encode()
+    entries = {
+        "META-INF/MANIFEST.MF": f"Manifest-Version: 1.0\nImplementation-Title: {name}\n".encode(),
+        "META-INF/mods.toml": mods,
+    }
+    if name == "cloth-config":
+        entries["LICENSE.md"] = (
+            b"GNU Lesser General Public License\nVersion 3, 29 June 2007\n"
+            b"This is the deterministic unit-test license fixture.\n"
+        )
+    elif name == "geckolib":
+        entries["LICENSE"] = b"MIT License\nPermission is hereby granted, free of charge.\n"
+    return ordinary_zip(entries)
 
 
 def dependency_record(path: str, blob: bytes) -> dict[str, object]:
@@ -70,7 +93,7 @@ ordering="NONE"
 side="BOTH"
 '''
     members = {
-        "LICENSE": b"MIT License\n",
+        "LICENSE": b"MIT License\nPermission is hereby granted, free of charge.\n",
         "META-INF/mods.toml": mods,
         "grcmcs/minecraft/mods/pomkotsmechs/arena/ArenaManager.class": b"arena",
         "grcmcs/minecraft/mods/pomkotsmechs/arena/AshenSpanDefinition.class": b"definition",
@@ -121,11 +144,12 @@ ordering="AFTER"
 side="BOTH"
 '''
     notice = (
-        b"# Third-party notices\n\nLost Cities - MIT License. "
+        b"# Third-party notices\n\nThe Lost Cities - MIT License. "
+        b"Permission is hereby granted, free of charge. "
         b"This original asset contains no downloaded city.\n"
     )
     return ordinary_zip({
-        "META-INF/LICENSE": b"MIT License\n",
+        "META-INF/LICENSE": b"MIT License\nPermission is hereby granted, free of charge.\n",
         "META-INF/THIRD_PARTY_NOTICES.md": notice,
         "META-INF/mecharena-sector01-build.json": b"{}\n",
         "META-INF/mods.toml": mods,
@@ -206,6 +230,9 @@ class Fixture:
             path = self.world / Path(name); path.parent.mkdir(parents=True, exist_ok=True); path.write_bytes(blob)
         input_world_entries = {f"{builder.WORLD_ARCHIVE_ROOT}/{name}": blob for name, blob in world_files.items()}
         self.world_blob = builder.make_canonical_zip(input_world_entries)
+        self.packaged_world_sha = builder.sha256_bytes(builder.make_canonical_zip({
+            f"{builder.SERVER_SAVE_ROOT}/{name}": blob for name, blob in world_files.items()
+        }))
         self.world_archive = root / builder.WORLD_BUILDER_ARCHIVE_NAME; self.world_archive.write_bytes(self.world_blob)
         self.world_sha = builder.sha256_bytes(self.world_blob)
         self.world_facts = {
@@ -307,13 +334,27 @@ class PackagingTests(unittest.TestCase):
             (builder, "BASE_MOD_SHA256", self.fixture.base_mod_sha),
             (builder, "LOST_CITIES_SHA256", builder.sha256_bytes(self.fixture.lost_blob)),
             (builder, "LOST_CITIES_BYTES", len(self.fixture.lost_blob)),
+            (builder, "RC6_MP25_SHA256", builder.sha256_bytes(self.fixture.mp25_blob)),
+            (builder, "RC6_MP25_BYTES", len(self.fixture.mp25_blob)),
+            (builder, "require_safety_envelope_resolution", lambda: None),
+            (builder, "RC5_ASSET_SHA256", self.fixture.asset_sha),
+            (builder, "RC5_WORLD_BUILDER_ARCHIVE_SHA256", self.fixture.world_sha),
+            (builder, "RC5_PACKAGED_WORLD_SHA256", self.fixture.packaged_world_sha),
             (verifier, "BASE_SHA256", builder.sha256_bytes(self.fixture.base_blob)),
             (verifier, "BASE_BYTES", len(self.fixture.base_blob)),
             (verifier, "BASE_MOD_SHA256", self.fixture.base_mod_sha),
             (verifier, "LOST_CITIES_SHA256", builder.sha256_bytes(self.fixture.lost_blob)),
             (verifier, "LOST_CITIES_BYTES", len(self.fixture.lost_blob)),
+            (verifier, "RC6_MP25_SHA256", builder.sha256_bytes(self.fixture.mp25_blob)),
+            (verifier, "RC6_MP25_BYTES", len(self.fixture.mp25_blob)),
+            (verifier, "require_safety_envelope_resolution", lambda: None),
+            (verifier, "RC5_ASSET_SHA256", self.fixture.asset_sha),
+            (verifier, "RC5_WORLD_BUILDER_ARCHIVE_SHA256", self.fixture.world_sha),
+            (verifier, "RC5_PACKAGED_WORLD_SHA256", self.fixture.packaged_world_sha),
             (builder, "validate_source_commit", lambda value: value.lower()),
             (verifier, "validate_source_commit", lambda value: value.lower()),
+            (builder, "read_committed_builder_blob", lambda _commit: b"canonical-builder-source\n"),
+            (verifier, "read_committed_builder_blob", lambda _commit: b"canonical-builder-source\n"),
             (builder, "verify_bounded_world", lambda _root, _asset, _tree: self.fixture.world_facts),
             (verifier, "verify_bounded_world", lambda _root, _asset, _tree: self.fixture.world_facts),
         ]
@@ -335,6 +376,20 @@ class PackagingTests(unittest.TestCase):
         self.assertEqual(11, result["files"])
         self.assertEqual(1, result["cloth_config_inputs"])
         self.assertFalse(result["live_qualified"])
+        self.assertEqual(verifier.candidate_tree_sha256(files), result["candidate_tree_sha256"])
+        self.assertRegex(result["candidate_tree_sha256"], r"^[0-9A-F]{64}$")
+
+    def test_01_production_candidate_is_unconditionally_blocked(self) -> None:
+        files = builder.build_candidate(self.fixture.builder_inputs())
+        builder.publish_atomic(self.fixture.output, files)
+        with self.assertRaisesRegex(builder.BuildError, "packaging is blocked unconditionally"):
+            REAL_BUILDER_SAFETY_GATE()
+        with self.assertRaisesRegex(verifier.VerifyError, "verification is blocked unconditionally"):
+            REAL_VERIFIER_SAFETY_GATE()
+
+    def test_02_historical_tools_expose_no_mutable_erratum_latch(self) -> None:
+        self.assertFalse(hasattr(builder, "SAFETY_ENVELOPE_ERRATUM_ID"))
+        self.assertFalse(hasattr(verifier, "SAFETY_ENVELOPE_ERRATUM_ID"))
 
     def test_10_client_has_one_save_three_exact_mods_and_6_6(self) -> None:
         files = builder.build_candidate(self.fixture.builder_inputs())
@@ -362,6 +417,14 @@ class PackagingTests(unittest.TestCase):
         config = json.loads(entries[builder.CLIENT_POMKOTS_CONFIG_PATH])
         self.assertFalse(config["enableEntityBlockDestruction"])
         self.assertFalse(config["enablePlayerVehicleBlockDestruction"])
+        self.assertEqual(
+            builder.archive_license_paths(client=True),
+            {name for name in entries if name.startswith(builder.CLIENT_LICENSE_ROOT + "/")},
+        )
+        self.assertTrue(all(
+            not any(token in name.casefold() for token in builder.FORBIDDEN_QUALIFICATION_PATH_TOKENS)
+            for name in entries
+        ))
 
     def test_20_server_has_exact_runtime_one_cloth_and_world(self) -> None:
         files = builder.build_candidate(self.fixture.builder_inputs())
@@ -382,6 +445,128 @@ class PackagingTests(unittest.TestCase):
             {name for name in entries if name.startswith("config/lostcities/profiles/")},
         )
         self.assertTrue(any(name.startswith(builder.SERVER_SAVE_ROOT + "/") for name in entries))
+        self.assertEqual(
+            builder.archive_license_paths(client=False),
+            {name for name in entries if name.startswith(builder.SERVER_LICENSE_ROOT + "/")},
+        )
+        client = builder.read_zip(files[builder.MRPACK_NAME], "client", canonical=True,
+                                  compression=zipfile.ZIP_DEFLATED)
+        for filename in builder.LICENSE_FILENAMES.values():
+            self.assertEqual(
+                client[f"{builder.CLIENT_LICENSE_ROOT}/{filename}"],
+                entries[f"{builder.SERVER_LICENSE_ROOT}/{filename}"],
+            )
+
+    def test_21_license_bundle_is_source_bound_and_fails_closed(self) -> None:
+        asset_entries = builder.read_zip(self.fixture.asset_blob, "asset", allow_directories=True)
+        asset_notice = asset_entries["META-INF/THIRD_PARTY_NOTICES.md"]
+        expected = builder.make_license_bundle(
+            self.fixture.mp25_blob, self.fixture.lost_blob, self.fixture.asset_blob,
+            asset_notice, self.fixture.dep_blobs,
+        )
+        independently_expected = verifier.reconstruct_license_bundle(
+            self.fixture.mp25_blob, self.fixture.lost_blob, self.fixture.asset_blob,
+            asset_notice, self.fixture.dep_blobs,
+        )
+        self.assertEqual(expected, independently_expected)
+        self.assertEqual(set(builder.LICENSE_FILENAMES), set(expected))
+        self.assertEqual(expected["architectury"], expected["cloth_config"])
+
+        cloth_entries = builder.read_zip(self.fixture.cloth, "cloth", allow_directories=True)
+        cloth_entries.pop("LICENSE.md")
+        missing = dict(self.fixture.dep_blobs)
+        missing["cloth_config"] = ordinary_zip(cloth_entries)
+        for function, error in (
+            (builder.make_license_bundle, builder.BuildError),
+            (verifier.reconstruct_license_bundle, verifier.VerifyError),
+        ):
+            with self.subTest(function=function.__name__, drift="missing"), \
+                    self.assertRaisesRegex(error, "missing required license"):
+                function(self.fixture.mp25_blob, self.fixture.lost_blob,
+                         self.fixture.asset_blob, asset_notice, missing)
+
+        cloth_entries["LICENSE.md"] = b"not a license\n"
+        mutated = dict(self.fixture.dep_blobs)
+        mutated["cloth_config"] = ordinary_zip(cloth_entries)
+        for function, error in (
+            (builder.make_license_bundle, builder.BuildError),
+            (verifier.reconstruct_license_bundle, verifier.VerifyError),
+        ):
+            with self.subTest(function=function.__name__, drift="mutated"), \
+                    self.assertRaisesRegex(error, "expected license text"):
+                function(self.fixture.mp25_blob, self.fixture.lost_blob,
+                         self.fixture.asset_blob, asset_notice, mutated)
+
+    def test_23_qualification_probe_cannot_enter_production_payloads(self) -> None:
+        entries = builder.read_zip(self.fixture.mp25_blob, "mp25", allow_directories=True)
+        entries["grcmcs/minecraft/mods/pomkotsmechs/qualification/AshenSpanAcceptanceProbe.class"] = b"probe"
+        contaminated = ordinary_zip(entries)
+        for function, error in (
+            (builder.validate_mp25_jar, builder.BuildError),
+            (verifier.inspect_mp25, verifier.VerifyError),
+        ):
+            with self.subTest(function=function.__name__), \
+                    self.assertRaisesRegex(error, "qualification-only"):
+                function(contaminated, builder.sha256_bytes(contaminated))
+
+    def test_25_runtime_bound_rc6_rejects_self_consistent_input_substitution(self) -> None:
+        original_mp25 = self.fixture.mp25.read_bytes()
+        original_asset = self.fixture.asset.read_bytes()
+        original_world = self.fixture.world_archive.read_bytes()
+
+        mp25_entries = builder.read_zip(original_mp25, "mp25", allow_directories=True)
+        mp25_entries["unrelated/Extra.class"] = b"substitution"
+        substituted_mp25 = ordinary_zip(mp25_entries)
+        self.fixture.mp25.write_bytes(substituted_mp25)
+
+        asset_entries = builder.read_zip(original_asset, "asset", allow_directories=True)
+        asset_entries["data/mecharena_sector01/unrelated.json"] = b"{}\n"
+        substituted_asset = ordinary_zip(asset_entries)
+        substituted_world = original_world + b"substitution"
+
+        for module, inputs_type, loader, error in (
+            (builder, builder.CandidateInputs, builder.load_inputs, builder.BuildError),
+            (verifier, verifier.Inputs, verifier.load, verifier.VerifyError),
+        ):
+            base = self.fixture.builder_inputs() if module is builder else self.fixture.verifier_inputs()
+            mp_inputs = inputs_type(
+                base.base_mrpack, base.mp25_jar, builder.sha256_bytes(substituted_mp25),
+                base.lost_cities_jar, base.asset_jar, base.asset_sha256, base.asset_receipt,
+                base.world_dir, base.world_archive, base.world_sha256, base.world_receipt,
+                base.architectury_jar, base.cloth_config_jar, base.geckolib_jar, base.source_commit,
+            )
+            with self.subTest(module=module.__name__, payload="mp25"), \
+                    self.assertRaisesRegex(error, "exact RC6 production JAR"):
+                loader(mp_inputs)
+
+            self.fixture.mp25.write_bytes(original_mp25)
+            self.fixture.asset.write_bytes(substituted_asset)
+            asset_inputs = inputs_type(
+                base.base_mrpack, base.mp25_jar, builder.sha256_bytes(original_mp25),
+                base.lost_cities_jar, base.asset_jar, builder.sha256_bytes(substituted_asset),
+                base.asset_receipt, base.world_dir, base.world_archive, base.world_sha256,
+                base.world_receipt, base.architectury_jar, base.cloth_config_jar,
+                base.geckolib_jar, base.source_commit,
+            )
+            with self.subTest(module=module.__name__, payload="asset"), \
+                    self.assertRaisesRegex(error, "immutable RC5 Sector 01 JAR"):
+                loader(asset_inputs)
+
+            self.fixture.asset.write_bytes(original_asset)
+            self.fixture.world_archive.write_bytes(substituted_world)
+            world_inputs = inputs_type(
+                base.base_mrpack, base.mp25_jar, builder.sha256_bytes(original_mp25),
+                base.lost_cities_jar, base.asset_jar, builder.sha256_bytes(original_asset),
+                base.asset_receipt, base.world_dir, base.world_archive,
+                builder.sha256_bytes(substituted_world), base.world_receipt,
+                base.architectury_jar, base.cloth_config_jar, base.geckolib_jar,
+                base.source_commit,
+            )
+            with self.subTest(module=module.__name__, payload="world"), \
+                    self.assertRaisesRegex(error, "immutable RC5 world-builder archive"):
+                loader(world_inputs)
+
+            self.fixture.world_archive.write_bytes(original_world)
 
     def test_22_asset_embedded_profile_is_exact_and_mandatory(self) -> None:
         entries = builder.read_zip(self.fixture.asset_blob, "asset", allow_directories=True)
@@ -434,6 +619,43 @@ class PackagingTests(unittest.TestCase):
             builder.ASSET_PROFILE_SHA256,
             receipt["fixed_inputs"]["asset_lost_cities_profile_sha256"],
         )
+        self.assertEqual(builder.RC5_CANDIDATE_ID, manifest["lineage"]["predecessor_candidate_id"])
+        self.assertTrue(manifest["lineage"]["production_jar_changed"])
+        self.assertFalse(manifest["lineage"]["authored_world_changed"])
+        self.assertFalse(manifest["lineage"]["mission_content_roster_tactics_balance_changed"])
+        self.assertTrue(manifest["lineage"]["solo_start_player_pad_collision_fixed"])
+        self.assertEqual(builder.RC6_RUNTIME_SOURCE_COMMIT,
+                         manifest["identity"]["runtime_source_commit"])
+        self.assertEqual(builder.RC6_MP25_SHA256,
+                         manifest["lineage"]["runtime_anchors"]["mp25_sha256"])
+        self.assertEqual(builder.RC5_MP25_SHA256,
+                         manifest["lineage"]["predecessor_runtime_anchors"]["mp25_sha256"])
+        self.assertTrue(manifest["lineage"]["packaging_bytes_changed"])
+        self.assertFalse(manifest["distribution_hardening"]["qualification_probe_shipped"])
+        self.assertEqual(
+            set(builder.LICENSE_FILENAMES),
+            set(manifest["distribution_hardening"]["embedded_license_bundle"]),
+        )
+        self.assertEqual(
+            {
+                key: builder.sha256_bytes(blob)
+                for key, blob in builder.make_license_bundle(
+                    self.fixture.mp25_blob, self.fixture.lost_blob, self.fixture.asset_blob,
+                    builder.read_zip(self.fixture.asset_blob, "asset", allow_directories=True)[
+                        "META-INF/THIRD_PARTY_NOTICES.md"
+                    ],
+                    self.fixture.dep_blobs,
+                ).items()
+            },
+            receipt["fixed_inputs"]["embedded_license_sha256"],
+        )
+        self.assertTrue(receipt["offline_gates"]["production_jar_changed_from_rc5"])
+        self.assertTrue(receipt["offline_gates"]["solo_start_player_pad_collision_fixed"])
+        self.assertFalse(receipt["offline_gates"]["authored_world_changed_from_rc5"])
+        self.assertFalse(
+            receipt["offline_gates"]["mission_content_roster_tactics_balance_changed_from_rc5"]
+        )
+        self.assertTrue(receipt["offline_gates"]["package_bytes_changed_from_rc5"])
 
         client_names = {
             f"{builder.CLIENT_SAVE_ROOT}/level.dat",
@@ -559,7 +781,7 @@ class PackagingTests(unittest.TestCase):
             inputs.world_archive, builder.sha256_bytes(changed), inputs.world_receipt,
             inputs.architectury_jar, inputs.cloth_config_jar, inputs.geckolib_jar, inputs.source_commit,
         )
-        with self.assertRaisesRegex(builder.BuildError, "does not exactly match"):
+        with self.assertRaisesRegex(builder.BuildError, "immutable RC5 world-builder archive"):
             builder.build_candidate(inputs)
 
     def test_70_unsafe_archive_paths_and_case_collisions_are_rejected(self) -> None:
@@ -589,6 +811,44 @@ class PackagingTests(unittest.TestCase):
         with self.assertRaisesRegex(builder.BuildError, "does not resolve"):
             REAL_BUILDER_VALIDATE_SOURCE_COMMIT("0123456789abcdef0123456789abcdef01234567")
 
+    def test_77_physical_checkout_eol_gate_rejects_clean_filter_mismatch(self) -> None:
+        listing = (
+            "i/lf    w/lf    attr/text eol=lf\tgood.json\0"
+            "i/lf    w/crlf  attr/text eol=lf\tbad.json\0"
+            "i/crlf  w/crlf  attr/text eol=crlf\tgood.bat\0"
+            "i/-text w/-text attr/-text\tasset.ogg\0"
+        )
+        expected = ["bad.json (crlf, expected lf)"]
+        self.assertEqual(expected, builder.checkout_eol_mismatches(listing))
+        self.assertEqual(expected, verifier.checkout_eol_mismatches(listing))
+
+    def test_78_manifest_hashes_committed_builder_blob_not_checkout_bytes(self) -> None:
+        committed = b"#!/usr/bin/env python3\n# canonical Git LF bytes\n"
+        builder_reader = mock.Mock(return_value=committed)
+        verifier_reader = mock.Mock(return_value=committed)
+        source_commit = self.fixture.builder_inputs().source_commit
+        with mock.patch.object(builder, "read_committed_builder_blob", builder_reader), \
+                mock.patch.object(verifier, "read_committed_builder_blob", verifier_reader):
+            files = builder.build_candidate(self.fixture.builder_inputs())
+            builder.publish_atomic(self.fixture.output, files)
+            result = verifier.verify_candidate(self.fixture.verifier_inputs(), self.fixture.output)
+
+        manifest = json.loads(files[builder.MANIFEST_NAME])
+        self.assertEqual(builder.sha256_bytes(committed), manifest["builder"]["sha256"])
+        self.assertEqual(len(committed), manifest["builder"]["bytes"])
+        builder_reader.assert_called_once_with(source_commit)
+        verifier_reader.assert_called_once_with(source_commit)
+        self.assertEqual(11, result["files"])
+
+    def test_79_release_text_formats_have_checkout_independent_eol(self) -> None:
+        attributes = (TOOLS.parent / ".gitattributes").read_text(encoding="utf-8")
+        self.assertIn(".gitattributes text eol=lf", attributes)
+        for pattern in ("*.java", "*.json", "*.toml", "*.mcmeta", "*.py", "*.md"):
+            self.assertIn(f"{pattern} text eol=lf", attributes)
+        self.assertIn("LICENSE text eol=lf", attributes)
+        for pattern in ("*.jar", "*.zip", "*.mrpack", "*.nbt", "*.mca", "*.dat", "*.ogg"):
+            self.assertIn(f"{pattern} binary", attributes)
+
     def test_80_exclusive_publish_refuses_existing_output(self) -> None:
         files = self.build_and_publish()
         before = {path.name: path.read_bytes() for path in self.fixture.output.iterdir()}
@@ -599,7 +859,7 @@ class PackagingTests(unittest.TestCase):
     def test_82_first_publish_creates_and_validates_missing_parent_chain(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            output = root / "modpack" / "candidates" / "operation-ashen-span-rc5"
+            output = root / "modpack" / "candidates" / "operation-ashen-span-rc6"
             files = {"artifact.bin": b"candidate"}
             self.assertFalse(output.parent.exists())
 
@@ -628,7 +888,7 @@ class PackagingTests(unittest.TestCase):
                 "is_link_or_reparse",
                 side_effect=lambda path: Path(path) == unsafe or original(Path(path)),
             ), self.assertRaisesRegex(builder.BuildError, "unsafe component"):
-                builder.publish_atomic(unsafe / "candidates" / "rc5", {"artifact.bin": b"candidate"})
+                builder.publish_atomic(unsafe / "candidates" / "rc6", {"artifact.bin": b"candidate"})
 
     def test_90_wrong_explicit_identity_fails_before_packaging(self) -> None:
         inputs = self.fixture.builder_inputs()
@@ -638,7 +898,7 @@ class PackagingTests(unittest.TestCase):
             inputs.world_archive, inputs.world_sha256, inputs.world_receipt,
             inputs.architectury_jar, inputs.cloth_config_jar, inputs.geckolib_jar, inputs.source_commit,
         )
-        with self.assertRaisesRegex(builder.BuildError, "mp.25 JAR SHA-256 mismatch"):
+        with self.assertRaisesRegex(builder.BuildError, "exact RC6 production JAR"):
             builder.build_candidate(wrong)
 
     def test_95_verifier_source_is_independent(self) -> None:

@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "grcmcs.minecraft.mods.pomkotsmechs.qualification.mixin",
+  "refmap": "qualification-pomkotsmechs-forge-forge-refmap.json",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "AshenSpanHooksAccessor",
+    "AshenSpanOwnershipAccessor",
+    "AshenSpanPlayerListAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
