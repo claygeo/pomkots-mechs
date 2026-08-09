@@ -52,7 +52,8 @@ FORGE_LIBRARIES_SHA256 = "1159a5bc02501e3971b397576f979b78e510f7defefd7988611e5b
 JAVA_SHA256 = "b3afe83e1ab067da4c56f1a7b2ba4c14ec832d694333f35b2b45178e9ac596ef"
 # Set after the final remapQualificationJar build.  Keeping the value in source
 # makes a substituted probe fail before Java is started.
-PROBE_SHA256 = "fb12d93072068cbcf4201cbcc7bff211fe9b4571f91b70da34ae1ea26cb65b74"
+PROBE_BYTES = 38971
+PROBE_SHA256 = "8392c1c0f2bc4233e7c2cbaa7a0f198b1332f16a90bfff621fa5d25bb17f1db8"
 PROBE_TOKEN = b"ashen_span_qualification"
 EXPECTED_CHUNKS = {(x, z) for x in range(-17, 17) for z in range(-10, 10)}
 MAX_OVERLAY_BYTES = 256 * 1024 * 1024
@@ -327,15 +328,25 @@ def verify_tree_bound_rc6(candidate: Path, expected_tree_sha256: str
 
 def verify_probe(probe: Path) -> dict[str, Any]:
     require(probe.is_file() and not is_link_or_reparse(probe), "probe JAR is missing/unsafe")
-    require(archive_has_probe(probe.read_bytes()), "probe JAR does not contain its qualification identity")
-    digest = sha256_file(probe)
+    data = probe.read_bytes()
+    size = len(data)
+    require(size == PROBE_BYTES,
+            f"qualification probe size mismatch: {size}; expected {PROBE_BYTES}")
+    digest = hashlib.sha256(data).hexdigest()
     require(digest == PROBE_SHA256,
             f"qualification probe hash mismatch: {digest}; expected {PROBE_SHA256}")
-    with zipfile.ZipFile(probe) as archive:
+    require(archive_has_probe(data), "probe JAR does not contain its qualification identity")
+    with zipfile.ZipFile(io.BytesIO(data)) as archive:
         names = set(archive.namelist())
         require("META-INF/mods.toml" in names, "probe JAR has no Forge metadata")
         require("ashen_span_qualification.mixins.json" in names, "probe JAR has no accessor mixin config")
-    return {"bytes": probe.stat().st_size, "sha256": digest}
+    return {"bytes": size, "sha256": digest}
+
+
+def require_probe_copy_matches(probe_identity: dict[str, Any],
+                               runtime_identity: dict[str, Any]) -> None:
+    require(runtime_identity.get("probe_copy_sha256") == probe_identity["sha256"],
+            "qualification probe changed while the private runtime was prepared")
 
 
 def copy_forge_runtime(source: Path, destination: Path) -> str:
@@ -722,6 +733,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             f"Java hash mismatch: {java_digest}; expected {args.java_sha256.lower()}")
 
     runtime, runtime_identity = prepare_runtime(candidate, overlay, forge_runtime, probe, session)
+    require_probe_copy_matches(probe_identity, runtime_identity)
     world = runtime / "saves" / "cold_ruin_sector_01"
     before = world_inventory(world)
     before_path = evidence / "WORLD_BEFORE.json"

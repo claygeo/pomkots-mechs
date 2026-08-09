@@ -203,9 +203,44 @@ tasks.register("qualificationJar", Jar) {
 tasks.register("remapQualificationJar", net.fabricmc.loom.task.RemapJarTask) {
     group = "verification"
     description = "Remaps the unshipped Ashen Span qualification probe for Forge 1.20.1."
+    def acceptanceRunner = rootProject.file("tools/run_ashen_span_acceptance.py")
+    inputs.file(acceptanceRunner)
     inputFile.set(tasks.named("qualificationJar", Jar).flatMap { it.archiveFile })
     archiveBaseName.set("ashen-span-qualification")
     archiveVersion.set("")
     archiveClassifier.set("probe")
     addNestedDependencies.set(false)
+
+    // The external runner is useless if its immutable probe identity lags the
+    // artifact emitted here. Verify the two independently maintained pins on
+    // every remap instead of allowing a later source/debug-table change to
+    // survive the offline build unnoticed.
+    doLast {
+        def pinSource = acceptanceRunner.getText("UTF-8")
+        def bytesLines = pinSource.readLines().findAll {
+            it ==~ /^PROBE_BYTES = [1-9][0-9]*$/
+        }
+        def shaLines = pinSource.readLines().findAll {
+            it ==~ /^PROBE_SHA256 = "[0-9a-f]{64}"$/
+        }
+        if (bytesLines.size() != 1 || shaLines.size() != 1) {
+            throw new GradleException(
+                    "acceptance runner must contain exactly one canonical probe size and SHA-256 pin")
+        }
+        long expectedBytes = bytesLines[0].substring("PROBE_BYTES = ".length()).toLong()
+        if (bytesLines[0] != "PROBE_BYTES = ${expectedBytes}") {
+            throw new GradleException("acceptance runner probe size pin is not canonical")
+        }
+        def expectedSha256 = shaLines[0].substring("PROBE_SHA256 = \"".length(),
+                shaLines[0].length() - 1)
+        def probe = archiveFile.get().asFile
+        long actualBytes = probe.length()
+        def actualSha256 = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(probe.bytes).encodeHex().toString()
+        if (actualBytes != expectedBytes || actualSha256 != expectedSha256) {
+            throw new GradleException("remapped qualification probe identity ${actualBytes}/"
+                    + "${actualSha256} does not match acceptance runner ${expectedBytes}/"
+                    + "${expectedSha256}")
+        }
+    }
 }

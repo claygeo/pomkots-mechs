@@ -70,6 +70,33 @@ def valid_probe_result(build_limit: int = 1) -> dict[str, object]:
 
 
 class AcceptanceRunnerTests(unittest.TestCase):
+    def test_probe_identity_binds_size_before_hash(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            probe = Path(raw) / "probe.jar"
+            with zipfile.ZipFile(probe, "w") as out:
+                out.writestr("META-INF/mods.toml", "ashen_span_qualification")
+                out.writestr("ashen_span_qualification.mixins.json", "{}")
+            digest = hashlib.sha256(probe.read_bytes()).hexdigest()
+            with mock.patch.object(acceptance, "PROBE_BYTES", probe.stat().st_size + 1), \
+                    mock.patch.object(acceptance, "PROBE_SHA256", digest):
+                with self.assertRaisesRegex(acceptance.AcceptanceError, "size mismatch"):
+                    acceptance.verify_probe(probe)
+            with mock.patch.object(acceptance, "PROBE_BYTES", probe.stat().st_size), \
+                    mock.patch.object(acceptance, "PROBE_SHA256", digest):
+                self.assertEqual(
+                    {"bytes": probe.stat().st_size, "sha256": digest},
+                    acceptance.verify_probe(probe))
+
+    def test_private_runtime_probe_copy_must_match_verified_source(self) -> None:
+        probe_identity = {"bytes": 38971, "sha256": "a" * 64}
+        acceptance.require_probe_copy_matches(
+            probe_identity, {"probe_copy_sha256": "a" * 64})
+        with self.assertRaisesRegex(acceptance.AcceptanceError, "changed"):
+            acceptance.require_probe_copy_matches(
+                probe_identity, {"probe_copy_sha256": "b" * 64})
+        with self.assertRaisesRegex(acceptance.AcceptanceError, "changed"):
+            acceptance.require_probe_copy_matches(probe_identity, {})
+
     def test_safe_extract_one_file(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

@@ -82,6 +82,12 @@ Build the unshipped probe and run its unit suite:
 python -m unittest tools.tests.test_ashen_span_acceptance -v
 ```
 
+The remapped, non-shipping probe is pinned at 38,971 bytes and SHA-256
+`8392C1C0F2BC4233E7C2CBAA7A0F198B1332F16A90BFFF621FA5D25BB17F1DB8`.
+`remapQualificationJar` reads the independent size/hash pins from the runner and
+fails if the emitted artifact differs, so a stale runner cannot survive the
+offline build gate.
+
 Run the RC6 one-build scale gate first, substituting the independently recorded
 tree digest and candidate path:
 
