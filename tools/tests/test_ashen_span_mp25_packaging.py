@@ -520,6 +520,9 @@ class PackagingTests(unittest.TestCase):
         payload_mutation = dict(baseline)
         payload_mutation["unrelated/Reference.class"] = b"prefix architectury_inject_hidden suffix"
         mutations.append(("payload", payload_mutation))
+        directory_mutation = dict(baseline)
+        directory_mutation["architectury_inject_directory_only/"] = b""
+        mutations.append(("directory", directory_mutation))
 
         for kind, entries in mutations:
             contaminated = ordinary_zip(entries)
@@ -530,6 +533,17 @@ class PackagingTests(unittest.TestCase):
                 with self.subTest(kind=kind, function=function.__name__), \
                         self.assertRaisesRegex(error, "path-dependent Architectury"):
                     function(contaminated, builder.sha256_bytes(contaminated))
+
+        nonempty_directory = dict(baseline)
+        nonempty_directory["ordinary-directory/"] = b"hidden payload"
+        contaminated = ordinary_zip(nonempty_directory)
+        for function, error in (
+            (builder.validate_mp25_jar, builder.BuildError),
+            (verifier.inspect_mp25, verifier.VerifyError),
+        ):
+            with self.subTest(kind="nonempty-directory", function=function.__name__), \
+                    self.assertRaisesRegex(error, "directory entry must be empty"):
+                function(contaminated, builder.sha256_bytes(contaminated))
 
     def test_25_runtime_bound_rc6_rejects_self_consistent_input_substitution(self) -> None:
         original_mp25 = self.fixture.mp25.read_bytes()

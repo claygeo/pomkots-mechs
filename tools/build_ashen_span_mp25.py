@@ -388,6 +388,7 @@ def validate_archive_path(raw: str, label: str, *, allow_directory: bool = False
 
 def read_zip(blob: bytes, label: str, *, canonical: bool = False,
              compression: int | None = None, allow_directories: bool = False,
+             include_directories: bool = False,
              max_uncompressed_bytes: int = MAX_ARCHIVE_UNCOMPRESSED_BYTES,
              max_entry_bytes: int = MAX_ARCHIVE_ENTRY_BYTES) -> dict[str, bytes]:
     try:
@@ -407,6 +408,9 @@ def read_zip(blob: bytes, label: str, *, canonical: bool = False,
             for info in infos:
                 if info.is_dir():
                     require(allow_directories and not canonical, f"{label}: directory entry is forbidden")
+                    require(info.file_size == 0, f"{label}: directory entry must be empty: {info.filename}")
+                    if include_directories:
+                        result[info.filename] = b""
                     continue
                 require(not (info.flag_bits & 0x1), f"{label}: encrypted entry {info.filename}")
                 require(info.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
@@ -479,7 +483,7 @@ def unique_mod(metadata: dict[str, object], mod_id: str, label: str) -> dict[str
 
 def validate_mp25_jar(blob: bytes, expected_sha: str) -> None:
     require(sha256_bytes(blob) == expected_sha, "mp.25 JAR SHA-256 mismatch")
-    entries = read_zip(blob, "mp.25 JAR", allow_directories=True)
+    entries = read_zip(blob, "mp.25 JAR", allow_directories=True, include_directories=True)
     required = {
         "LICENSE",
         "META-INF/mods.toml",
