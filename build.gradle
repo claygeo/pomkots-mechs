@@ -54,6 +54,15 @@ subprojects {
         it.options.release = 17
     }
 
+    // Keep AbstractArchiveTask outputs stable before they enter a transform,
+    // shadow, remap, verifier, or receipt. Platform builds separately reject
+    // Architectury's path-dependent orphan injection marker; its unshipped
+    // transform intermediate is not itself a release artifact.
+    tasks.withType(org.gradle.api.tasks.bundling.AbstractArchiveTask).configureEach {
+        preserveFileTimestamps = false
+        reproducibleFileOrder = true
+    }
+
     // Configure Maven publishing.
     publishing {
         publications {

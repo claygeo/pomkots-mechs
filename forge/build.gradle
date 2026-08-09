@@ -102,10 +102,36 @@ processResources {
 shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = 'dev-shadow'
+    // Architectury 3.4.164 emits an unreferenced marker whose package embeds a
+    // random project ID and absolute build path. It is not used by this repo
+    // (no ExpectPlatform call sites), so keep it out of the shipping archive.
+    exclude 'architectury_inject_*'
+    exclude 'architectury_inject_*/**'
 }
 
 remapJar {
     input.set shadowJar.archiveFile
+    doLast {
+        def token = 'architectury_inject_'
+        new java.util.zip.ZipFile(archiveFile.get().asFile).withCloseable { archive ->
+            def entries = archive.entries()
+            while (entries.hasMoreElements()) {
+                def entry = entries.nextElement()
+                if (entry.name.contains(token)) {
+                    throw new GradleException(
+                            "path-dependent Architectury injection entry survived: ${entry.name}")
+                }
+                if (!entry.directory) {
+                    def payload = archive.getInputStream(entry).withCloseable { it.bytes }
+                    if (new String(payload, java.nio.charset.StandardCharsets.ISO_8859_1)
+                            .contains(token)) {
+                        throw new GradleException(
+                                "path-dependent Architectury injection reference survived: ${entry.name}")
+                    }
+                }
+            }
+        }
+    }
 }
 
 // GameTest structures are compressed NBT, which is not representable as a text

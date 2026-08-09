@@ -41,7 +41,13 @@ hashes the committed Git blob instead of checkout-dependent bytes, and
 `.gitattributes` pins normalized hardening/asset/world inputs and the authored mission
 JSON to LF, preserves other production resources as exact Git bytes, and gives the
 directly copied root license and Forge `pack.mcmeta` fixed CRLF forms. Gradle therefore
-cannot receive platform-dependent payloads. Publication is
+cannot receive platform-dependent payloads. Gradle `AbstractArchiveTask` outputs use
+fixed timestamps and reproducible member order. Architectury's unshipped transform
+intermediate can retain noncanonical ZIP metadata, but Forge and Fabric shadow builds
+normalize the release path and remove Architectury 3.4.164's unreferenced,
+absolute-path-dependent injection marker. Final remap tasks and the independent
+candidate builder/verifier reject that token in both member names and payload bytes.
+Publication is
 exclusive: missing parent directories are created and checked one component at
 a time, the output directory must not exist, and a sibling staging directory is
 atomically renamed only after every file is written and reread.

@@ -93,6 +93,7 @@ LICENSE_FILENAMES = {
 FORBIDDEN_QUALIFICATION_PATH_TOKENS = (
     "qualification", "acceptance_probe", "acceptance-probe", "fakeplayer",
 )
+FORBIDDEN_ARCHITECTURY_INJECTION_TOKEN = b"architectury_inject_"
 RC5_CANDIDATE_ID = "operation-ashen-span-mp25-rc5"
 RC5_RUNTIME_SOURCE_COMMIT = "d96b7b84688e925f311849d7c40f72a4f8a691c2"
 RC5_MP25_SHA256 = "29D3295D47CB3CD6744BAE98AFB404E5CFC87F94E26B0556A1120A5B42744213"
@@ -495,6 +496,11 @@ def validate_mp25_jar(blob: bytes, expected_sha: str) -> None:
         for name in entries
         for token in FORBIDDEN_QUALIFICATION_PATH_TOKENS
     ), "mp.25 production JAR contains a qualification-only payload")
+    require(not any(
+        FORBIDDEN_ARCHITECTURY_INJECTION_TOKEN.decode("ascii") in name.casefold()
+        or FORBIDDEN_ARCHITECTURY_INJECTION_TOKEN in payload
+        for name, payload in entries.items()
+    ), "mp.25 production JAR contains a path-dependent Architectury injection payload")
     metadata = parse_mods_toml(entries, "mp.25 JAR")
     require(metadata.get("modLoader") == "javafml", "mp.25 JAR uses the wrong mod loader")
     record = unique_mod(metadata, "pomkotsmechs", "mp.25 JAR")

@@ -509,6 +509,28 @@ class PackagingTests(unittest.TestCase):
                     self.assertRaisesRegex(error, "qualification-only"):
                 function(contaminated, builder.sha256_bytes(contaminated))
 
+    def test_24_path_dependent_architectury_injection_cannot_enter_mod_jar(self) -> None:
+        baseline = builder.read_zip(self.fixture.mp25_blob, "mp25", allow_directories=True)
+        mutations = []
+        path_mutation = dict(baseline)
+        path_mutation[
+            "architectury_inject_nondeterministic/PlatformMethods.class"
+        ] = b"orphan"
+        mutations.append(("path", path_mutation))
+        payload_mutation = dict(baseline)
+        payload_mutation["unrelated/Reference.class"] = b"prefix architectury_inject_hidden suffix"
+        mutations.append(("payload", payload_mutation))
+
+        for kind, entries in mutations:
+            contaminated = ordinary_zip(entries)
+            for function, error in (
+                (builder.validate_mp25_jar, builder.BuildError),
+                (verifier.inspect_mp25, verifier.VerifyError),
+            ):
+                with self.subTest(kind=kind, function=function.__name__), \
+                        self.assertRaisesRegex(error, "path-dependent Architectury"):
+                    function(contaminated, builder.sha256_bytes(contaminated))
+
     def test_25_runtime_bound_rc6_rejects_self_consistent_input_substitution(self) -> None:
         original_mp25 = self.fixture.mp25.read_bytes()
         original_asset = self.fixture.asset.read_bytes()
@@ -847,6 +869,8 @@ class PackagingTests(unittest.TestCase):
     def test_79_release_text_formats_have_checkout_independent_eol(self) -> None:
         attributes = (TOOLS.parent / ".gitattributes").read_text(encoding="utf-8")
         self.assertIn(".gitattributes text eol=lf", attributes)
+        self.assertIn("build.gradle text eol=lf", attributes)
+        self.assertIn("fabric/build.gradle text eol=lf", attributes)
         for path in (
                 "forge/build.gradle", "forge/src/qualification/java/**",
                 "forge/src/qualification/resources/**", "tools/**/*.py",
@@ -866,6 +890,21 @@ class PackagingTests(unittest.TestCase):
         self.assertNotIn("*.java text eol=lf", attributes)
         for pattern in ("*.jar", "*.zip", "*.mrpack", "*.nbt", "*.mca", "*.dat", "*.ogg"):
             self.assertIn(f"{pattern} binary", attributes)
+
+    def test_79b_gradle_archives_are_reproducible_before_architectury_transform(self) -> None:
+        gradle = (TOOLS.parent / "build.gradle").read_text(encoding="utf-8")
+        self.assertIn(
+            "tasks.withType(org.gradle.api.tasks.bundling.AbstractArchiveTask).configureEach",
+            gradle,
+        )
+        self.assertIn("preserveFileTimestamps = false", gradle)
+        self.assertIn("reproducibleFileOrder = true", gradle)
+        for platform in ("forge", "fabric"):
+            platform_gradle = (TOOLS.parent / platform / "build.gradle").read_text(
+                encoding="utf-8")
+            self.assertIn("exclude 'architectury_inject_*/**'", platform_gradle)
+            self.assertIn("path-dependent Architectury injection entry survived", platform_gradle)
+            self.assertIn("path-dependent Architectury injection reference survived", platform_gradle)
 
     def test_80_exclusive_publish_refuses_existing_output(self) -> None:
         files = self.build_and_publish()

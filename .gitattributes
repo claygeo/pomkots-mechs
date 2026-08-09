@@ -1,6 +1,8 @@
 # Preserve legacy tracked bytes instead of forcing a repository-wide EOL rewrite.
 # Pin only the release-hardening inputs that were normalized in this branch.
 .gitattributes text eol=lf
+/build.gradle text eol=lf
+fabric/build.gradle text eol=lf
 forge/build.gradle text eol=lf
 forge/src/qualification/java/** text eol=lf
 forge/src/qualification/resources/** text eol=lf
