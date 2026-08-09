@@ -220,7 +220,7 @@ The isolated runtime source commit is
 the 10,704,165-byte runtime JAR with SHA-256
 `0263191D695C2CBB136B883CC62DAF1354C1B2013FFCCEDDDE54CE9DD63600F4`;
 qualification classes are absent from all 1,401 JAR members. That artifact predates
-the repository's LF checkout policy and is retained only as historical diagnostic
+the branch's deterministic checkout policy and is retained only as historical diagnostic
 provenance; it is not the canonical post-erratum runtime. A clean checkout of the future
 authorized source must produce and pin a replacement hash.
 

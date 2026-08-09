@@ -30,7 +30,7 @@ The intermediate collision fix is pinned to runtime source commit
 `0263191D695C2CBB136B883CC62DAF1354C1B2013FFCCEDDDE54CE9DD63600F4`.
 These values are diagnostic provenance, not candidate or release anchors. They must be
 replaced after the authoritative erratum and reviewed runtime/world rebuild. The JAR
-also predates the LF checkout policy below, so it is not a canonical cross-platform
+also predates the deterministic checkout policy below, so it is not a canonical cross-platform
 runtime artifact.
 
 The builder requires explicit paths and expected identities for every mutable
@@ -38,8 +38,10 @@ mp.25 input. The mp.24 RC4 baseline and Lost Cities 1.20.1 Forge 7.4.13 are
 pinned in code. The source commit must resolve to the clean checked-out `HEAD`,
 so the receipt cannot self-attest an unrelated object ID. Builder provenance
 hashes the committed Git blob instead of checkout-dependent bytes, and
-`.gitattributes` pins release-relevant text/resources to LF so Gradle cannot
-embed different CRLF payloads on Windows. Publication is
+`.gitattributes` pins normalized hardening/asset/world inputs and the authored mission
+JSON to LF, preserves other production resources and the embedded license as exact Git
+bytes, and gives the directly copied Forge `pack.mcmeta` a fixed CRLF form. Gradle
+therefore cannot receive platform-dependent payloads. Publication is
 exclusive: missing parent directories are created and checked one component at
 a time, the output directory must not exist, and a sibling staging directory is
 atomically renamed only after every file is written and reread.

@@ -52,7 +52,7 @@ HEX_64_RE = re.compile(r"^[0-9A-F]{64}$")
 UTC_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 RC5_SOURCE_COMMIT = "d96b7b84688e925f311849d7c40f72a4f8a691c2"
 # Frozen historical diagnostic binding. The pre-erratum artifact predates the
-# LF checkout policy and must be replaced with any authorized future runtime.
+# deterministic checkout policy and must be replaced with any authorized future runtime.
 RC6_RUNTIME_SOURCE_COMMIT = "5a35ec3d9a69fdd4d88ed7a0b21b28bc1b18ecfb"
 # Current RC5 and proposed RC6 identities share the impossible locked 680/6/6
 # world contract.  No new kit or PASS receipt may be minted until an

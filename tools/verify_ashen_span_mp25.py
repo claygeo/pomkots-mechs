@@ -94,7 +94,7 @@ FORBIDDEN_QUALIFICATION_PATH_TOKENS = (
 RC5_CANDIDATE_ID = "operation-ashen-span-mp25-rc5"
 RC5_RUNTIME_SOURCE_COMMIT = "d96b7b84688e925f311849d7c40f72a4f8a691c2"
 RC5_MP25_SHA256 = "29D3295D47CB3CD6744BAE98AFB404E5CFC87F94E26B0556A1120A5B42744213"
-# Historical pre-erratum collision-fix artifact. It predates the LF checkout
+# Historical pre-erratum collision-fix artifact. It predates the deterministic checkout
 # policy and is not a canonical or releasable RC6 anchor.
 RC6_RUNTIME_SOURCE_COMMIT = "5a35ec3d9a69fdd4d88ed7a0b21b28bc1b18ecfb"
 RC6_MP25_SHA256 = "0263191D695C2CBB136B883CC62DAF1354C1B2013FFCCEDDDE54CE9DD63600F4"
@@ -230,20 +230,27 @@ def read_stable(path: Path, label: str, expected_sha: str | None = None,
 
 
 def checkout_eol_mismatches(listing: str) -> list[str]:
-    """Independently detect physical EOLs that violate tracked attributes."""
+    """Independently detect physical bytes that violate tracked attributes."""
     mismatches: list[str] = []
     for record in listing.split("\0"):
         if not record:
             continue
         require("\t" in record, "cannot parse Git checkout EOL inventory")
         metadata, path = record.split("\t", 1)
-        match = re.search(r"(?:^|\s)w/(\S+)", metadata)
-        require(match is not None, "Git checkout EOL inventory lacks worktree state")
-        actual = match.group(1)
+        index_match = re.search(r"(?:^|\s)i/(\S+)", metadata)
+        worktree_match = re.search(r"(?:^|\s)w/(\S+)", metadata)
+        require(index_match is not None and worktree_match is not None,
+                "Git checkout EOL inventory lacks index/worktree state")
+        indexed = index_match.group(1)
+        actual = worktree_match.group(1)
         if "eol=lf" in metadata and actual not in {"lf", "none"}:
             mismatches.append(f"{path} ({actual}, expected lf)")
         elif "eol=crlf" in metadata and actual not in {"crlf", "none"}:
             mismatches.append(f"{path} ({actual}, expected crlf)")
+        elif "attr/-text" in metadata and indexed != actual:
+            mismatches.append(
+                f"{path} ({actual}, expected byte-preserved index state {indexed})"
+            )
     return mismatches
 
 

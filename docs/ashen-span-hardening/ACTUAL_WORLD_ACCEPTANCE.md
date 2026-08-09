@@ -23,7 +23,7 @@ or JAR, including inside nested ZIP/JAR payloads.
   (10,704,165 bytes). The physical standalone JAR, client MRPack copy, server
   overlay copy, manifest anchor, receipt anchor, and fixed-input anchor must all
   agree. This is diagnostic provenance, not a future RC6 contract; the artifact
-  predates the LF checkout policy and every anchor must be replaced after the erratum.
+  predates the deterministic checkout policy and every anchor must be replaced after the erratum.
 - Extraction rejects absolute/traversal paths, backslashes, Windows drive or
   alternate-stream syntax in every component, duplicate/case-colliding members,
   symlinks, and expansion beyond the fixed cap.

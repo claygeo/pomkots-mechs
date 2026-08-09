@@ -40,7 +40,7 @@ RC5_CANDIDATE_TREE_SHA256 = "1E284A0555A421E5084B2A9425B70AA573C2ADBB382E0CCA8A6
 RC6_CANDIDATE_ID = "operation-ashen-span-mp25-rc6"
 MP25_NAME = "pomkotsmechs-forge-0.0.1-alpha.7-mp.25.jar"
 # Frozen historical diagnostic binding only. This pre-erratum artifact predates
-# the LF checkout policy and must not be treated as a future RC6 runtime anchor.
+# the deterministic checkout policy and must not be treated as a future RC6 runtime anchor.
 RC6_RUNTIME_SOURCE_COMMIT = "5a35ec3d9a69fdd4d88ed7a0b21b28bc1b18ecfb"
 RC6_MP25_SHA256 = "0263191d695c2cbb136b883cc62daf1354c1b2013ffcceddde54ce9dd63600f4"
 RC6_MP25_BYTES = 10_704_165

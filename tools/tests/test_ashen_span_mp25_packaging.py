@@ -816,9 +816,13 @@ class PackagingTests(unittest.TestCase):
             "i/lf    w/lf    attr/text eol=lf\tgood.json\0"
             "i/lf    w/crlf  attr/text eol=lf\tbad.json\0"
             "i/crlf  w/crlf  attr/text eol=crlf\tgood.bat\0"
+            "i/lf    w/crlf  attr/-text\tbyte-preserved.txt\0"
             "i/-text w/-text attr/-text\tasset.ogg\0"
         )
-        expected = ["bad.json (crlf, expected lf)"]
+        expected = [
+            "bad.json (crlf, expected lf)",
+            "byte-preserved.txt (crlf, expected byte-preserved index state lf)",
+        ]
         self.assertEqual(expected, builder.checkout_eol_mismatches(listing))
         self.assertEqual(expected, verifier.checkout_eol_mismatches(listing))
 
@@ -843,9 +847,23 @@ class PackagingTests(unittest.TestCase):
     def test_79_release_text_formats_have_checkout_independent_eol(self) -> None:
         attributes = (TOOLS.parent / ".gitattributes").read_text(encoding="utf-8")
         self.assertIn(".gitattributes text eol=lf", attributes)
-        for pattern in ("*.java", "*.json", "*.toml", "*.mcmeta", "*.py", "*.md"):
-            self.assertIn(f"{pattern} text eol=lf", attributes)
-        self.assertIn("LICENSE text eol=lf", attributes)
+        for path in (
+                "forge/build.gradle", "forge/src/qualification/java/**",
+                "forge/src/qualification/resources/**", "tools/**/*.py",
+                "tools/ashen_span_world/generation_datapack/**",
+                "docs/ashen-span-hardening/**", "sector01-src/**", "sector01-world/**"):
+            self.assertIn(f"{path} text eol=lf", attributes)
+        self.assertIn("LICENSE -text", attributes)
+        for root in (
+                "common/src/main/resources/**", "forge/src/main/resources/**",
+                "fabric/src/main/resources/**"):
+            self.assertIn(f"{root} -text", attributes)
+        self.assertIn(
+            "common/src/main/resources/data/pomkotsmechs/arena/solo_encounters.json text eol=lf",
+            attributes,
+        )
+        self.assertIn("forge/src/main/resources/pack.mcmeta text eol=crlf", attributes)
+        self.assertNotIn("*.java text eol=lf", attributes)
         for pattern in ("*.jar", "*.zip", "*.mrpack", "*.nbt", "*.mca", "*.dat", "*.ogg"):
             self.assertIn(f"{pattern} binary", attributes)
 

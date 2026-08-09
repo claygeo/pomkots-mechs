@@ -1,23 +1,23 @@
-# Release artifacts embed source/resource bytes. Keep those bytes canonical
-# across Windows and Unix checkouts; launch scripts retain their native form.
+# Preserve legacy tracked bytes instead of forcing a repository-wide EOL rewrite.
+# Pin only the release-hardening inputs that were normalized in this branch.
 .gitattributes text eol=lf
-*.java text eol=lf
-*.gradle text eol=lf
-*.json text eol=lf
-*.toml text eol=lf
-*.mcmeta text eol=lf
-*.py text eol=lf
-*.md text eol=lf
-*.properties text eol=lf
-*.txt text eol=lf
-*.log text eol=lf
-*.gitignore text eol=lf
-*.sh text eol=lf
-gradlew text eol=lf
-LICENSE text eol=lf
-*.bat text eol=crlf
-*.cmd text eol=crlf
-*.ps1 text eol=crlf
+forge/build.gradle text eol=lf
+forge/src/qualification/java/** text eol=lf
+forge/src/qualification/resources/** text eol=lf
+tools/**/*.py text eol=lf
+tools/ashen_span_world/generation_datapack/** text eol=lf
+docs/ashen-span-hardening/** text eol=lf
+sector01-src/** text eol=lf
+sector01-world/** text eol=lf
+
+# Production resources and the embedded license are copied byte-for-byte unless
+# a direct-copy resource below has an explicit canonical line ending.
+LICENSE -text
+common/src/main/resources/** -text
+forge/src/main/resources/** -text
+fabric/src/main/resources/** -text
+common/src/main/resources/data/pomkotsmechs/arena/solo_encounters.json text eol=lf
+forge/src/main/resources/pack.mcmeta text eol=crlf
 
 *.jar binary
 *.zip binary
