@@ -388,7 +388,6 @@ def validate_archive_path(raw: str, label: str, *, allow_directory: bool = False
 
 def read_zip(blob: bytes, label: str, *, canonical: bool = False,
              compression: int | None = None, allow_directories: bool = False,
-             include_directories: bool = False,
              max_uncompressed_bytes: int = MAX_ARCHIVE_UNCOMPRESSED_BYTES,
              max_entry_bytes: int = MAX_ARCHIVE_ENTRY_BYTES) -> dict[str, bytes]:
     try:
@@ -406,15 +405,13 @@ def read_zip(blob: bytes, label: str, *, canonical: bool = False,
                 require(names == sorted(names), f"{label}: entries are not sorted")
             result: dict[str, bytes] = {}
             for info in infos:
-                if info.is_dir():
-                    require(allow_directories and not canonical, f"{label}: directory entry is forbidden")
-                    require(info.file_size == 0, f"{label}: directory entry must be empty: {info.filename}")
-                    if include_directories:
-                        result[info.filename] = b""
-                    continue
                 require(not (info.flag_bits & 0x1), f"{label}: encrypted entry {info.filename}")
                 require(info.compress_type in (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED),
                         f"{label}: unsupported compression for {info.filename}")
+                if info.is_dir():
+                    require(allow_directories and not canonical, f"{label}: directory entry is forbidden")
+                    require(info.file_size == 0, f"{label}: directory entry must be empty: {info.filename}")
+                    continue
                 if canonical:
                     require(info.date_time == FIXED_TIMESTAMP, f"{label}: timestamp drift for {info.filename}")
                     require(info.create_system == 3, f"{label}: creator OS drift for {info.filename}")
@@ -483,7 +480,7 @@ def unique_mod(metadata: dict[str, object], mod_id: str, label: str) -> dict[str
 
 def validate_mp25_jar(blob: bytes, expected_sha: str) -> None:
     require(sha256_bytes(blob) == expected_sha, "mp.25 JAR SHA-256 mismatch")
-    entries = read_zip(blob, "mp.25 JAR", allow_directories=True, include_directories=True)
+    entries = read_zip(blob, "mp.25 JAR")
     required = {
         "LICENSE",
         "META-INF/mods.toml",

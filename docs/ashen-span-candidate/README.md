@@ -44,9 +44,11 @@ directly copied root license and Forge `pack.mcmeta` fixed CRLF forms. Gradle th
 cannot receive platform-dependent payloads. Gradle `AbstractArchiveTask` outputs use
 fixed timestamps and reproducible member order. Architectury's unshipped transform
 intermediate can retain noncanonical ZIP metadata, but Forge and Fabric shadow builds
-normalize the release path and remove Architectury 3.4.164's unreferenced,
-absolute-path-dependent injection marker. Final remap tasks and the independent
-candidate builder/verifier reject that token in both member names and payload bytes.
+remove Architectury 3.4.164's unreferenced, absolute-path-dependent injection marker.
+Each final remap task rewrites its shipping JAR into a timezone-neutral fixed-time,
+fixed-order, directory-free archive and verifies every member. The independent candidate
+builder/verifier reject all directory records and reject the Architectury token in
+both member names and payload bytes.
 Publication is
 exclusive: missing parent directories are created and checked one component at
 a time, the output directory must not exist, and a sibling staging directory is

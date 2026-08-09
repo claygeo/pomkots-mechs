@@ -8,6 +8,134 @@ architectury {
     minecraft = project.minecraft_version
 }
 
+// Loom's remapper may synthesize directory records after Gradle's archive
+// reproducibility settings have already taken effect.  Directory records are
+// not required by the JAR format, so rewrite only the final platform JARs to a
+// canonical, directory-free ZIP representation before anything packages them.
+def canonicalJarEpochMillis = 0L
+def canonicalJarEntryOrder = { left, right ->
+    def manifest = 'META-INF/MANIFEST.MF'
+    if (left.name == manifest && right.name != manifest) {
+        return -1
+    }
+    if (right.name == manifest && left.name != manifest) {
+        return 1
+    }
+    return left.name <=> right.name
+}
+
+ext.canonicalizePlatformJar = { File archiveFile ->
+    if (!archiveFile.isFile()) {
+        throw new GradleException("platform JAR does not exist: ${archiveFile}")
+    }
+
+    def tempPath = java.nio.file.Files.createTempFile(
+            archiveFile.parentFile.toPath(), "${archiveFile.name}.", ".canonical.tmp")
+    def tempFile = tempPath.toFile()
+    try {
+        new java.util.zip.ZipFile(archiveFile).withCloseable { source ->
+            def entries = java.util.Collections.list(source.entries())
+                    .findAll { !it.directory }
+            def names = new HashSet<String>()
+            def caseFoldedNames = new HashSet<String>()
+            entries.each { entry ->
+                if (!names.add(entry.name)
+                        || !caseFoldedNames.add(entry.name.toLowerCase(java.util.Locale.ROOT))) {
+                    throw new GradleException(
+                            "duplicate or case-colliding platform JAR entry: ${entry.name}")
+                }
+            }
+            if (entries.count { it.name == 'META-INF/MANIFEST.MF' } != 1) {
+                throw new GradleException("platform JAR must contain exactly one manifest")
+            }
+            entries.sort(canonicalJarEntryOrder)
+
+            tempFile.withOutputStream { output ->
+                new java.util.zip.ZipOutputStream(
+                        output, java.nio.charset.StandardCharsets.UTF_8).withCloseable { target ->
+                    target.setLevel(java.util.zip.Deflater.BEST_COMPRESSION)
+                    entries.each { sourceEntry ->
+                        def targetEntry = new java.util.zip.ZipEntry(sourceEntry.name)
+                        targetEntry.method = java.util.zip.ZipEntry.DEFLATED
+                        // Epoch zero is timezone-invariant and is clamped to the
+                        // same minimum DOS timestamp in every supported zone.
+                        targetEntry.setTime(canonicalJarEpochMillis)
+                        target.putNextEntry(targetEntry)
+                        source.getInputStream(sourceEntry).withCloseable { input ->
+                            input.transferTo(target)
+                        }
+                        target.closeEntry()
+                    }
+                }
+            }
+        }
+
+        try {
+            java.nio.file.Files.move(tempPath, archiveFile.toPath(),
+                    java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        } catch (java.nio.file.AtomicMoveNotSupportedException ignored) {
+            java.nio.file.Files.move(tempPath, archiveFile.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+        }
+    } finally {
+        java.nio.file.Files.deleteIfExists(tempPath)
+    }
+}
+
+ext.assertCanonicalPlatformJar = { File archiveFile ->
+    def token = 'architectury_inject_'
+    new java.util.zip.ZipFile(archiveFile).withCloseable { archive ->
+        def entries = java.util.Collections.list(archive.entries())
+        if (entries.count { it.name == 'META-INF/MANIFEST.MF' } != 1
+                || entries[0].name != 'META-INF/MANIFEST.MF') {
+            throw new GradleException("canonical platform JAR manifest is absent or not first")
+        }
+        def expectedOrder = entries.findAll { !it.directory }
+                .toList()
+                .sort(canonicalJarEntryOrder)
+                .collect { it.name }
+        def actualOrder = entries.collect { it.name }
+        if (actualOrder != expectedOrder) {
+            throw new GradleException(
+                    "platform JAR is not directory-free and canonically ordered: ${archiveFile}")
+        }
+
+        entries.each { entry ->
+            if (entry.directory) {
+                throw new GradleException(
+                        "directory entry survived platform JAR canonicalization: ${entry.name}")
+            }
+            if (entry.method != java.util.zip.ZipEntry.DEFLATED
+                    || entry.time != canonicalJarEpochMillis) {
+                throw new GradleException(
+                        "non-canonical ZIP metadata survived for platform JAR entry: ${entry.name}")
+            }
+            if (entry.name.toLowerCase(java.util.Locale.ROOT).contains(token)) {
+                throw new GradleException(
+                        "path-dependent Architectury injection entry survived: ${entry.name}")
+            }
+            def payload = archive.getInputStream(entry).withCloseable { it.bytes }
+            if (new String(payload, java.nio.charset.StandardCharsets.ISO_8859_1)
+                    .contains(token)) {
+                throw new GradleException(
+                        "path-dependent Architectury injection reference survived: ${entry.name}")
+            }
+        }
+    }
+}
+
+tasks.register('verifyCanonicalJarTimezoneIndependence', Exec) {
+    group = 'verification'
+    description = 'Proves canonical ZIP timestamp bytes under isolated JVM default timezones.'
+    workingDir(rootDir)
+    environment('ASHEN_SPAN_GRADLE_JAVA_HOME', System.getProperty('java.home'))
+    commandLine(providers.environmentVariable('PYTHON').orElse('python').get(), '-B',
+            '-m', 'unittest',
+            'tools.tests.test_ashen_span_mp25_packaging.PackagingTests.'
+                    + 'test_79c_canonical_zip_timestamp_is_timezone_independent', '-v')
+}
+
 allprojects {
     group = rootProject.maven_group
     version = rootProject.mod_version
@@ -89,5 +217,5 @@ tasks.register("offlineCheck") {
     group = "verification"
     description = "Runs all subproject checks and the Forge GameTest server."
     dependsOn(":common:check", ":fabric:check", ":forge:check",
-            ":forge:runGameTestServer")
+            ":forge:runGameTestServer", ":verifyCanonicalJarTimezoneIndependence")
 }

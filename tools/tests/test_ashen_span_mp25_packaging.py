@@ -5,7 +5,10 @@ from __future__ import annotations
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -40,6 +43,35 @@ def ordinary_zip(entries: dict[str, bytes]) -> bytes:
         for name, blob in entries.items():
             archive.writestr(name, blob)
     return output.getvalue()
+
+
+def spoof_central_directory_record(
+        blob: bytes, member: str, *, crc32: int | None = None,
+        compressed_size: int | None = None, uncompressed_size: int | None = None) -> bytes:
+    result = bytearray(blob)
+    eocd = result.rfind(b"PK\x05\x06")
+    if eocd < 0:
+        raise AssertionError("fixture ZIP lacks an end record")
+    entry_count = int.from_bytes(result[eocd + 10:eocd + 12], "little")
+    offset = int.from_bytes(result[eocd + 16:eocd + 20], "little")
+    target = member.encode("utf-8")
+    for _ in range(entry_count):
+        if result[offset:offset + 4] != b"PK\x01\x02":
+            raise AssertionError("fixture central directory is malformed")
+        name_length = int.from_bytes(result[offset + 28:offset + 30], "little")
+        extra_length = int.from_bytes(result[offset + 30:offset + 32], "little")
+        comment_length = int.from_bytes(result[offset + 32:offset + 34], "little")
+        name = bytes(result[offset + 46:offset + 46 + name_length])
+        if name == target:
+            if crc32 is not None:
+                result[offset + 16:offset + 20] = crc32.to_bytes(4, "little")
+            if compressed_size is not None:
+                result[offset + 20:offset + 24] = compressed_size.to_bytes(4, "little")
+            if uncompressed_size is not None:
+                result[offset + 24:offset + 28] = uncompressed_size.to_bytes(4, "little")
+            return bytes(result)
+        offset += 46 + name_length + extra_length + comment_length
+    raise AssertionError(f"fixture member not found: {member}")
 
 
 def dependency_jar(name: str) -> bytes:
@@ -520,10 +552,6 @@ class PackagingTests(unittest.TestCase):
         payload_mutation = dict(baseline)
         payload_mutation["unrelated/Reference.class"] = b"prefix architectury_inject_hidden suffix"
         mutations.append(("payload", payload_mutation))
-        directory_mutation = dict(baseline)
-        directory_mutation["architectury_inject_directory_only/"] = b""
-        mutations.append(("directory", directory_mutation))
-
         for kind, entries in mutations:
             contaminated = ordinary_zip(entries)
             for function, error in (
@@ -534,16 +562,34 @@ class PackagingTests(unittest.TestCase):
                         self.assertRaisesRegex(error, "path-dependent Architectury"):
                     function(contaminated, builder.sha256_bytes(contaminated))
 
+        empty_directory = dict(baseline)
+        empty_directory["architectury_inject_directory_only/"] = b""
+        directory_mutations = [("empty-directory", ordinary_zip(empty_directory))]
         nonempty_directory = dict(baseline)
-        nonempty_directory["ordinary-directory/"] = b"hidden payload"
-        contaminated = ordinary_zip(nonempty_directory)
-        for function, error in (
-            (builder.validate_mp25_jar, builder.BuildError),
-            (verifier.inspect_mp25, verifier.VerifyError),
-        ):
-            with self.subTest(kind="nonempty-directory", function=function.__name__), \
-                    self.assertRaisesRegex(error, "directory entry must be empty"):
-                function(contaminated, builder.sha256_bytes(contaminated))
+        nonempty_directory["ordinary-directory/"] = b"architectury_inject_hidden"
+        nonempty = ordinary_zip(nonempty_directory)
+        directory_mutations.append(("nonempty-directory", nonempty))
+        directory_mutations.append((
+            "central-size-crc-spoof",
+            spoof_central_directory_record(
+                nonempty, "ordinary-directory/", crc32=0, uncompressed_size=0,
+            ),
+        ))
+        directory_mutations.append((
+            "central-size-crc-compressed-size-spoof",
+            spoof_central_directory_record(
+                nonempty, "ordinary-directory/", crc32=0,
+                compressed_size=0, uncompressed_size=0,
+            ),
+        ))
+        for kind, contaminated in directory_mutations:
+            for function, error in (
+                (builder.validate_mp25_jar, builder.BuildError),
+                (verifier.inspect_mp25, verifier.VerifyError),
+            ):
+                with self.subTest(kind=kind, function=function.__name__), \
+                        self.assertRaisesRegex(error, "directory entry"):
+                    function(contaminated, builder.sha256_bytes(contaminated))
 
     def test_25_runtime_bound_rc6_rejects_self_consistent_input_substitution(self) -> None:
         original_mp25 = self.fixture.mp25.read_bytes()
@@ -905,7 +951,7 @@ class PackagingTests(unittest.TestCase):
         for pattern in ("*.jar", "*.zip", "*.mrpack", "*.nbt", "*.mca", "*.dat", "*.ogg"):
             self.assertIn(f"{pattern} binary", attributes)
 
-    def test_79b_gradle_archives_are_reproducible_before_architectury_transform(self) -> None:
+    def test_79b_gradle_archives_are_reproducible_and_final_jars_are_canonical(self) -> None:
         gradle = (TOOLS.parent / "build.gradle").read_text(encoding="utf-8")
         self.assertIn(
             "tasks.withType(org.gradle.api.tasks.bundling.AbstractArchiveTask).configureEach",
@@ -913,12 +959,79 @@ class PackagingTests(unittest.TestCase):
         )
         self.assertIn("preserveFileTimestamps = false", gradle)
         self.assertIn("reproducibleFileOrder = true", gradle)
+        self.assertIn("canonicalizePlatformJar", gradle)
+        self.assertIn("platform JAR is not directory-free", gradle)
+        self.assertIn("targetEntry.setTime(canonicalJarEpochMillis)", gradle)
+        self.assertNotIn("targetEntry.setTimeLocal", gradle)
+        self.assertIn("verifyCanonicalJarTimezoneIndependence", gradle)
+        self.assertIn("ASHEN_SPAN_GRADLE_JAVA_HOME", gradle)
+        self.assertNotIn("TimeZone.setDefault", gradle)
+        self.assertIn("Files.createTempFile", gradle)
         for platform in ("forge", "fabric"):
             platform_gradle = (TOOLS.parent / platform / "build.gradle").read_text(
                 encoding="utf-8")
             self.assertIn("exclude 'architectury_inject_*/**'", platform_gradle)
-            self.assertIn("path-dependent Architectury injection entry survived", platform_gradle)
-            self.assertIn("path-dependent Architectury injection reference survived", platform_gradle)
+            self.assertIn("canonicalizePlatformJar.call(output)", platform_gradle)
+            self.assertIn("assertCanonicalPlatformJar.call(output)", platform_gradle)
+
+    def test_79c_canonical_zip_timestamp_is_timezone_independent(self) -> None:
+        java_name = "java.exe" if os.name == "nt" else "java"
+        gradle_java_home = os.environ.get("ASHEN_SPAN_GRADLE_JAVA_HOME")
+        java_home = gradle_java_home or os.environ.get("JAVA_HOME")
+        java = None
+        if java_home:
+            candidate = Path(java_home) / "bin" / java_name
+            if candidate.is_file():
+                java = str(candidate)
+        if gradle_java_home:
+            self.assertIsNotNone(java, "Gradle's Java runtime is missing its launcher")
+        else:
+            java = java or shutil.which("java")
+        self.assertIsNotNone(java, "the pinned Java runtime is required for the ZIP proof")
+
+        source = self.root / "CanonicalTimestampProof.java"
+        source.write_text(
+            """import java.io.ByteArrayOutputStream;
+import java.nio.charset.StandardCharsets;
+import java.util.zip.Deflater;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
+
+public class CanonicalTimestampProof {
+    public static void main(String[] args) throws Exception {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+        try (ZipOutputStream archive = new ZipOutputStream(output, StandardCharsets.UTF_8)) {
+            archive.setLevel(Deflater.BEST_COMPRESSION);
+            ZipEntry entry = new ZipEntry("proof.txt");
+            entry.setMethod(ZipEntry.DEFLATED);
+            entry.setTime(0L);
+            archive.putNextEntry(entry);
+            archive.write("timezone-neutral\\n".getBytes(StandardCharsets.UTF_8));
+            archive.closeEntry();
+        }
+        System.out.write(output.toByteArray());
+    }
+}
+""",
+            encoding="utf-8",
+        )
+        outputs = {}
+        for timezone in ("UTC", "America/New_York", "Asia/Tokyo"):
+            completed = subprocess.run(
+                [java, f"-Duser.timezone={timezone}", str(source)],
+                check=False, capture_output=True,
+            )
+            self.assertEqual(
+                0, completed.returncode,
+                completed.stderr.decode("utf-8", "replace"),
+            )
+            outputs[timezone] = completed.stdout
+        self.assertEqual(1, len(set(outputs.values())))
+        with zipfile.ZipFile(io.BytesIO(outputs["UTC"])) as archive:
+            infos = archive.infolist()
+            self.assertEqual(["proof.txt"], [info.filename for info in infos])
+            self.assertEqual((1980, 1, 1, 0, 0, 0), infos[0].date_time)
+            self.assertEqual(zipfile.ZIP_DEFLATED, infos[0].compress_type)
 
     def test_80_exclusive_publish_refuses_existing_output(self) -> None:
         files = self.build_and_publish()

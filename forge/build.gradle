@@ -112,25 +112,9 @@ shadowJar {
 remapJar {
     input.set shadowJar.archiveFile
     doLast {
-        def token = 'architectury_inject_'
-        new java.util.zip.ZipFile(archiveFile.get().asFile).withCloseable { archive ->
-            def entries = archive.entries()
-            while (entries.hasMoreElements()) {
-                def entry = entries.nextElement()
-                if (entry.name.contains(token)) {
-                    throw new GradleException(
-                            "path-dependent Architectury injection entry survived: ${entry.name}")
-                }
-                if (!entry.directory) {
-                    def payload = archive.getInputStream(entry).withCloseable { it.bytes }
-                    if (new String(payload, java.nio.charset.StandardCharsets.ISO_8859_1)
-                            .contains(token)) {
-                        throw new GradleException(
-                                "path-dependent Architectury injection reference survived: ${entry.name}")
-                    }
-                }
-            }
-        }
+        def output = archiveFile.get().asFile
+        rootProject.ext.canonicalizePlatformJar.call(output)
+        rootProject.ext.assertCanonicalPlatformJar.call(output)
     }
 }
 
