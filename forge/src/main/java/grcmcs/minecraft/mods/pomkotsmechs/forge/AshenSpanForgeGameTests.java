@@ -55,6 +55,7 @@ import java.util.UUID;
 @PrefixGameTestTemplate(false)
 public final class AshenSpanForgeGameTests {
     private static final String EMPTY_TEMPLATE = "gametest/empty";
+    private static final int DEPLOYMENT_SPATIAL_VISIBILITY_TIMEOUT_TICKS = 190;
 
     private AshenSpanForgeGameTests() {
     }
@@ -148,41 +149,23 @@ public final class AshenSpanForgeGameTests {
         try {
             pilot.setPos(pad);
             level.addNewPlayer(pilot);
-            helper.assertTrue(!level.noCollision(mech, mech.getBoundingBox()),
-                    "GameTest fixture did not reproduce the caller entity collision");
-            helper.assertTrue(ArenaGameTestAccess.isSoloDeploymentPadClear(level, mech, pilot),
-                    "player at the authored PLAYER_PAD incorrectly blocked SOLO deployment");
-
-            helper.assertTrue(ArenaGameTestAccess.prepareSoloGarageBuild(mech),
-                    "Garage build was not ready for the deployment mount");
-            helper.assertTrue(level.addFreshEntity(mech),
-                    "player mech could not enter the world after pad validation");
-            helper.assertTrue(pilot.startRiding(mech, true)
-                            && mech.getDrivingPassenger() == pilot,
-                    "player at PLAYER_PAD could not mount the validated Garage build");
-
-            blocker.setPos(pad);
-            helper.assertTrue(blocker.canBeCollidedWith(),
-                    "Boat fixture was not a collidable non-player obstruction");
-            helper.assertTrue(level.addFreshEntity(blocker),
-                    "non-player blocker could not enter the deployment pad");
-            helper.assertTrue(!ArenaGameTestAccess.isSoloDeploymentPadClear(level, mech, pilot),
-                    "collidable non-player entity did not block SOLO deployment");
-        } finally {
-            pilot.stopRiding();
-            blocker.discard();
-            mech.discard();
-            if (!pilot.isRemoved()) {
-                level.removePlayerImmediately(pilot, Entity.RemovalReason.DISCARDED);
-            }
-            ArenaGameTestAccess.endOwnership();
-            restoreBlocks(level, originalBlocks);
+            helper.assertTrue(level.getEntity(pilot.getUUID()) == pilot,
+                    "GameTest server did not register the exact caller player");
+        } catch (RuntimeException | Error failure) {
+            cleanupDeploymentFixture(level, mech, pilot, blocker, originalBlocks);
+            throw failure;
         }
-
-        helper.assertTrue(createdIds.stream().allMatch(id -> level.getEntity(id) == null)
-                        && !ArenaHooks.isActive(),
-                "deployment regression GameTest did not clean its entities to exact zero");
-        helper.succeed();
+        helper.runAfterDelay(DEPLOYMENT_SPATIAL_VISIBILITY_TIMEOUT_TICKS, () -> {
+            cleanupDeploymentFixture(level, mech, pilot, blocker, originalBlocks);
+            helper.fail("GameTest caller never became visible to spatial collision queries");
+        });
+        helper.startSequence()
+                .thenWaitUntil(() -> helper.assertTrue(
+                        isPilotSpatiallyVisible(level, mech, pilot),
+                        "GameTest caller is not yet visible to spatial collision queries"))
+                .thenExecute(() -> verifyDeploymentAfterSpatialRegistration(
+                        helper, level, mech, pilot, blocker, originalBlocks, createdIds))
+                .thenSucceed();
     }
 
     @GameTest(template = EMPTY_TEMPLATE, timeoutTicks = 100)
@@ -851,6 +834,60 @@ public final class AshenSpanForgeGameTests {
                         && snapshot.openedGates().isEmpty()
                         && !snapshot.serviceCompleted(),
                 label + " did not restore a clean deterministic garage state");
+    }
+
+    private static void verifyDeploymentAfterSpatialRegistration(
+            GameTestHelper helper, ServerLevel level, Pmvc01Entity mech,
+            CollidableGameTestPlayer pilot, Entity blocker,
+            Map<BlockPos, BlockState> originalBlocks, Set<UUID> createdIds) {
+        try {
+            helper.assertTrue(!level.noCollision(mech, mech.getBoundingBox()),
+                    "GameTest fixture did not reproduce the caller entity collision");
+            helper.assertTrue(ArenaGameTestAccess.isSoloDeploymentPadClear(level, mech, pilot),
+                    "player at the authored PLAYER_PAD incorrectly blocked SOLO deployment");
+
+            helper.assertTrue(ArenaGameTestAccess.prepareSoloGarageBuild(mech),
+                    "Garage build was not ready for the deployment mount");
+            helper.assertTrue(level.addFreshEntity(mech),
+                    "player mech could not enter the world after pad validation");
+            helper.assertTrue(pilot.startRiding(mech, true)
+                            && mech.getDrivingPassenger() == pilot,
+                    "player at PLAYER_PAD could not mount the validated Garage build");
+
+            blocker.setPos(mech.position());
+            helper.assertTrue(blocker.canBeCollidedWith(),
+                    "Boat fixture was not a collidable non-player obstruction");
+            helper.assertTrue(level.addFreshEntity(blocker),
+                    "non-player blocker could not enter the deployment pad");
+            helper.assertTrue(!ArenaGameTestAccess.isSoloDeploymentPadClear(level, mech, pilot),
+                    "collidable non-player entity did not block SOLO deployment");
+        } finally {
+            cleanupDeploymentFixture(level, mech, pilot, blocker, originalBlocks);
+        }
+
+        helper.assertTrue(createdIds.stream().allMatch(id -> level.getEntity(id) == null)
+                        && !ArenaHooks.isActive(),
+                "deployment regression GameTest did not clean its entities to exact zero");
+    }
+
+    private static boolean isPilotSpatiallyVisible(
+            ServerLevel level, Pmvc01Entity mech, CollidableGameTestPlayer pilot) {
+        return level.getEntities(mech, mech.getBoundingBox().inflate(1.0E-7D),
+                        entity -> entity == pilot)
+                .stream().anyMatch(entity -> entity == pilot);
+    }
+
+    private static void cleanupDeploymentFixture(
+            ServerLevel level, Pmvc01Entity mech, CollidableGameTestPlayer pilot,
+            Entity blocker, Map<BlockPos, BlockState> originalBlocks) {
+        pilot.stopRiding();
+        blocker.discard();
+        mech.discard();
+        if (!pilot.isRemoved()) {
+            level.removePlayerImmediately(pilot, Entity.RemovalReason.DISCARDED);
+        }
+        ArenaGameTestAccess.endOwnership();
+        restoreBlocks(level, originalBlocks);
     }
 
     private static void prepareDeploymentPad(ServerLevel level, AABB box,
