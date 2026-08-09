@@ -159,10 +159,12 @@ class AshenSpanMapDataTest {
 
     @Test
     void loadedAssetResourceMustBeTheExactCanonicalContract() throws Exception {
-        byte[] bytes;
-        try (var jar = new java.util.zip.ZipFile(
+        var assetJar = java.nio.file.Path.of(System.getProperty(
+                "ashen.span.asset.jar",
                 java.nio.file.Path.of("..", "sector01-src", "dist",
-                        "mecharena_sector01-1.0.0-mp25.jar").toFile())) {
+                        "mecharena_sector01-1.0.0-mp25.jar").toString()));
+        byte[] bytes;
+        try (var jar = new java.util.zip.ZipFile(assetJar.toFile())) {
             bytes = jar.getInputStream(jar.getEntry(
                     "data/mecharena_sector01/ashen_span/cold_ruin_sector_01.json"))
                     .readAllBytes();

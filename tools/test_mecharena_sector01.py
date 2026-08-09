@@ -470,6 +470,8 @@ class Sector01AssetTests(unittest.TestCase):
         self.assertIn("META-INF/THIRD_PARTY_NOTICES.md", entries)
         self.assertIn(b"MIT License", entries["META-INF/THIRD_PARTY_NOTICES.md"])
         self.assertIn(b"7.4.13", entries["META-INF/THIRD_PARTY_NOTICES.md"])
+        self.assertEqual((builder.REPO_ROOT / "LICENSE").read_bytes(),
+                         entries["META-INF/LICENSE"])
 
     def test_60_canonical_full_jar_and_receipt_are_byte_reproducible(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -487,6 +489,8 @@ class Sector01AssetTests(unittest.TestCase):
             self.assertEqual(308, result_a["predefined_building_count"])
             self.assertEqual(309, result_a["part_count_including_empty"])
             self.assertEqual(builder.sha256_file(jar_a), result_a["artifact"]["sha256"])
+            self.assertEqual(builder.sha256_file(builder.REPO_ROOT / "LICENSE"),
+                             result_a["source_sha256"]["LICENSE"])
             with zipfile.ZipFile(jar_a) as archive:
                 names = archive.namelist()
                 self.assertEqual(sorted(names), names)

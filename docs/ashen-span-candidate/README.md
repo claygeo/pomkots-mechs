@@ -39,9 +39,9 @@ pinned in code. The source commit must resolve to the clean checked-out `HEAD`,
 so the receipt cannot self-attest an unrelated object ID. Builder provenance
 hashes the committed Git blob instead of checkout-dependent bytes, and
 `.gitattributes` pins normalized hardening/asset/world inputs and the authored mission
-JSON to LF, preserves other production resources and the embedded license as exact Git
-bytes, and gives the directly copied Forge `pack.mcmeta` a fixed CRLF form. Gradle
-therefore cannot receive platform-dependent payloads. Publication is
+JSON to LF, preserves other production resources as exact Git bytes, and gives the
+directly copied root license and Forge `pack.mcmeta` fixed CRLF forms. Gradle therefore
+cannot receive platform-dependent payloads. Publication is
 exclusive: missing parent directories are created and checked one component at
 a time, the output directory must not exist, and a sibling staging directory is
 atomically renamed only after every file is written and reread.

@@ -723,9 +723,10 @@ def build_entries(
     entries = _common_asset_json(contract, profile, selected, mode)
     entries["META-INF/THIRD_PARTY_NOTICES.md"] = notices
 
-    repo_license = DEFAULT_SOURCE.parent / "LICENSE"
-    if repo_license.is_file():
-        entries["META-INF/LICENSE"] = repo_license.read_bytes()
+    repo_license = REPO_ROOT / "LICENSE"
+    if not repo_license.is_file():
+        raise ContractError(f"missing required repository license: {repo_license}")
+    entries["META-INF/LICENSE"] = repo_license.read_bytes()
 
     namespace = contract["asset"]["mod_id"]
     base = f"data/{namespace}/lostcities"
@@ -786,6 +787,7 @@ def make_receipt(
     building_count = sum(1 for name in entries if name.startswith(prefix + "/buildings/") and name.endswith(".json"))
     predef = json.loads(entries[f"{prefix}/predefinedcities/cold_ruin_sector_01.json"].decode("utf-8"))
     source_hashes = {
+        "LICENSE": sha256_file(REPO_ROOT / "LICENSE"),
         "sector01-contract.json": sha256_file(source_dir / "sector01-contract.json"),
         "lostcities-profile.json": sha256_file(source_dir / "lostcities-profile.json"),
         "THIRD_PARTY_NOTICES.md": sha256_file(source_dir / "THIRD_PARTY_NOTICES.md"),

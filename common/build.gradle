@@ -35,6 +35,58 @@ dependencies {
     testRuntimeOnly "org.junit.platform:junit-platform-launcher:1.10.2"
 }
 
+def ashenSpanTestAssetJar = layout.buildDirectory.file(
+        "ashen-span-test-asset/mecharena_sector01-1.0.0-mp25.jar")
+def ashenSpanTestAssetReceipt = layout.buildDirectory.file(
+        "ashen-span-test-asset/mecharena_sector01-1.0.0-mp25.build-receipt.json")
+def lockedAshenSpanAssetSha256 =
+        "e1ac026bc07966803c5f3afcf455a0b6b7f924f4131c52600355944a5cbbefa9"
+
+def buildAshenSpanSectorAssetForTest = tasks.register(
+        "buildAshenSpanSectorAssetForTest", Exec) {
+    group = "verification"
+    description = "Builds and verifies the locked Sector 01 asset used by unit tests."
+    workingDir rootProject.projectDir
+    inputs.files(
+            rootProject.file("tools/build_mecharena_sector01.py"),
+            rootProject.file("sector01-src/sector01-contract.json"),
+            rootProject.file("sector01-src/lostcities-profile.json"),
+            rootProject.file("sector01-src/THIRD_PARTY_NOTICES.md"),
+            rootProject.file("sector01-src/dist/mecharena_sector01-1.0.0-mp25.build-receipt.json"),
+            rootProject.file("LICENSE"))
+    outputs.files(ashenSpanTestAssetJar, ashenSpanTestAssetReceipt)
+
+    doFirst {
+        def artifact = ashenSpanTestAssetJar.get().asFile
+        def receipt = ashenSpanTestAssetReceipt.get().asFile
+        artifact.parentFile.mkdirs()
+        commandLine(providers.environmentVariable("PYTHON").orElse("python").get(), "-B",
+                rootProject.file("tools/build_mecharena_sector01.py").absolutePath,
+                "--output", artifact.absolutePath,
+                "--receipt", receipt.absolutePath)
+    }
+    doLast {
+        def artifact = ashenSpanTestAssetJar.get().asFile
+        def receipt = ashenSpanTestAssetReceipt.get().asFile
+        def actualSha256 = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(artifact.bytes).encodeHex().toString()
+        if (actualSha256 != lockedAshenSpanAssetSha256) {
+            throw new GradleException("Sector 01 test asset SHA-256 ${actualSha256} "
+                    + "does not match locked ${lockedAshenSpanAssetSha256}")
+        }
+        def lockedReceipt = rootProject.file(
+                "sector01-src/dist/mecharena_sector01-1.0.0-mp25.build-receipt.json")
+        if (!java.util.Arrays.equals(receipt.bytes, lockedReceipt.bytes)) {
+            throw new GradleException(
+                    "Sector 01 generated receipt does not match the tracked locked receipt")
+        }
+    }
+}
+
 tasks.withType(Test).configureEach {
     useJUnitPlatform()
+    dependsOn(buildAshenSpanSectorAssetForTest)
+    doFirst {
+        systemProperty "ashen.span.asset.jar", ashenSpanTestAssetJar.get().asFile.absolutePath
+    }
 }

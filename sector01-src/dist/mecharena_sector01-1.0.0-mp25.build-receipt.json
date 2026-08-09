@@ -29,8 +29,9 @@
   "schema": 1,
   "seed": 4707185498036326465,
   "source_sha256": {
+    "LICENSE": "2928a6b9a96ffd67feaeac74ba2d1913accb4874a7352d46d9a7acd3909868ff",
     "THIRD_PARTY_NOTICES.md": "f404310da1022b0c30bf3223224bd25f26e6ab6d1c4c7b719ae0587af499ce65",
-    "build_mecharena_sector01.py": "6c83ecc514ee93846d1d5beced4c27da42a72f67a31918e749a5089fb71d0f92",
+    "build_mecharena_sector01.py": "2d2abc616ed1d359f588a383b45e882dfde97f8ca1fac897fe560946666b24c9",
     "lostcities-profile.json": "d0a3f587d39350e0c66fd59164ce500146406ce55bd75d582912905eb5c1e868",
     "sector01-contract.json": "60d315c55e9382cd11dd98cc1b5c4b78e97cefe7eb7f150a17724987f109f92e"
   },

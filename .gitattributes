@@ -10,9 +10,9 @@ docs/ashen-span-hardening/** text eol=lf
 sector01-src/** text eol=lf
 sector01-world/** text eol=lf
 
-# Production resources and the embedded license are copied byte-for-byte unless
-# a direct-copy resource below has an explicit canonical line ending.
-LICENSE -text
+# Production resources are copied byte-for-byte unless a direct-copy resource
+# below has an explicit canonical line ending.
+LICENSE text eol=crlf
 common/src/main/resources/** -text
 forge/src/main/resources/** -text
 fabric/src/main/resources/** -text

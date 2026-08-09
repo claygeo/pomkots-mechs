@@ -853,7 +853,7 @@ class PackagingTests(unittest.TestCase):
                 "tools/ashen_span_world/generation_datapack/**",
                 "docs/ashen-span-hardening/**", "sector01-src/**", "sector01-world/**"):
             self.assertIn(f"{path} text eol=lf", attributes)
-        self.assertIn("LICENSE -text", attributes)
+        self.assertIn("LICENSE text eol=crlf", attributes)
         for root in (
                 "common/src/main/resources/**", "forge/src/main/resources/**",
                 "fabric/src/main/resources/**"):
